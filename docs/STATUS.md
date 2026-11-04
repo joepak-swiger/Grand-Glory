@@ -1,26 +1,29 @@
-# Milestone 001 status
+# Project status
 
-Status: playable local vertical slice implemented and verified in a real browser. GitHub publication remains unavailable in this environment; see the delivery report for the repository-creation blocker.
+## Milestone 001 — first playable slice
 
-## Implemented
+The playable vertical slice is published in the official public repository at <https://github.com/joepak-swiger/Grand-Glory>. Pull request #1 is open and unmerged. The `main` branch preserves the initial repository baseline; substantive work is on `feature/first-playable`.
 
-- Strict TypeScript, Vite, PixiJS 8, Vitest, Playwright, npm package lock, and CI workflow.
-- Independent fixed-step seeded simulation separated from PixiJS rendering.
-- Title screen, responsive placeholder city street, camera follow, Blue Pinwheel placeholder, directional movement, dash, auto-targeting rotating Pinwheel projectile, damage/invulnerability, Thug and Fast Thug enemies.
-- XP pickups, levels, three-choice paused upgrades, Orbit Guard prototype upgrade, temporary area special, short configurable development run, telegraphed Gang Leader boss, victory/defeat, pause/resume, results, and restart.
-- Development-only frame/entity/seed diagnostics and deterministic test setup.
-- Owner canon register and asset, gameplay, setup, and testing documentation.
+## Milestone 002 — foundation corrections
 
-## Verified
+Implemented locally on the existing PR branch:
 
-- Typecheck, all 22 simulation tests, and the production build pass.
-- One Playwright Chromium test passes against the real Vite app. It checks start, movement, attack, enemy damage, XP pickup/level-up, an upgrade effect, paused simulation, automatic boss projectile defeat, victory, player defeat, restart, and the debug panel.
-- Eight real-browser screenshots are saved in artifacts/evidence/.
-- A simulation load check completed 300 fixed steps at 0, 25, and 75 active enemies without entity growth.
+- Enemy spawns sample all four edges of the playable street, remain in valid bounds, and reject points within 180 world units of the player.
+- Ordinary contact damage applies one full enemy damage value per hit. Shared 0.8-second player invulnerability prevents a group of touching enemies from dealing a frame-scaled trickle or stacking hits instantly.
+- Gang Leader projectile and charge warnings align with their attack vectors. The charge now moves along the warned path and deals a single contact hit when it connects.
+- The boss appears at 2:30. The 3:00 target starts a visible overtime phase; defeating the boss still wins, while an undefeated boss escapes and ends the run in defeat after 4:00.
+- HUD, results, and gameplay documentation describe the run rules.
 
-## Incomplete / planned
+### Verification status
 
-- Replace every temporary visual and gameplay proposal with owner-provided or owner-approved Blue Pinwheel content.
-- Tune balance, boss patterns, onboarding, and standard three-minute pacing with longer human play sessions.
-- Sound, mobile touch controls, additional heroes/stages, final art, and a roughly ten-minute run are future work.
-- GitHub remote, PR, and CI status are unset because this session cannot create the requested repository.
+- Local on the current foundation work: typecheck passed; all 29 simulation tests passed; production build passed.
+- GitHub CI for this foundation commit is pending. The previous PR revision's CI passed before these changes.
+- Deterministic browser automation covers the playable flow. A human has not completed a normal three-minute run yet.
+- Simulation performance measurements are separate from browser-rendering performance; no new renderer benchmark has been taken for these corrections.
+
+## Still planned
+
+- Import the supplied Blue Pinwheel artwork after source package inspection and update the title screen, character renderer, and animation.
+- Add real-browser checks for asset loading and animation playback, and capture new rendered evidence.
+- Conduct and document a representative normal-duration playthrough.
+- Final art, sound, touch controls, additional heroes/stages, and a longer run remain future work.

@@ -70,8 +70,18 @@ export class GameRenderer {
     for (const enemy of state.enemies) {
       if (enemy.dead) continue;
       const color = enemy.kind === 'boss' ? COLORS.boss : enemy.kind === 'fastThug' ? COLORS.fast : COLORS.thug;
-      const bossPhase = enemy.phase % GANG_LEADER.phaseLength;
-      if (enemy.kind === 'boss' && bossPhase > GANG_LEADER.rangedTelegraphStart - 0.15 && bossPhase < GANG_LEADER.rangedTelegraphEnd + 0.15) g.circle(enemy.x, enemy.y, 78).stroke({ color, width: 4, alpha: 0.45 });
+      if (enemy.kind === 'boss' && enemy.attackState === 'ranged-telegraph') {
+        const tx = enemy.x + enemy.attackDirection.x * 620; const ty = enemy.y + enemy.attackDirection.y * 620;
+        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffd56a, width: 12, alpha: 0.14 });
+        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffdf82, width: 3, alpha: 0.78 });
+      }
+      if (enemy.kind === 'boss' && (enemy.attackState === 'charge-telegraph' || enemy.attackState === 'charging')) {
+        const length = GANG_LEADER.chargeSpeed * (GANG_LEADER.chargeActiveEnd - GANG_LEADER.chargeEnd);
+        const tx = enemy.x + enemy.attackDirection.x * length; const ty = enemy.y + enemy.attackDirection.y * length;
+        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: enemy.attackState === 'charging' ? 0xff6a5e : 0xffa260, width: 28, alpha: enemy.attackState === 'charging' ? 0.2 : 0.15 });
+        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: enemy.attackState === 'charging' ? 0xff6a5e : 0xffd16d, width: 3, alpha: 0.9 });
+        g.circle(tx, ty, 13).stroke({ color: 0xffd16d, width: 3, alpha: 0.85 });
+      }
       // Graphic silhouette: broad shoulders, tapered coat, contrasting head. All character art is temporary.
       g.ellipse(enemy.x, enemy.y + enemy.radius + 4, enemy.radius + 3, 5).fill({ color: 0x07111a, alpha: 0.35 });
       g.roundRect(enemy.x - enemy.radius * 0.85, enemy.y - enemy.radius * 0.2, enemy.radius * 1.7, enemy.radius * 1.75, 7).fill(enemy.hitFlash > 0 ? 0xffffff : color);

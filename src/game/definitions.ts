@@ -25,8 +25,8 @@ export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'special', Att
   orbitGuard: { id: 'orbit-guard-prototype', name: 'Orbit Guard (Prototype)', damage: 11, cooldown: 0.42, projectileSpeed: 0, lifetime: 0, targetRange: 78 },
   special: { id: 'special-prototype', name: 'Prototype Special — Canon TBD', damage: 115, cooldown: 0.7, projectileSpeed: 0, lifetime: 0, targetRange: 230 },
 };
-export interface BossDefinition { readonly name: string; readonly health: number; readonly speed: number; readonly contactDamage: number; readonly radius: number; readonly xp: number; readonly phaseLength: number; readonly approachUntil: number; readonly rangedTelegraphStart: number; readonly rangedTelegraphEnd: number; readonly rangedDamage: number; readonly rangedSpeed: number; readonly rangedCooldown: number; readonly chargeStart: number; readonly chargeEnd: number; readonly chargeRange: number; readonly chargeSpeed: number }
-export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', health: 760, speed: 45, contactDamage: 18, radius: 31, xp: 120, phaseLength: 6.2, approachUntil: 2.8, rangedTelegraphStart: 3.25, rangedTelegraphEnd: 3.65, rangedDamage: 16, rangedSpeed: 280, rangedCooldown: 2.1, chargeStart: 4.4, chargeEnd: 4.7, chargeRange: 260, chargeSpeed: 150 };
+export interface BossDefinition { readonly name: string; readonly health: number; readonly speed: number; readonly contactDamage: number; readonly radius: number; readonly xp: number; readonly phaseLength: number; readonly approachUntil: number; readonly rangedTelegraphStart: number; readonly rangedTelegraphEnd: number; readonly rangedDamage: number; readonly rangedSpeed: number; readonly chargeStart: number; readonly chargeEnd: number; readonly chargeActiveEnd: number; readonly recoveryEnd: number; readonly chargeRange: number; readonly chargeSpeed: number }
+export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', health: 760, speed: 45, contactDamage: 18, radius: 31, xp: 120, phaseLength: 7.4, approachUntil: 2.35, rangedTelegraphStart: 2.35, rangedTelegraphEnd: 3.1, rangedDamage: 16, rangedSpeed: 280, chargeStart: 4.15, chargeEnd: 4.95, chargeActiveEnd: 5.55, recoveryEnd: 6.25, chargeRange: 300, chargeSpeed: 430 };
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
   thug: { kind: 'thug', health: 34, speed: 55, damage: 9, radius: 15, xp: 12 },
   fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 7, radius: 13, xp: 16 },
@@ -43,8 +43,8 @@ export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: str
   { id: 'orbit', title: 'Orbit Guard (Prototype)', detail: 'Unlock a close-range rotating attack' },
 ];
 
-export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean }
+export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean }
 export interface StageDefinition { readonly id: string; readonly name: string; readonly run: RunConfig; readonly visualStyle: 'city-street-placeholder' }
-export const standardRun: RunConfig = { duration: 180, bossAt: 150, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 75, testMode: false };
-export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, seed: 1741, maxEnemies: 28, testMode: true };
+export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 75, testMode: false };
+export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, overtimeLimit: 12, seed: 1741, maxEnemies: 28, testMode: true };
 export const CITY_STREET_STAGE: StageDefinition = { id: 'city-street', name: 'City Street (Prototype)', run: standardRun, visualStyle: 'city-street-placeholder' };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLUE_PINWHEEL, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
+import { BLUE_PINWHEEL, GANG_LEADER, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
 import { acquireTarget, chooseUpgrade, createGame, damagePlayer, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
@@ -41,6 +41,20 @@ describe('deterministic gameplay simulation', () => {
     s.player.invulnerable = 0; damagePlayer(s, 1000); expect(s.player.health).toBe(0); expect(s.status).toBe('defeat');
   });
 
+  it('applies full per-hit thug contact damage and respects the invulnerability window', () => {
+    const s = createGame(121, testRun); s.player.attackTimer = 10;
+    const thug = spawnEnemy(s, 'thug', testRun, { x: s.player.x, y: s.player.y }); thug.health = 1000; thug.maxHealth = 1000; s.enemies.push(thug);
+    steps(s, 1); expect(s.player.health).toBe(91);
+    steps(s, 47); expect(s.player.health).toBe(91);
+    steps(s, 1); expect(s.player.health).toBe(82);
+  });
+
+  it('lets only one of multiple simultaneous contacts damage the player during invulnerability', () => {
+    const s = createGame(122, testRun); s.player.attackTimer = 10;
+    for (let i = 0; i < 4; i++) { const thug = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun, { x: s.player.x, y: s.player.y }); thug.health = 1000; thug.maxHealth = 1000; s.enemies.push(thug); }
+    steps(s, 1); expect(s.player.health).toBe(91);
+  });
+
   it('knocks ordinary enemies away after a hit', () => {
     const s = createGame(13, testRun); const e = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 45, y: s.player.y }); s.enemies.push(e);
     steps(s, 45); expect(e.knockback.x).toBeGreaterThanOrEqual(-1); expect(e.x).toBeLessThan(s.player.x + 45);
@@ -48,7 +62,33 @@ describe('deterministic gameplay simulation', () => {
 
   it('spawns enemies away from the player and within arena bounds', () => {
     const s = createGame(14, testRun);
-    for (let i = 0; i < 100; i++) { const e = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun); expect(Math.hypot(e.x - s.player.x, e.y - s.player.y)).toBeGreaterThan(100); expect(e.x).toBeGreaterThanOrEqual(0); expect(e.x).toBeLessThan(testRun.arenaWidth); expect(e.y).toBeGreaterThanOrEqual(0); expect(e.y).toBeLessThan(testRun.arenaHeight); }
+    for (let i = 0; i < 100; i++) { const e = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun); expect(Math.hypot(e.x - s.player.x, e.y - s.player.y)).toBeGreaterThanOrEqual(180); expect(e.x).toBeGreaterThanOrEqual(28); expect(e.x).toBeLessThanOrEqual(testRun.arenaWidth - 28); expect(e.y).toBeGreaterThanOrEqual(288); expect(e.y).toBeLessThanOrEqual(752); }
+  });
+
+  it('distributes generated enemies across all four valid street edges for multiple seeds', () => {
+    const edges = { top: 0, right: 0, bottom: 0, left: 0 };
+    for (const seed of [1, 14, 987, 2026, 0xdeadbeef]) {
+      const s = createGame(seed, testRun);
+      for (let i = 0; i < 200; i++) {
+        const e = spawnEnemy(s, 'thug', testRun);
+        if (e.y === 288) edges.top++;
+        else if (e.x === testRun.arenaWidth - 28) edges.right++;
+        else if (e.y === 752) edges.bottom++;
+        else if (e.x === 28) edges.left++;
+        else throw new Error(`spawn was not on a valid edge: ${e.x}, ${e.y}`);
+      }
+    }
+    expect(edges.top).toBeGreaterThan(100); expect(edges.right).toBeGreaterThan(60);
+    expect(edges.bottom).toBeGreaterThan(100); expect(edges.left).toBeGreaterThan(60);
+  });
+
+  it('reproduces spawn coordinates independently for multiple seeds', () => {
+    for (const seed of [0, 1, 12345, 0xdeadbeef]) {
+      const a = createGame(seed, testRun); const b = createGame(seed, testRun);
+      const positionsA = Array.from({ length: 40 }, () => { const e = spawnEnemy(a, 'fastThug', testRun); return [e.x, e.y]; });
+      const positionsB = Array.from({ length: 40 }, () => { const e = spawnEnemy(b, 'fastThug', testRun); return [e.x, e.y]; });
+      expect(positionsA).toEqual(positionsB);
+    }
   });
 
   it('drops XP on death, collects it, and removes the dead enemy', () => {
@@ -121,8 +161,32 @@ describe('deterministic gameplay simulation', () => {
   });
 
   it('emits a hostile boss projectile during its telegraphed attack window', () => {
-    const s = createGame(27, testRun); const boss = spawnEnemy(s, 'boss', testRun, { x: s.player.x + 300, y: s.player.y }); boss.phase = 3.24; s.enemies.push(boss);
-    steps(s, 2); expect(s.projectiles.some(projectile => projectile.owner === 'enemy')).toBe(true);
+    const s = createGame(27, testRun); s.player.attackTimer = 100;
+    const boss = spawnEnemy(s, 'boss', testRun, { x: s.player.x + 300, y: s.player.y }); boss.phase = GANG_LEADER.rangedTelegraphStart - 0.01; s.enemies.push(boss);
+    steps(s, 1); expect(boss.attackState).toBe('ranged-telegraph'); expect(boss.attackDirection.x).toBeLessThan(0);
+    steps(s, 45); expect(s.projectiles.some(projectile => projectile.owner === 'enemy')).toBe(true); expect(boss.attackState).toBe('recovering');
+  });
+
+  it('telegraphs and lands a single damaging boss charge', () => {
+    const s = createGame(271, testRun); s.player.attackTimer = 100;
+    const boss = spawnEnemy(s, 'boss', testRun, { x: s.player.x + 70, y: s.player.y }); boss.phase = GANG_LEADER.chargeStart - 0.01; s.enemies.push(boss);
+    steps(s, 1); expect(boss.attackState).toBe('charge-telegraph'); expect(boss.attackDirection.x).toBeLessThan(0); expect(s.player.health).toBe(100);
+    steps(s, 51); expect(boss.attackState).toBe('charging'); expect(s.player.health).toBe(100 - GANG_LEADER.contactDamage);
+    steps(s, 10); expect(s.player.health).toBe(100 - GANG_LEADER.contactDamage);
+  });
+
+  it('applies hostile projectile damage using the rendered collision radius', () => {
+    const s = createGame(272, testRun); s.player.attackTimer = 100;
+    s.projectiles.push({ id: 991, x: s.player.x, y: s.player.y, vx: 0, vy: 0, damage: GANG_LEADER.rangedDamage, life: 1, pierce: 0, special: false, owner: 'enemy', spin: 0 });
+    steps(s, 1); expect(s.player.health).toBe(100 - GANG_LEADER.rangedDamage); expect(s.projectiles.some(x => x.id === 991)).toBe(false);
+  });
+
+  it('shows overtime at the run target and resolves an escaped boss after the grace period', () => {
+    const run = { ...testRun, duration: 2, bossAt: 1, overtimeLimit: 1 };
+    const s = createGame(273, run); s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.health = 100_000;
+    steps(s, 120, idle, run); expect(s.elapsed).toBeCloseTo(2); expect(s.status).toBe('playing'); expect(s.enemies.some(e => e.kind === 'boss')).toBe(true);
+    steps(s, 59, idle, run); expect(s.status).toBe('playing');
+    steps(s, 2, idle, run); expect(s.status).toBe('defeat'); expect(s.endReason).toBe('boss-escaped');
   });
 
   it('cleans up expired projectiles and defeated enemies', () => {

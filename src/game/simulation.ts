@@ -2,13 +2,14 @@ import { ATTACKS, BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, UPGRADES, ty
 
 export interface Vec { x: number; y: number }
 export interface Player extends Vec { health: number; maxHealth: number; speed: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; damageDealt: number }
-export interface Enemy extends Vec { id: number; kind: EnemyKind; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackWindup: number; dead: boolean; phase: number }
+export type BossAttackState = 'idle' | 'ranged-telegraph' | 'charge-telegraph' | 'charging' | 'recovering';
+export interface Enemy extends Vec { id: number; kind: EnemyKind; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number }
 export interface Projectile extends Vec { id: number; vx: number; vy: number; damage: number; life: number; pierce: number; special: boolean; owner: 'player' | 'enemy'; spin: number }
 export interface Pickup extends Vec { id: number; value: number }
 export interface FloatText extends Vec { id: number; text: string; life: number }
 export interface SimState {
   status: GameStatus; player: Player; enemies: Enemy[]; projectiles: Projectile[]; pickups: Pickup[]; numbers: FloatText[];
-  elapsed: number; kills: number; bossDefeated: boolean; seed: number; nextId: number; spawnTimer: number; levelChoices: number;
+  elapsed: number; kills: number; bossDefeated: boolean; endReason: 'player-down' | 'boss-escaped' | null; seed: number; nextId: number; spawnTimer: number; levelChoices: number;
   options: UpgradeId[]; chosen: UpgradeId[]; attacks: string[]; messages: string[]; specialTimer: number;
 }
 export interface InputState { x: number; y: number; dash: boolean; special: boolean }
@@ -19,7 +20,7 @@ const normalize = (x: number, y: number): Vec => { const m = Math.hypot(x, y); r
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun): SimState {
   return {
     status: 'playing', player: { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, damageBonus: 0, extraShots: 0, pickupRadius: 74, orbit: false, orbitTimer: 0, damageDealt: 0 },
-    enemies: [], projectiles: [], pickups: [], numbers: [], elapsed: 0, kills: 0, bossDefeated: false, seed: seed >>> 0, nextId: 1, spawnTimer: 0.3, levelChoices: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
+    enemies: [], projectiles: [], pickups: [], numbers: [], elapsed: 0, kills: 0, bossDefeated: false, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.3, levelChoices: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
   };
 }
 
@@ -39,17 +40,29 @@ export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig =
   const def = ENEMIES[kind]; let x: number; let y: number;
   if (position) ({ x, y } = position);
   else {
-    // Spawn from one of the arena edges, far enough from the player to avoid unfair overlaps.
-    const edge = Math.floor(random(state) * 4); const offset = 80 + random(state) * 0.72;
-    if (edge === 0) { x = offset * config.arenaWidth; y = 25; }
-    else if (edge === 1) { x = config.arenaWidth - 25; y = offset * config.arenaHeight; }
-    else if (edge === 2) { x = offset * config.arenaWidth; y = config.arenaHeight - 25; }
-    else { x = 25; y = offset * config.arenaHeight; }
-    const away = normalize(x - state.player.x, y - state.player.y);
-    x = clamp(state.player.x + away.x * Math.max(170, Math.abs(x - state.player.x)), 24, config.arenaWidth - 24);
-    y = clamp(state.player.y + away.y * Math.max(170, Math.abs(y - state.player.y)), 24, config.arenaHeight - 24);
+    // Sample uniformly along the walkable street perimeter, then reject locations too close to the hero.
+    const bounds = { left: 28, right: config.arenaWidth - 28, top: 288, bottom: Math.min(config.arenaHeight - 28, 752) };
+    const width = Math.max(1, bounds.right - bounds.left); const height = Math.max(1, bounds.bottom - bounds.top); const perimeter = 2 * (width + height);
+    const sample = (): Vec => {
+      let distance = random(state) * perimeter;
+      if (distance < width) return { x: bounds.left + distance, y: bounds.top };
+      distance -= width;
+      if (distance < height) return { x: bounds.right, y: bounds.top + distance };
+      distance -= height;
+      if (distance < width) return { x: bounds.right - distance, y: bounds.bottom };
+      distance -= width;
+      return { x: bounds.left, y: bounds.bottom - distance };
+    };
+    const minimumDistanceSquared = 180 ** 2; let farthest: Vec | undefined; let chosen: Vec | undefined; let farthestDistance = -1;
+    for (let attempt = 0; attempt < 32; attempt++) {
+      const candidate = sample(); const distance = dist2(candidate, state.player);
+      if (distance > farthestDistance) { farthest = candidate; farthestDistance = distance; }
+      if (distance >= minimumDistanceSquared) { chosen = candidate; break; }
+    }
+    const spawn = chosen ?? farthest ?? { x: (bounds.left + bounds.right) / 2, y: bounds.top };
+    x = spawn.x; y = spawn.y;
   }
-  return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackWindup: 0, dead: false, phase: 0 };
+  return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackState: 'idle', attackDirection: { x: 0, y: 0 }, chargeReady: false, chargeConnected: false, dead: false, phase: 0 };
 }
 
 export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
@@ -110,9 +123,9 @@ export function chooseUpgrade(state: SimState, id: UpgradeId): boolean {
 
 export function damagePlayer(state: SimState, amount: number): boolean {
   const p = state.player;
-  if (state.status !== 'playing' || p.invulnerable > 0 || p.health <= 0) return false;
+  if (state.status !== 'playing' || p.invulnerable > 0 || p.health <= 0 || !Number.isFinite(amount) || amount <= 0) return false;
   p.health = Math.max(0, p.health - amount); p.invulnerable = 0.8;
-  if (p.health === 0) state.status = 'defeat';
+  if (p.health === 0) { state.status = 'defeat'; state.endReason = 'player-down'; }
   return true;
 }
 
@@ -126,7 +139,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   movePlayer(p, dashX, dashY, step * (p.dashTimer > 0 ? 2.7 : 1), config);
   if (input.special && p.special >= 100 && state.specialTimer === 0) { p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name); for (const e of state.enemies) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config); }
   state.spawnTimer -= step;
-  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) state.enemies.push(spawnEnemy(state, 'boss', config, { x: Math.min(config.arenaWidth - 70, p.x + 300), y: p.y + 60 }));
+  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { state.enemies.push(spawnEnemy(state, 'boss', config)); state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
   if (state.spawnTimer <= 0 && state.enemies.filter(e => !e.dead && e.kind !== 'boss').length < config.maxEnemies && state.elapsed < config.bossAt + 2) {
     const fast = state.elapsed > config.bossAt * 0.48 && random(state) < 0.42;
     state.enemies.push(spawnEnemy(state, fast ? 'fastThug' : 'thug', config));
@@ -147,17 +160,38 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     const toward = normalize(p.x - enemy.x, p.y - enemy.y);
     const dx = enemy.x - p.x; const dy = enemy.y - p.y; const d = Math.hypot(dx, dy);
     if (enemy.kind === 'boss') {
-      enemy.phase += step; enemy.attackWindup -= step;
-      const phase = (enemy.phase % GANG_LEADER.phaseLength);
-      if (phase < GANG_LEADER.approachUntil && d > 125) { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
-      if (phase > GANG_LEADER.rangedTelegraphStart && phase < GANG_LEADER.rangedTelegraphEnd && enemy.attackWindup <= 0) { enemy.attackWindup = GANG_LEADER.rangedCooldown; const blast = normalize(p.x - enemy.x, p.y - enemy.y); state.projectiles.push({ id: state.nextId++, x: enemy.x, y: enemy.y, vx: blast.x * GANG_LEADER.rangedSpeed, vy: blast.y * GANG_LEADER.rangedSpeed, damage: GANG_LEADER.rangedDamage, life: 2, pierce: 99, special: false, owner: 'enemy', spin: 0 }); }
-      if (phase > GANG_LEADER.chargeStart && phase < GANG_LEADER.chargeEnd && d < GANG_LEADER.chargeRange) { enemy.x += toward.x * GANG_LEADER.chargeSpeed * step; enemy.y += toward.y * GANG_LEADER.chargeSpeed * step; }
+      const previousPhase = enemy.phase % GANG_LEADER.phaseLength;
+      enemy.phase += step;
+      const phase = enemy.phase % GANG_LEADER.phaseLength;
+      const beginsSegment = (start: number) => previousPhase < start && phase >= start;
+      if (phase >= GANG_LEADER.rangedTelegraphStart && phase < GANG_LEADER.rangedTelegraphEnd) {
+        if (beginsSegment(GANG_LEADER.rangedTelegraphStart)) enemy.attackDirection = normalize(p.x - enemy.x, p.y - enemy.y);
+        enemy.attackState = 'ranged-telegraph';
+      } else if (previousPhase < GANG_LEADER.rangedTelegraphEnd && phase >= GANG_LEADER.rangedTelegraphEnd) {
+        const aim = enemy.attackDirection;
+        state.projectiles.push({ id: state.nextId++, x: enemy.x, y: enemy.y, vx: aim.x * GANG_LEADER.rangedSpeed, vy: aim.y * GANG_LEADER.rangedSpeed, damage: GANG_LEADER.rangedDamage, life: 2, pierce: 0, special: false, owner: 'enemy', spin: 0 });
+        enemy.attackState = 'recovering';
+      } else if (phase >= GANG_LEADER.chargeStart && phase < GANG_LEADER.chargeEnd) {
+        if (beginsSegment(GANG_LEADER.chargeStart)) { enemy.chargeReady = d < GANG_LEADER.chargeRange; enemy.chargeConnected = false; if (enemy.chargeReady) enemy.attackDirection = normalize(p.x - enemy.x, p.y - enemy.y); }
+        enemy.attackState = enemy.chargeReady ? 'charge-telegraph' : 'idle';
+      } else if (phase >= GANG_LEADER.chargeEnd && phase < GANG_LEADER.chargeActiveEnd) {
+        if (enemy.chargeReady) { enemy.x += enemy.attackDirection.x * GANG_LEADER.chargeSpeed * step; enemy.y += enemy.attackDirection.y * GANG_LEADER.chargeSpeed * step; enemy.attackState = 'charging'; }
+        else enemy.attackState = 'idle';
+      } else if (phase >= GANG_LEADER.rangedTelegraphEnd && phase < GANG_LEADER.recoveryEnd) enemy.attackState = 'recovering';
+      else enemy.attackState = 'idle';
+      if (enemy.attackState === 'idle' && d > 125) { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
+      if (enemy.attackState === 'charging' && !enemy.chargeConnected && Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.radius + 18) {
+        enemy.chargeConnected = true;
+        damagePlayer(state, GANG_LEADER.contactDamage);
+      }
     } else { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
     enemy.x += enemy.knockback.x * step; enemy.y += enemy.knockback.y * step; enemy.knockback.x *= Math.exp(-9 * step); enemy.knockback.y *= Math.exp(-9 * step); enemy.hitFlash = Math.max(0, enemy.hitFlash - step);
-    if (d < enemy.radius + 18 && enemy.kind !== 'boss') { damagePlayer(state, enemy.damage * step * 1.15); }
+    enemy.x = clamp(enemy.x, enemy.radius, config.arenaWidth - enemy.radius); enemy.y = clamp(enemy.y, 288, Math.min(752, config.arenaHeight - enemy.radius));
+    if (Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.radius + 18 && enemy.kind !== 'boss') damagePlayer(state, enemy.damage);
+    if (state.status !== 'playing') break;
   }
   // Resolve enemy projectiles against the player after movement (boss attacks are telegraphed in the renderer).
-  for (const s of state.projectiles) if (s.owner === 'enemy' && dist2(s, p) < 25 ** 2) { damagePlayer(state, s.damage); s.life = 0; }
+  for (const s of state.projectiles) if (s.owner === 'enemy' && dist2(s, p) < 30 ** 2) { damagePlayer(state, s.damage); s.life = 0; }
   state.projectiles = state.projectiles.filter(s => s.life > 0);
   state.enemies = state.enemies.filter(e => !e.dead);
   for (const pickup of state.pickups) if (dist2(pickup, p) < p.pickupRadius ** 2) { p.xp += pickup.value; p.special = Math.min(100, p.special + pickup.value * 0.42); float(state, `+${pickup.value} XP`, pickup.x, pickup.y); pickup.value = 0; }
@@ -165,7 +199,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   state.numbers = state.numbers.filter(n => { n.life -= step; n.y -= 24 * step; return n.life > 0; });
   while (p.xp >= p.xpNext && state.status === 'playing') { p.xp -= p.xpNext; offerLevel(state); }
   if (state.bossDefeated && !state.enemies.some(e => !e.dead && e.kind === 'boss')) state.status = 'victory';
-  if (state.elapsed >= config.duration && !state.bossDefeated && state.status === 'playing') { /* boss remains a valid victory path */ }
+  if (state.elapsed >= config.duration + config.overtimeLimit && !state.bossDefeated && state.status === 'playing') { state.status = 'defeat'; state.endReason = 'boss-escaped'; }
 }
 
 export function getUpgrade(id: UpgradeId) { return UPGRADES.find(x => x.id === id)!; }
