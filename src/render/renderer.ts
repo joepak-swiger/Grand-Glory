@@ -3,7 +3,7 @@ import type { SimState, Vec } from '../game/simulation';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, type AnimationClipDefinition, type RunConfig } from '../game/definitions';
 
 const W = 960; const H = 640;
-const COLORS = { ink: 0x101923, road: 0x303a45, sidewalk: 0x78838a, line: 0xe4bf57, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, boss: 0x9e55d7, xp: 0x7cf2b0 };
+const COLORS = { ink: 0x101923, road: 0x303a45, sidewalk: 0x78838a, line: 0xe4bf57, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
 const style = (size: number, fill: string, weight: '400' | '600' | '700' | '900' = '700') => new TextStyle({ fontFamily: 'Arial, sans-serif', fontSize: size, fill, fontWeight: weight, letterSpacing: size > 22 ? 1.5 : 0 });
 
 export class GameRenderer {
@@ -104,11 +104,12 @@ export class GameRenderer {
       g.circle(pickup.x, pickup.y, 8).fill({ color: COLORS.xp, alpha: 0.18 }); g.circle(pickup.x, pickup.y, 4).fill(COLORS.xp);
     }
     for (const shot of state.projectiles) {
-      if (shot.owner === 'enemy') { g.circle(shot.x, shot.y, 8).fill(COLORS.boss); g.circle(shot.x, shot.y, 12).stroke({ color: 0xe5a7ff, width: 2, alpha: 0.55 }); }
+      if (shot.owner === 'enemy') { const hostile = shot.weaponId === 'enemy'; const color = hostile ? COLORS.boss : COLORS.fast; g.circle(shot.x, shot.y, 8).fill(color); g.circle(shot.x, shot.y, 12).stroke({ color: hostile ? 0xe5a7ff : 0xffe38b, width: 2, alpha: 0.55 }); }
       else {
+        const tint = shot.weaponId === 'piercingThrow' ? 0xffdc70 : COLORS.cyan;
         for (let blade = 0; blade < 4; blade++) {
           const a = shot.spin + blade * Math.PI / 2;
-          g.poly([shot.x + Math.cos(a) * 11, shot.y + Math.sin(a) * 11, shot.x + Math.cos(a + 0.72) * 3, shot.y + Math.sin(a + 0.72) * 3, shot.x + Math.cos(a + 1.32) * 8, shot.y + Math.sin(a + 1.32) * 8, shot.x + Math.cos(a + 1.72) * 3, shot.y + Math.sin(a + 1.72) * 3]).fill(COLORS.cyan);
+          g.poly([shot.x + Math.cos(a) * 11, shot.y + Math.sin(a) * 11, shot.x + Math.cos(a + 0.72) * 3, shot.y + Math.sin(a + 0.72) * 3, shot.x + Math.cos(a + 1.32) * 8, shot.y + Math.sin(a + 1.32) * 8, shot.x + Math.cos(a + 1.72) * 3, shot.y + Math.sin(a + 1.72) * 3]).fill(tint);
         }
         g.circle(shot.x, shot.y, 3).fill(0xffffff);
         g.moveTo(shot.x, shot.y).lineTo(shot.x - shot.vy * 0.025, shot.y + shot.vx * 0.025).stroke({ color: 0xffffff, width: 2, alpha: 0.5 });
@@ -116,7 +117,12 @@ export class GameRenderer {
     }
     for (const enemy of state.enemies) {
       if (enemy.dead) continue;
-      const color = enemy.kind === 'boss' ? COLORS.boss : enemy.kind === 'fastThug' ? COLORS.fast : COLORS.thug;
+      const color = enemy.kind === 'boss' ? COLORS.boss : enemy.kind === 'fastThug' ? COLORS.fast : enemy.kind === 'gangster' ? COLORS.gangster : enemy.kind === 'bruiser' ? COLORS.bruiser : COLORS.thug;
+      if (enemy.kind === 'gangster' && enemy.attackState === 'ranged-telegraph') {
+        const tx = enemy.x + enemy.attackDirection.x * 380; const ty = enemy.y + enemy.attackDirection.y * 380;
+        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffe764, width: 10, alpha: 0.12 });
+        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffee87, width: 2, alpha: 0.78 });
+      }
       if (enemy.kind === 'boss' && enemy.attackState === 'ranged-telegraph') {
         const tx = enemy.x + enemy.attackDirection.x * 620; const ty = enemy.y + enemy.attackDirection.y * 620;
         g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffd56a, width: 12, alpha: 0.14 });
@@ -145,6 +151,11 @@ export class GameRenderer {
         // Direction cue keeps the geometric boss placeholder readable until art is supplied.
         const side = enemy.horizontalFacing === 'left' ? -1 : 1;
         g.circle(enemy.x + side * 10, enemy.y - enemy.radius - 4, 3).fill(0x251d2a);
+      }
+      if (enemy.kind === 'bruiser') {
+        g.ellipse(enemy.x, enemy.y - 2, enemy.radius * 0.85, enemy.radius * 1.1).fill(enemy.hitFlash > 0 ? 0xffffff : color);
+        g.circle(enemy.x, enemy.y - enemy.radius * 0.72, enemy.radius * 0.48).fill(0xdbc2bc);
+        g.circle(enemy.x + (enemy.horizontalFacing === 'left' ? -6 : 6), enemy.y - enemy.radius * 0.75, 2.5).fill(0x251d2a);
       }
       g.roundRect(enemy.x - 18, enemy.y - enemy.radius - 19, 36, 5, 2).fill(0x161c24); g.roundRect(enemy.x - 17, enemy.y - enemy.radius - 18, 34 * Math.max(0, enemy.health / enemy.maxHealth), 3, 2).fill(color);
       if (enemy.kind === 'boss') {
@@ -222,12 +233,12 @@ export class GameRenderer {
     }
   }
 
-  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
+  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
     const enemies = state ? state.enemies.filter(enemy => !enemy.dead).map(enemy => {
       const sprite = this.enemySprites.get(enemy.id); const clip = ENEMIES[enemy.kind].animation;
       return { id: enemy.id, facing: enemy.horizontalFacing, frame: clip ? Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % clip.frameCount : 0, scaleX: sprite?.scale.x ?? (enemy.horizontalFacing === 'left' ? -1 : 1), hasSprite: sprite !== undefined };
     }) : [];
-    return { playerTextureLoaded: this.playerTextureLoaded, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', enemySprites: this.enemySprites.size, enemies };
+    return { playerTextureLoaded: this.playerTextureLoaded, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', enemySprites: this.enemySprites.size, renderFps: Math.round(this.app.ticker.FPS), renderFrameMs: Math.round(this.app.ticker.deltaMS * 100) / 100, enemies };
   }
 
   screenToWorld(clientX: number, clientY: number): Vec { return { x: clientX, y: clientY }; }

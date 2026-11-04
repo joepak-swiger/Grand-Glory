@@ -17,3 +17,9 @@ The owner confirmed the local game launches and is playable in a Windows browser
 - Browser animation and rendering performance have not been profiled separately.
 - The normal three-minute target needs human balance/playability review.
 - Music, sound, touch controls, additional heroes, and stages remain future work.
+
+## Milestone 003 — Horde Revolution (in progress)
+
+Development is on `feature/horde-revolution`, based on the unmerged visual branch. The simulation now has a configurable horde target curve, camera-adjacent batch spawns, recurring surges, active caps, persistent-straggler recycling, enemy separation, ranged Gangsters, and heavy Bruisers. Weapon upgrades have five ranks, include a distinct Piercing Throw, and gate a one-time Pinwheel evolution behind rank 5 plus Prototype Power rank 2. XP piles merge without discarding value. Existing player art, enemy sprite animation, boss, menu, pause, victory, and defeat code remains in place.
+
+The horde work locally passes strict typechecking, 44 deterministic simulation tests, production build, and two Chromium end-to-end tests against the real PixiJS application. The deterministic slice covers combat, upgrades, pause, boss, victory, defeat, restart, assets, animation, and browser errors. A second browser scenario uses standard run configuration and natural spawns; its controlled movement/upgrade driver survived the 52-active target, reached level 10, defeated 138 enemies, beat the boss, and won at 3:58 with about 152 HP. This is automated browser play, not human playtesting. Results and separate simulation/rendering samples are in `docs/TESTING.md`. GitHub publication and Actions checks are pending.
