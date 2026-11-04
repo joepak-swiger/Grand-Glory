@@ -1,4 +1,4 @@
-import { ATTACKS, BLUE_PINWHEEL, ENEMIES, GANG_LEADER, PINWHEEL_EVOLUTION, standardRun, UPGRADES, type EnemyKind, type GameStatus, type RunConfig, type UpgradeId } from './definitions';
+import { ATTACKS, BLUE_PINWHEEL, ENEMIES, GANG_LEADER, PINWHEEL_EVOLUTION, standardRun, UPGRADES, type EnemyKind, type GameStatus, type HordeEntrySide, type RunConfig, type UpgradeId } from './definitions';
 import { SpatialGrid } from './spatial-grid';
 
 export interface Vec { x: number; y: number }
@@ -16,8 +16,8 @@ export interface SimState {
   readonly enemyQueryScratch: Enemy[];
   readonly pickupGrid: SpatialGrid<Pickup>;
   readonly pickupQueryScratch: Pickup[];
-  elapsed: number; kills: number; bossDefeated: boolean; endReason: 'player-down' | 'boss-escaped' | null; seed: number; nextId: number; spawnTimer: number; levelChoices: number; surgeRemaining: number; surgeCount: number; pickupMergeTimer: number;
-  peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number;
+  elapsed: number; kills: number; bossDefeated: boolean; bossArrivalAt: number | null; bossFightDuration: number | null; endReason: 'player-down' | 'boss-escaped' | null; seed: number; nextId: number; spawnTimer: number; spawnBudget: number; levelChoices: number; surgeRemaining: number; surgeCount: number; surgeDirection: HordeEntrySide; pickupMergeTimer: number;
+  peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; killWindowCount: number; killWindowSeconds: number; killRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number;
   options: UpgradeId[]; chosen: UpgradeId[]; attacks: string[]; messages: string[]; specialTimer: number;
 }
 export interface InputState { x: number; y: number; dash: boolean; special: boolean }
@@ -28,7 +28,7 @@ const normalize = (x: number, y: number): Vec => { const m = Math.hypot(x, y); r
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun): SimState {
   return {
     status: 'playing', player: { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right', damageBonus: 0, extraShots: 0, pickupRadius: 150, orbit: false, orbitTimer: 0, damageDealt: 0, weaponRanks: { pinwheel: 1, orbitGuard: 0, piercingThrow: 0 }, powerRank: 0, evolvedPinwheel: false, piercingTimer: 0.6 },
-    enemies: [], projectiles: [], pickups: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], elapsed: 0, kills: 0, bossDefeated: false, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
+    enemies: [], projectiles: [], pickups: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], elapsed: 0, kills: 0, bossDefeated: false, bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
   };
 }
 
@@ -46,14 +46,14 @@ export function movePlayer(player: Player, dx: number, dy: number, dt: number, c
   player.y = clamp(player.y + dir.y * player.speed * dt, 288, Math.min(config.arenaHeight - 28, 752));
 }
 
-export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig = standardRun, position?: Vec, spatialIndex?: SpatialGrid<Enemy>): Enemy {
+export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig = standardRun, position?: Vec, spatialIndex?: SpatialGrid<Enemy>, entrySide?: HordeEntrySide): Enemy {
   const def = ENEMIES[kind]; let x: number; let y: number;
   if (position) ({ x, y } = position);
   else {
     // Spawn just outside the current camera view so waves enter the street visibly.
     const bounds = { left: 28, right: config.arenaWidth - 28, top: 288, bottom: Math.min(config.arenaHeight - 28, 752) };
     const sample = (): Vec => {
-      const side = Math.floor(random(state) * 4); const mx = config.horde.spawnMarginX; const my = config.horde.spawnMarginY;
+      const side = entrySide ? ({ left: 0, right: 1, top: 2, bottom: 3 } as const)[entrySide] : Math.floor(random(state) * 4); const mx = config.horde.spawnMarginX; const my = config.horde.spawnMarginY;
       const cameraLeft = clamp(state.player.x - 480, bounds.left, bounds.right); const cameraRight = clamp(state.player.x + 480, bounds.left, bounds.right);
       const cameraTop = clamp(state.player.y - 320, bounds.top, bounds.bottom); const cameraBottom = clamp(state.player.y + 320, bounds.top, bounds.bottom);
       if (side === 0) return { x: clamp(cameraLeft - mx - random(state) * 110, bounds.left, bounds.right), y: clamp(cameraTop + random(state) * Math.max(1, cameraBottom - cameraTop), bounds.top, bounds.bottom) };
@@ -80,7 +80,6 @@ export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig =
     const spawn = chosen ?? safest ?? { x: (bounds.left + bounds.right) / 2, y: bounds.top };
     x = spawn.x; y = spawn.y;
   }
-  state.enemiesSpawned++; state.spawnWindowCount++;
   return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackState: 'idle', attackDirection: { x: 0, y: 0 }, horizontalFacing: 'right', animationTime: 0, chargeReady: false, chargeConnected: false, dead: false, phase: 0, rangedTimer: 1.2, distantTime: 0 };
 }
 
@@ -127,7 +126,7 @@ function applyEnemyDamage(state: SimState, enemy: Enemy, damage: number, directi
   enemy.knockback.x += direction.x * (enemy.kind === 'boss' ? 90 : 230);
   enemy.knockback.y += direction.y * (enemy.kind === 'boss' ? 90 : 230);
   state.player.damageDealt += actualDamage;
-  if (enemy.health === 0) { enemy.dead = true; state.kills++; state.pickups.push({ id: state.nextId++, x: enemy.x, y: enemy.y, value: enemy.xp }); if (enemy.kind === 'boss') state.bossDefeated = true; }
+  if (enemy.health === 0) { enemy.dead = true; state.kills++; state.killWindowCount++; state.pickups.push({ id: state.nextId++, x: enemy.x, y: enemy.y, value: enemy.xp }); if (enemy.kind === 'boss') { state.bossDefeated = true; state.bossFightDuration = Math.max(0, state.elapsed - (state.bossArrivalAt ?? state.elapsed)); } }
   else float(state, `${Math.round(actualDamage)}`, enemy.x, enemy.y - enemy.radius);
   if (enemy.kind !== 'boss') enemy.phase = Math.min(1, enemy.phase + 0.12);
   void config;
@@ -163,11 +162,8 @@ function populateOptions(state: SimState): void {
   ];
   for (const group of groups) {
     if (state.options.length >= 3 || !group.length) continue;
-    const vitalityRanks = state.chosen.filter(id => id === 'vitality').length;
-    const recoveryRanks = state.chosen.filter(id => id === 'recovery').length;
-    const defensivePick = group.includes('vitality') && vitalityRanks < 2 ? 'vitality' : group.includes('recovery') && recoveryRanks < 3 ? 'recovery' : undefined;
     const freshWeapon = group.find(id => (id === 'orbit' && p.weaponRanks.orbitGuard === 0) || (id === 'piercingThrow' && p.weaponRanks.piercingThrow === 0));
-    const picked = defensivePick ?? freshWeapon ?? group[Math.floor(random(state) * group.length)];
+    const picked = freshWeapon ?? group[Math.floor(random(state) * group.length)];
     if (picked) { state.options.push(picked); const removeIndex = pool.findIndex(upgrade => upgrade.id === picked); if (removeIndex >= 0) pool.splice(removeIndex, 1); }
   }
   while (state.options.length < 3 && pool.length) { const index = Math.floor(random(state) * pool.length); const picked = pool.splice(index, 1)[0]; if (picked) state.options.push(picked.id); }
@@ -217,28 +213,42 @@ function hordeTargetAt(config: RunConfig, elapsed: number): number {
   return Math.round(before.count + (after.count - before.count) * t);
 }
 
-function chooseEnemyKind(state: SimState, elapsed: number, bossPhase: boolean): EnemyKind {
+function chooseEnemyKind(state: SimState, elapsed: number, bossPhase: boolean, surge: boolean): EnemyKind {
   const roll = random(state);
-  if (elapsed >= 72 && roll < 0.14) return 'bruiser';
-  if (elapsed >= 36 && roll < 0.36) return 'gangster';
-  if (elapsed >= 16 && roll < 0.62) return 'fastThug';
+  if (elapsed >= 72 && roll < (surge ? 0.17 : 0.14)) return 'bruiser';
+  if (elapsed >= 36 && roll < (surge ? 0.43 : 0.36)) return 'gangster';
+  if (elapsed >= 16 && roll < (surge ? 0.76 : 0.62)) return 'fastThug';
   if (bossPhase && roll < 0.5) return 'fastThug';
   return 'thug';
 }
 
-function spawnBatch(state: SimState, config: RunConfig, targetCount: number, bossPhase: boolean): void {
+function safeSurgeSides(state: SimState, config: RunConfig): HordeEntrySide[] {
+  const left = 28; const right = config.arenaWidth - 28; const top = 288; const bottom = Math.min(config.arenaHeight - 28, 752);
+  const required = 180 + Math.max(config.horde.spawnMarginX, config.horde.spawnMarginY);
+  return ([
+    ['left', state.player.x - left], ['right', right - state.player.x],
+    ['top', state.player.y - top], ['bottom', bottom - state.player.y],
+  ] as const).filter(([, distance]) => distance >= required).map(([side]) => side);
+}
+
+function spawnBatch(state: SimState, config: RunConfig, targetCount: number, bossPhase: boolean, surge: boolean, allowed: number): number {
   let livingOrdinary = 0;
   for (const enemy of state.enemies) if (!enemy.dead && enemy.kind !== 'boss') livingOrdinary++;
   const pressureCap = bossPhase ? Math.max(1, Math.floor(config.horde.maxActive * 0.68)) : config.horde.maxActive;
   const desired = Math.min(targetCount, pressureCap, config.maxEnemies);
   const deficit = desired - livingOrdinary;
-  if (deficit <= 0) return;
-  const size = Math.min(deficit, config.horde.batchMin + Math.floor(random(state) * (config.horde.batchMax - config.horde.batchMin + 1)));
+  if (deficit <= 0 || allowed <= 0) return 0;
+  const base = config.horde.batchMin + Math.floor(random(state) * (config.horde.batchMax - config.horde.batchMin + 1));
+  const adaptive = Math.min(3, Math.floor(deficit / 24)) + Math.min(2, Math.floor(state.killRate / 2));
+  const size = Math.min(deficit, allowed, config.horde.maxSpawnPerUpdate, base + adaptive);
   for (let i = 0; i < size; i++) {
-    const enemy = spawnEnemy(state, chooseEnemyKind(state, state.elapsed, bossPhase), config, undefined, state.enemyGrid);
+    const kind = chooseEnemyKind(state, state.elapsed, bossPhase, surge);
+    const enemy = spawnEnemy(state, kind, config, undefined, state.enemyGrid, surge ? state.surgeDirection : undefined);
     state.enemies.push(enemy);
     state.enemyGrid.insert(enemy);
+    state.enemiesSpawned++; state.spawnWindowCount++;
   }
+  return size;
 }
 
 function updateHordeDirector(state: SimState, step: number, config: RunConfig): void {
@@ -247,24 +257,40 @@ function updateHordeDirector(state: SimState, step: number, config: RunConfig): 
   if (surgeIndex > state.surgeCount && !bossPhase) {
     state.surgeCount = surgeIndex;
     state.surgeRemaining = config.horde.surgeDuration;
-    state.messages.push(`HORDE SURGE ${state.surgeCount} · PROTOTYPE`);
+    const directions = safeSurgeSides(state, config);
+    state.surgeDirection = directions[Math.floor(random(state) * directions.length)] ?? 'right';
+    const directionName: Record<HordeEntrySide, string> = { left: 'WEST', right: 'EAST', top: 'NORTH', bottom: 'SOUTH' };
+    state.messages.push(`HORDE SURGE ${state.surgeCount} · FROM THE ${directionName[state.surgeDirection]}`);
   } else state.surgeRemaining = Math.max(0, state.surgeRemaining - step);
-  state.spawnTimer -= step;
-  if (state.spawnTimer <= 0 && state.elapsed < config.duration + config.overtimeLimit) {
-    const baseTarget = hordeTargetAt(config, Math.min(state.elapsed, config.duration));
-    const target = baseTarget + (state.surgeRemaining > 0 ? config.horde.surgeBonus : 0);
-    spawnBatch(state, config, target, bossPhase);
-    const pressure = state.elapsed / Math.max(1, config.duration);
-    const haste = state.surgeRemaining > 0 ? 0.68 : 1;
-    state.spawnTimer = Math.max(0.32, config.horde.baseBatchInterval * (1 - Math.min(0.45, pressure * 0.34)) * haste);
-  }
-  const request = hordeTargetAt(config, Math.min(state.elapsed, config.duration)) + (state.surgeRemaining > 0 ? config.horde.surgeBonus : 0);
+
+  state.killWindowSeconds += step;
+  if (state.killWindowSeconds >= 2) { state.killRate = state.killWindowCount / state.killWindowSeconds; state.killWindowCount = 0; state.killWindowSeconds = 0; }
+
+  const baseTarget = hordeTargetAt(config, Math.min(state.elapsed, config.duration));
+  const requested = baseTarget + (state.surgeRemaining > 0 ? config.horde.surgeBonus : 0);
   const cap = bossPhase ? Math.max(1, Math.floor(config.horde.maxActive * 0.68)) : config.horde.maxActive;
-  const desired = Math.min(request, cap, config.maxEnemies);
+  const desired = Math.min(requested, cap, config.maxEnemies);
   let active = 0;
   for (const enemy of state.enemies) if (!enemy.dead && enemy.kind !== 'boss') active++;
+  const deficit = Math.max(0, desired - active);
+  const catchupRate = Math.min(5.5, deficit * 0.1);
+  const clearRate = Math.min(5, state.killRate * 0.5);
+  const surgeRate = state.surgeRemaining > 0 ? 1.8 : 0;
+  const requestedRate = deficit > 0 ? Math.min(config.horde.maxSpawnPerSecond, config.horde.batchMax / config.horde.baseBatchInterval + catchupRate + clearRate + surgeRate) : 0;
+  state.spawnBudget = Math.min(config.horde.maxSpawnPerUpdate, state.spawnBudget + requestedRate * step);
+  if (deficit === 0) state.spawnBudget = 0;
+  state.spawnTimer -= step;
+  if (state.spawnTimer <= 0 && state.elapsed < config.duration + config.overtimeLimit) {
+    const allowed = Math.min(Math.floor(state.spawnBudget + 1e-6), config.horde.maxSpawnPerUpdate);
+    const spawned = spawnBatch(state, config, desired, bossPhase, state.surgeRemaining > 0, allowed);
+    state.spawnBudget = Math.max(0, state.spawnBudget - spawned);
+    const pressure = state.elapsed / Math.max(1, config.duration);
+    const deficitHaste = deficit >= 18 ? 0.32 : deficit >= 8 ? 0.55 : 1;
+    const surgeHaste = state.surgeRemaining > 0 ? 0.72 : 1;
+    state.spawnTimer = Math.max(0.22, config.horde.baseBatchInterval * (1 - Math.min(0.25, pressure * 0.18)) * deficitHaste * surgeHaste);
+  }
   state.hordeTarget = desired;
-  state.hordeDeficit = Math.max(0, desired - active);
+  state.hordeDeficit = deficit;
   state.peakEnemies = Math.max(state.peakEnemies, active);
   if (active < desired) state.timeBelowHordeTarget += step;
   state.spawnWindowSeconds += step;
@@ -329,7 +355,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name);
     for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config);
   }
-  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { const boss = spawnBossForEncounter(state, config); state.enemies.push(boss); state.enemyGrid.insert(boss); state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
+  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { const boss = spawnBossForEncounter(state, config); state.enemies.push(boss); state.enemyGrid.insert(boss); state.bossArrivalAt = state.elapsed; state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
   updateHordeDirector(state, step, config);
   // Orbit Guard prototype: short-range recurring pulse, visibly separate from the starter projectile.
   p.orbitTimer -= step;
@@ -412,7 +438,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     enemy.x = clamp(enemy.x, enemy.radius, config.arenaWidth - enemy.radius); enemy.y = clamp(enemy.y, 288, Math.min(752, config.arenaHeight - enemy.radius));
     const distance = Math.hypot(enemy.x - p.x, enemy.y - p.y);
     if (distance < enemy.radius + 18 && enemy.kind !== 'boss') damagePlayer(state, enemy.damage);
-    if (enemy.kind !== 'boss' && distance > 940) enemy.distantTime += step; else enemy.distantTime = 0;
+    if (enemy.kind !== 'boss' && distance > 760) enemy.distantTime += step; else enemy.distantTime = 0;
     if (enemy.distantTime >= config.horde.recycleAfter) { const recycled = spawnEnemy(state, enemy.kind, config); enemy.x = recycled.x; enemy.y = recycled.y; enemy.distantTime = 0; state.recycledEnemies++; }
     if (state.status !== 'playing') break;
   }

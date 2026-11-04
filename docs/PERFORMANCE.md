@@ -40,11 +40,23 @@ The headless renderer reported 20.69 MiB from Chromium's JS heap metric at each 
 - Pixi primitive textures are cached; visible enemy views, shadows, health bars, player/enemy shots, XP pickups, and floating labels are reused from pools. Offscreen enemy views are returned to the pool while simulation continues. Static street art is separate from dynamic entities, and sorting is only refreshed when depth buckets change.
 - Damage statistics count actual HP removed, capped at the target's remaining health.
 
-## Natural horde progression and balance
+## Assignment 005 natural horde progression and balance
 
-The normal horde targets now rise from 8 initially to 22 at 15 s, 34 at 30 s, 56 at 60 s, 76 at 90 s, 96 at 120 s, and 112 at 150 s. Batches are 3–5, with a 128 cap and periodic surge bonus. Boss-phase ordinary pressure remains capped at 68% of the horde cap. These are director targets; kills and safe-spawn failures can keep actual populations below the target. The successful standard-config automated browser run recorded (active / visible): 25 / 20 at 18 s; 33 / 22 at 34 s; 58 / 49 at 62 s; 54 / 41 at 93 s; 66 / 47 at 123 s; and 45 / 22 plus the boss at 154 s. Peak ordinary population was 83, 724 enemies spawned, and 679 defeated by boss arrival. The run won at 162 s (2:42), level 20, 138 HP remaining, and 715 kills. The automated driver moves, dashes, uses the special, and selects upgrades; this is not human playtesting. The horde spent about 136 simulated seconds below target, so future work should improve population fill without pushing pressure beyond survivable bounds.
+The director target curve is now 8 initially, 24 at 15 s, 40 at 30 s, 64 at 60 s, 82 at 90 s, 104 at 120 s, and 120 at 150 s. It retains a 128 ordinary-enemy cap, +12 surge target, maximum four spawns in one fixed update, and a replenishment budget capped at 14 spawns/s. When population is substantially below target, safe batch intervals shorten. Recent kill rate also increases batch size, within the fixed update and per-second budgets. Boss-phase ordinary pressure stays capped at 68% of the ordinary cap. Safe placement samples up to 48 candidate street locations and falls back to the safest player-distant point when crowd separation cannot be satisfied; this avoids failing a batch but can increase close crowd packing. Recycled distant enemies preserve active count and type rather than counting as new spawns.
 
-Three seeded simulation strategies produced varied outcomes: seed 1741 with attack-first ranks was defeated at 1:34 (359 kills, peak 57); seed 42 prioritizing vitality/recovery won at 3:21 (level 15, 160 / 285 HP, peak 102); seed 2026 using a mixed attack/defense strategy won at 2:34 (level 19, 110 / 285 HP, peak 79). Upgrade selection and seed change survivability; these are automated simulations, not human playtesting.
+The previous standard browser run under the old target curve measured active / visible counts of 25 / 20 at 18 s; 33 / 22 at 34 s; 58 / 49 at 62 s; 54 / 41 at 93 s; 66 / 47 at 123 s; and 45 / 22 plus the boss at 154 s. It peaked at 83 ordinary enemies and spent about 136 simulated seconds below target. This is the before comparison, not evidence for Assignment 005.
+
+The Assignment 005 fixed-step automated simulation evaluation (60 updates/s, standard enemy/player/boss values, three seeds, upgrade priorities fixed per seed, dash and special input supplied each update) produced these results:
+
+| Seed / upgrade strategy | Outcome | Level | Kills | Peak ordinary enemies | Spawned | Below target | Boss fight |
+|---|---|---:|---:|---:|---:|---:|---:|
+| 1741 / offense first | Defeat at 111.2 s | 19 | 686 | 87 | 765 | 100 s | Not reached |
+| 42 / defense first | Victory at 173.8 s | 23 | 999 | 116 | 1,082 | 148 s | 23.8 s |
+| 2026 / mixed offense and defense | Defeat at 118.4 s | 21 | 764 | 87 | 839 | 105 s | Not reached |
+
+Checkpoints in the winning defensive seed measured active ordinary population against target at 15 s: 23 / 24; 30 s: 38 / 40; 60 s: 63 / 64; 90 s: 66 / 82; 120 s: 67 / 104; and 150 s: 88 / 87 (the target is reduced to the boss-phase cap). Its recorded spawn rate reached 12–13/s in the final sample and the peak reached 116. Offense-heavy strategies generated higher kill rates than the 14/s replenishment cap and died before the scheduled boss, while the defensive build filled the late-game target range and beat the boss. Upgrade priorities and seed materially affect survival; one of these three strategies won. These are deterministic automated simulation observations, not human playtesting.
+
+Population fill remains a tradeoff: this small three-seed sample shows better target proximity at 15, 30, and 60 seconds, but the two offense-first runs spent substantial time below target after high kill rates. Defensive play reached the 90–120 late target band. The safe fallback is counted in telemetry; the winning seed reported 70 placement fallbacks and 371 distant enemy recycles, so future tuning should continue watching whether far-off enemies are replaced fairly and whether entry feels visible. Actual visible counts, natural surge screenshots, and browser-side FPS for this new tuning are pending the hosted Chromium run; no current Assignment 005 browser result or 60 FPS claim is asserted here.
 
 ## Artifacts and limitations
 

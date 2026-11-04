@@ -207,6 +207,44 @@ describe('deterministic gameplay simulation', () => {
     expect(s.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeGreaterThan(0);
   });
 
+  it('adapts safe spawn throughput to deficits and kill rate within configured per-tick limits', () => {
+    const run = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 44 }], surgeEvery: 10_000, maxSpawnPerSecond: 20, maxSpawnPerUpdate: 3, batchMin: 2, batchMax: 3, baseBatchInterval: 0.4 } };
+    const a = createGame(4001, run); const b = createGame(4001, run);
+    a.spawnTimer = 10; b.spawnTimer = 10; b.killRate = 8;
+    updateGame(a, 1 / 60, idle, run); updateGame(b, 1 / 60, idle, run);
+    expect(b.spawnBudget).toBeGreaterThan(a.spawnBudget);
+    const crowded = createGame(4002, run); crowded.player.health = 100_000; crowded.player.invulnerable = 100_000; crowded.spawnBudget = run.horde.maxSpawnPerUpdate; crowded.spawnTimer = 0;
+    for (let i = 0; i < 120; i++) { const previous = crowded.enemiesSpawned; updateGame(crowded, 1 / 60, idle, run); expect(crowded.enemiesSpawned - previous).toBeLessThanOrEqual(run.horde.maxSpawnPerUpdate); }
+    expect(crowded.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeLessThanOrEqual(44);
+    expect(crowded.peakEnemies).toBeGreaterThanOrEqual(20);
+  });
+
+  it('fills most of a stationary natural target without deaths, using reproducible mixed enemies', () => {
+    const run = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 44 }], surgeEvery: 10_000 } };
+    const a = createGame(4003, run); const b = createGame(4003, run);
+    for (const state of [a, b]) { state.player.health = 100_000; state.player.invulnerable = 100_000; state.player.attackTimer = 100_000; }
+    steps(a, 720, idle, run); steps(b, 720, idle, run);
+    expect(a.enemies.length).toBeGreaterThanOrEqual(38);
+    expect(a.enemies.length).toBeLessThanOrEqual(44);
+    expect(a.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)])).toEqual(b.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)]));
+    const composition = new Set(a.enemies.map(enemy => enemy.kind));
+    expect(composition.has('thug')).toBe(true);
+    expect(a.spawnPlacementFallbacks).toBeLessThan(12);
+  }, 10_000);
+
+  it('announces a reproducible surge direction and safely forms its group on that side', () => {
+    const run = { ...testRun, horde: { ...testRun.horde, surgeEvery: 2, targetCounts: [{ at: 0, count: 20 }], maxSpawnPerUpdate: 4 } };
+    const a = createGame(4004, run); const b = createGame(4004, run);
+    for (const state of [a, b]) { state.elapsed = 2 - 1 / 60; state.spawnTimer = 0; state.spawnBudget = 4; state.player.attackTimer = 100_000; }
+    updateGame(a, 1 / 60, idle, run); updateGame(b, 1 / 60, idle, run);
+    expect(a.surgeDirection).toBe(b.surgeDirection);
+    const cardinalName = { left: 'WEST', right: 'EAST', top: 'NORTH', bottom: 'SOUTH' }[a.surgeDirection];
+    expect(a.messages.at(-1)).toContain(`FROM THE ${cardinalName}`);
+    expect(a.enemies.length).toBeGreaterThan(0);
+    for (const enemy of a.enemies) expect(Math.hypot(enemy.x - a.player.x, enemy.y - a.player.y)).toBeGreaterThan(170);
+    expect(a.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)])).toEqual(b.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)]));
+  });
+
   it('drops XP on death, collects it, and removes the dead enemy', () => {
     const s = createGame(15, testRun); const e = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 35, y: s.player.y }); e.health = 1; s.enemies.push(e);
     steps(s, 70); expect(e.dead).toBe(true); expect(s.kills).toBe(1); expect(s.pickups.length).toBe(0); expect(s.player.xp).toBeGreaterThan(0);
@@ -340,6 +378,7 @@ describe('deterministic gameplay simulation', () => {
     ];
     for (const { seed, strategy } of scenarios) {
       const s = createGame(seed, standardRun);
+      const hordeSamples: Array<Record<string, unknown>> = []; const sampleTimes = [15, 30, 60, 90, 120, 150]; let nextSample = 0;
       let guard = 0;
       while (s.status === 'playing' || s.status === 'upgrade') {
         if (s.status === 'upgrade') {
@@ -348,10 +387,14 @@ describe('deterministic gameplay simulation', () => {
         } else {
           const angle = s.elapsed * 0.5;
           updateGame(s, 1 / 60, { x: Math.cos(angle), y: Math.sin(angle), dash: true, special: true }, standardRun);
+          if (nextSample < sampleTimes.length && s.elapsed >= (sampleTimes[nextSample] ?? Number.POSITIVE_INFINITY)) {
+            const composition = s.enemies.reduce<Record<string, number>>((counts, enemy) => { counts[enemy.kind] = (counts[enemy.kind] ?? 0) + 1; return counts; }, {});
+            hordeSamples.push({ time: s.elapsed, active: s.enemies.filter(enemy => enemy.kind !== 'boss').length, target: s.hordeTarget, deficit: s.hordeDeficit, spawnRate: s.spawnRate, killRate: s.killRate, composition, fallbacks: s.spawnPlacementFallbacks, recycled: s.recycledEnemies }); nextSample++;
+          }
         }
         if (++guard > 24_000) throw new Error(`Seed ${seed} exceeded the four-minute simulation bound`);
       }
-      observations.push({ seed, strategy: strategy.slice(0, 3), elapsed: Math.round(s.elapsed * 100) / 100, status: s.status, level: s.player.level, hp: Math.ceil(s.player.health), maxHp: s.player.maxHealth, kills: s.kills, enemies: s.enemies.length, peakEnemies: s.peakEnemies, spawned: s.enemiesSpawned, belowTargetSeconds: Math.round(s.timeBelowHordeTarget), weapons: s.player.weaponRanks, evolved: s.player.evolvedPinwheel });
+      observations.push({ seed, strategy: strategy.slice(0, 3), elapsed: Math.round(s.elapsed * 100) / 100, status: s.status, level: s.player.level, hp: Math.ceil(s.player.health), maxHp: s.player.maxHealth, kills: s.kills, enemies: s.enemies.length, peakEnemies: s.peakEnemies, spawned: s.enemiesSpawned, belowTargetSeconds: Math.round(s.timeBelowHordeTarget), bossFightSeconds: s.bossFightDuration === null ? null : Math.round(s.bossFightDuration * 100) / 100, placementFallbacks: s.spawnPlacementFallbacks, recycled: s.recycledEnemies, weapons: s.player.weaponRanks, evolved: s.player.evolvedPinwheel, hordeSamples });
       expect(Number.isFinite(s.player.health)).toBe(true); expect(s.player.health).toBeGreaterThanOrEqual(0);
       expect(s.enemies.length).toBeLessThanOrEqual(standardRun.horde.maxActive + 1);
     }

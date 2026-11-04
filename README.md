@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, **1/2/3** to choose upgrades, and the mouse to choose menu options. Weapons target automatically. The three-minute prototype run introduces an overtime Gang Leader if not defeated by the target time.
+Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, **1/2/3** to choose upgrades, and the mouse to choose menu options. Weapons target automatically. The crowd builds toward a configured population target, gains bounded replenishment when the player clears quickly, and receives direction-announced mixed surges. The three-minute prototype run introduces an overtime Gang Leader if not defeated by the target time. In the development build, press **F3** for the compact crowd/performance overlay and its copyable run summary.
 
 ### Windows one-click launcher
 

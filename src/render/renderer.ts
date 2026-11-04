@@ -76,7 +76,10 @@ export class GameRenderer {
       g.ellipse(28, 42, 22, 29).fill(0x9d6979); g.ellipse(28, 16, 15, 14).fill(0xdbc2bc); g.circle(34, 15, 2.5).fill(0x251d2a);
     }));
     this.primitiveTextures.set('boss', this.textureFromGraphics(g => {
-      g.roundRect(8, 27, 84, 88, 18).fill(0x9e55d7); g.circle(50, 24, 27).fill(0xe5c5a7); g.circle(60, 21, 4).fill(0x251d2a);
+      g.roundRect(8, 27, 84, 88, 18).fill(0x743aab).stroke({ color: 0xffd978, width: 5 });
+      g.roundRect(1, 46, 24, 30, 7).fill(0xf0b94e); g.roundRect(75, 46, 24, 30, 7).fill(0xf0b94e);
+      g.circle(50, 24, 27).fill(0xe5c5a7).stroke({ color: 0xffd978, width: 4 }); g.circle(60, 21, 4).fill(0x251d2a);
+      g.rect(34, 70, 32, 8).fill(0xffd978);
     }));
   }
 
@@ -266,8 +269,8 @@ export class GameRenderer {
         this.playerSprite.tint = p.invulnerable > 0 && Math.floor(state.elapsed * 18) % 2 === 0 ? 0xffffff : p.invulnerable > 0.45 ? 0xffb5b5 : 0xffffff;
         this.playerSprite.alpha = state.status === 'defeat' ? 0.78 : 1;
         this.playerSprite.rotation = state.status === 'defeat' ? 0.28 : 0;
-        const playerBucket = Math.floor((p.y + 28) / 4);
-        if (this.playerSprite.zIndex !== playerBucket) { this.playerSprite.zIndex = playerBucket; needsSort = true; }
+        // Keep the hero readable above the crowd; this only affects draw order, never world coordinates or hitboxes.
+        if (this.playerSprite.zIndex !== 10_000) { this.playerSprite.zIndex = 10_000; needsSort = true; }
       }
     }
 
@@ -294,7 +297,7 @@ export class GameRenderer {
       view.sprite.position.set(enemy.x, enemy.y + enemy.radius + 9);
       view.sprite.scale.x = Math.abs(view.sprite.scale.x) * (enemy.horizontalFacing === 'left' ? -1 : 1);
       view.sprite.tint = enemy.hitFlash > 0 ? 0xffb5a8 : 0xffffff;
-      const bucket = Math.floor((enemy.y + enemy.radius + 9) / 4);
+      const bucket = enemy.kind === 'boss' ? 9_000 : Math.floor((enemy.y + enemy.radius + 9) / 4);
       if (view.sprite.zIndex !== bucket) { view.sprite.zIndex = bucket; needsSort = true; }
       view.shadow.position.set(enemy.x, enemy.y + enemy.radius + 5);
       const barWidth = enemy.kind === 'boss' ? 108 : 36;
@@ -320,7 +323,7 @@ export class GameRenderer {
   }
 
   private setEnemySpriteSize(sprite: Sprite, enemy: Enemy): void {
-    const size = enemy.kind === 'boss' ? [100, 115] : enemy.kind === 'bruiser' ? [56, 58] : enemy.kind === 'fastThug' ? [40, 54] : [38, 51];
+    const size = enemy.kind === 'boss' ? [116, 130] : enemy.kind === 'bruiser' ? [56, 58] : enemy.kind === 'fastThug' ? [40, 54] : [38, 51];
     sprite.width = size[0]!; sprite.height = size[1]!;
   }
 

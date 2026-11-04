@@ -94,6 +94,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.keyboard.press('F3');
   await expect(page.locator('.debug-panel')).toContainText('frame');
   await expect(page.locator('.debug-panel')).toContainText('enemies');
+  await page.getByRole('button', { name: 'Copy run diagnostics' }).click();
   expect(errors).toEqual([]);
   expect(failedAssets).toEqual([]);
 });
@@ -139,6 +140,8 @@ test('standard configuration naturally builds an early horde in the browser', as
   let liveRenderMetrics: { enemies: number; fps: number; frameMs: number } | null = null;
   let lateHordeMetrics: { enemies: number; kinds: string[]; fps: number; frameMs: number } | null = null;
   let naturalBossMetrics: { elapsed: number; health: number; bossHealth: number; enemies: number } | null = null;
+  let capturedSurge = false;
+  let capturedBossCombat = false;
   let capturedMultiWeapon = false;
   let capturedEvolution = false;
   const naturalProgression: Array<Record<string, unknown>> = [];
@@ -159,6 +162,10 @@ test('standard configuration naturally builds an early horde in the browser', as
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
     }
     const moment = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { elapsed: state.elapsed, status: state.status } : null; });
+    if (!capturedSurge && moment?.status === 'playing') {
+      const surge = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state?.surgeRemaining ? { side: state.surgeDirection, remaining: state.surgeRemaining } : null; });
+      if (surge) { await expect(page.locator('.surge-alert')).toContainText(`FROM THE ${surge.side.toUpperCase()}`); await page.screenshot({ path: `${evidence}/natural-horde-surge.png` }); console.info(`NATURAL_SURGE_EVIDENCE ${JSON.stringify(surge)}`); capturedSurge = true; }
+    }
     const weaponEvidence = await page.evaluate(() => {
       const state = window.__GG_TEST__?.getState();
       return state ? { piercing: state.player.weaponRanks.piercingThrow > 0, orbit: state.player.weaponRanks.orbitGuard > 0, evolved: state.player.evolvedPinwheel } : null;
@@ -198,12 +205,16 @@ test('standard configuration naturally builds an early horde in the browser', as
       });
       if (encounter) { await page.screenshot({ path: `${evidence}/12-standard-boss-arrival.png` }); naturalBossMetrics = encounter; }
     }
+    if (!capturedBossCombat && moment && moment.elapsed >= 154 && moment.status === 'playing') {
+      const bossHealth = await page.evaluate(() => window.__GG_TEST__?.getState()?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead)?.health ?? 0);
+      if (bossHealth > 0) { await page.screenshot({ path: `${evidence}/natural-boss-combat.png` }); capturedBossCombat = true; }
+    }
     if (status === 'defeat' || status === 'victory') break;
   }
   const result = await page.evaluate(() => {
     const state = window.__GG_TEST__?.getState();
     const boss = state?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
-    return state ? { elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank } : null;
+    return state ? { elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank, spawned: state.enemiesSpawned, peak: state.peakEnemies, belowTargetSeconds: state.timeBelowHordeTarget, placementFallbacks: state.spawnPlacementFallbacks, recycled: state.recycledEnemies, spawnRate: state.spawnRate, killRate: state.killRate, chosen: state.chosen } : null;
   });
   console.info(`STANDARD_NATURAL_BROWSER ${JSON.stringify({ ...result, liveRenderMetrics, lateHordeMetrics, naturalBossMetrics, naturalProgression })}`);
   expect(result).not.toBeNull();
@@ -212,6 +223,7 @@ test('standard configuration naturally builds an early horde in the browser', as
   expect(naturalBossMetrics).not.toBeNull();
   expect(['victory', 'defeat']).toContain(result?.status);
   expect(result?.elapsed).toBeGreaterThan(150);
+  expect(capturedSurge).toBe(true);
   if (result?.status === 'victory') await page.screenshot({ path: `${evidence}/13-standard-victory.png` });
   else await page.screenshot({ path: `${evidence}/13-standard-defeat.png` });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
