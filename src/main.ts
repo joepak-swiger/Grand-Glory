@@ -105,7 +105,7 @@ if (import.meta.env.DEV && params.has('test')) {
     grantXp: (amount = 60) => { if (!game) return; game.player.xp += amount; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
     spawn: (kind: 'thug' | 'fastThug' | 'boss' = 'thug', x?: number, y?: number) => { if (!game) return; game.enemies.push(spawnEnemy(game, kind, config, { x: x ?? game.player.x + 150, y: y ?? game.player.y })); renderUi(true); },
     startBoss: () => { if (!game) return; game.elapsed = config.bossAt; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
-    prepareBossForAttack: () => { if (!game) return; const boss = game.enemies.find(e => e.kind === 'boss' && !e.dead); if (boss) { game.enemies = [boss]; boss.x = game.player.x + 145; boss.y = game.player.y; boss.health = 18; boss.maxHealth = 18; game.player.attackTimer = 0; } },
+    prepareBossForAttack: () => { if (!game) return; const boss = game.enemies.find(e => e.kind === 'boss' && !e.dead); if (boss) { game.enemies = [boss]; boss.x = game.player.x + 25; boss.y = game.player.y; boss.health = 1; boss.maxHealth = 1; game.player.attackTimer = 0; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderer.draw(game); renderUi(true); } },
     damagePlayer: (amount = 100) => { if (!game) return; game.player.invulnerable = 0; damagePlayer(game, amount); renderUi(true); },
     pause: () => { if (game) { game.status = 'paused'; renderUi(true); } },
     injectPickup: (value = 40) => { if (game) { game.pickups.push({ id: game.nextId++, x: game.player.x, y: game.player.y, value }); updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); } },

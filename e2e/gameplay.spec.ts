@@ -79,7 +79,6 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   expect(['left', 'right']).toContain(bossFacing);
   await page.screenshot({ path: `${evidence}/06-boss-encounter.png` });
   await page.evaluate(() => window.__GG_TEST__?.prepareBossForAttack());
-  await page.evaluate(() => window.__GG_TEST__?.advance(0.5));
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.bossDefeated ?? false), { timeout: 6000 }).toBe(true);
   await expect(page.getByRole('heading', { name: 'VICTORY' })).toBeVisible();
   await page.screenshot({ path: `${evidence}/07-victory.png` });
