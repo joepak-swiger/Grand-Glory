@@ -207,7 +207,11 @@ test('standard configuration naturally builds an early horde in the browser', as
     }
     if (!capturedBossCombat && moment && moment.elapsed >= 154 && moment.status === 'playing') {
       const bossHealth = await page.evaluate(() => window.__GG_TEST__?.getState()?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead)?.health ?? 0);
-      if (bossHealth > 0) { await page.screenshot({ path: `${evidence}/natural-boss-combat.png` }); capturedBossCombat = true; }
+      if (bossHealth > 0) {
+        // Boss-combat capture is supplementary evidence; slow SwiftShader readback must not consume the normal-run timeout.
+        try { await page.screenshot({ path: `${evidence}/natural-boss-combat.png`, timeout: 20_000 }); capturedBossCombat = true; }
+        catch (error) { console.warn(`OPTIONAL_BOSS_SCREENSHOT_SKIPPED ${error instanceof Error ? error.message : String(error)}`); }
+      }
     }
     if (status === 'defeat' || status === 'victory') break;
   }
