@@ -20,6 +20,20 @@ The earlier project report's 4.23 / 10.10 / 22.58 / 39.89 / 51.71 ms figures wer
 
 The old and current samples use the same seeded 600-update fixture with moving projectiles and mixed entities, collected in separate runs. Median costs are similar: the 200-enemy median improved about 6%, while 100 was slower in this sample; p95/worst were noisy and did not improve consistently. This comparison does not support a broad simulation speedup claim. The spatial grid removes projectile/enemy full-scan candidate work, but separation and general per-enemy work still scale with population. The measured median remains under 0.2 ms per update at 200 enemies, well inside a 16.7 ms fixed-step budget; worst samples show substantial JIT/GC variability. The supplied 51.71 ms at 200 was the total of 300 updates (~0.17 ms/update), not the cost of one update. This benchmark is lightweight, not a lab-grade profiler.
 
+### Assignment 004 versus Assignment 005
+
+This matching seeded fixture rerun compares the Assignment 004 benchmark sample above with the Assignment 005 run from the same Windows Node 24.22.1 environment and 600-update workload. The simulation is not expected to be the bottleneck here; the Assignment 005 work focuses on population behavior and presentation.
+
+| Enemies | Assignment 004 median / p95 / worst ms | Assignment 005 median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0251 / 0.0958 / 0.4829 | 0.0258 / 0.0493 / 0.2238 |
+| 50 | 0.0465 / 0.1304 / 0.4800 | 0.0330 / 0.0870 / 0.2536 |
+| 100 | 0.0839 / 0.1442 / 0.7545 | 0.0666 / 0.1190 / 0.2971 |
+| 150 | 0.1249 / 0.2078 / 0.6694 | 0.1475 / 0.3273 / 5.1177 |
+| 200 | 0.1723 / 0.3739 / 0.9091 | 0.1575 / 0.2482 / 0.4181 |
+
+Assignment 005 medians improved at 50, 100, and 200, were roughly unchanged at 25, and regressed at 150. The 150-enemy worst sample is a likely runtime/GC outlier; do not treat this short benchmark as proof of uniformly faster simulation. All medians were at or below 0.148 ms/update. Real browser frame rate remains dominated by the headless SwiftShader compositor in CI, not these simulation medians.
+
 ## Browser crowd stress (synthetic setup, not natural gameplay)
 
 | Population | Visible enemies | Projectiles | Pickups | Labels | Active sprites | FPS | Avg frame ms | p95 frame ms | Worst frame ms | Last scene update / p95 / worst ms |
