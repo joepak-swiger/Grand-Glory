@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence';
+const evidence = 'artifacts/evidence/city-reconstruction/gameplay';
 test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
@@ -11,12 +11,20 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapLoaded ?? false)).toBe(true);
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapSize)).toEqual({ width: 1800, height: 1200 });
   const portrait = page.locator('.hero-portrait');
   await expect(portrait).toBeVisible();
   await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth === 1254)).toBe(true);
   await page.screenshot({ path: `${evidence}/01-title.png` });
+  for (const [width, height] of [[1920, 1080], [1366, 768], [1280, 720], [900, 600]] as const) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByRole('button', { name: /PLAY NOW/i })).toBeVisible();
+    await page.screenshot({ path: `${evidence}/title-${width}x${height}.png` });
+  }
+  await page.setViewportSize({ width: 1365, height: 900 });
 
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
   await expect(page.getByText('BLUE PINWHEEL')).toBeVisible();
   await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); if (state) window.__GG_TEST__?.spawn('fastThug', state.player.x + 36, state.player.y); });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
@@ -54,7 +62,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.screenshot({ path: `${evidence}/02-active-combat.png` });
 
   await page.evaluate(() => window.__GG_TEST__?.injectPickup(30));
-  await expect(page.getByRole('heading', { name: 'Choose an upgrade' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose your next move' })).toBeVisible();
   await page.screenshot({ path: `${evidence}/03-level-up-choices.png` });
   const chosenId = await page.evaluate(() => window.__GG_TEST__?.getState()?.options[0]);
   const beforeUpgrade = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { speed: state.player.speed, damage: state.player.damageBonus, shots: state.player.extraShots, health: state.player.maxHealth, pickup: state.player.pickupRadius, orbit: state.player.orbit, weaponRanks: state.player.weaponRanks, powerRank: state.player.powerRank, evolved: state.player.evolvedPinwheel } : null; });
@@ -105,8 +113,9 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
   await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000));
+  let evolutionCardCaptured = false;
   for (let choice = 0; choice < 40; choice++) {
     const state = await page.evaluate(() => {
       const current = window.__GG_TEST__?.getState();
@@ -115,6 +124,11 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
     if (!state || state.evolved) break;
     if (state.status === 'playing') { await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000)); continue; }
     if (state.status !== 'upgrade') throw new Error(`Expected pending level-up choice, received ${state.status}`);
+    if (!evolutionCardCaptured && state.options.includes('evolvePinwheel')) {
+      await expect(page.locator('.evolution-card')).toBeVisible();
+      await page.screenshot({ path: `${evidence}/evolution-card.png` });
+      evolutionCardCaptured = true;
+    }
     const desired = state.pinwheel < 5 && state.options.includes('pinwheel') ? 'pinwheel'
       : state.power < 2 && state.options.includes('power') ? 'power'
         : state.options[0];
@@ -122,8 +136,9 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
     await page.locator(`[data-upgrade="${desired}"]`).click();
   }
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.evolvedPinwheel ?? false)).toBe(true);
+  expect(evolutionCardCaptured).toBe(true);
   await expect(page.locator('.combat-hud')).toContainText('PINWHEEL EVOLVED');
-  await page.screenshot({ path: `${evidence}/synthetic-pinwheel-evolution.png` });
+  await page.screenshot({ path: `${evidence}/post-evolution-combat.png` });
   expect(errors).toEqual([]);
 });
 
@@ -134,7 +149,7 @@ test('standard configuration naturally builds an early horde in the browser', as
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=normal');
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
   let sawUpgrade = false;
   let capturedHorde = false;
   let liveRenderMetrics: { enemies: number; fps: number; frameMs: number } | null = null;
@@ -180,7 +195,7 @@ test('standard configuration naturally builds an early horde in the browser', as
       });
       if (sample) {
         naturalProgression.push({ time: mark, ...sample });
-        await page.screenshot({ path: `artifacts/evidence/natural-${String(mark).padStart(3, '0')}s-population.png` });
+        await page.screenshot({ path: `${evidence}/natural-${String(mark).padStart(3, '0')}s-population.png` });
       }
     }
     if (!capturedHorde && moment && moment.elapsed >= 15 && moment.status === 'playing') {

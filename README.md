@@ -9,6 +9,8 @@ An independent, original superhero bullet-heaven prototype. **Blue Pinwheel** is
 
 Pinned stack: PixiJS 8.22.0, Vite 8.3.5, TypeScript 7.0.2, Vitest 5.1.0, and Playwright 1.64.1. `package-lock.json` is the npm lockfile.
 
+The city stage now uses a cached pixel-art map built from the Kenney Roguelike Modern City CC0 atlas. Building art, marked streets, and the blue/cyan/gold presentation are documented in [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md) and [docs/ASSETS.md](docs/ASSETS.md).
+
 ## Run
 
 ```sh
@@ -36,4 +38,4 @@ The `?test=1` URL uses a shorter development encounter with deterministic test h
 
 ## Project state
 
-See [docs/STATUS.md](docs/STATUS.md), [docs/GAMEPLAY.md](docs/GAMEPLAY.md), [docs/CANON.md](docs/CANON.md), [docs/ASSETS.md](docs/ASSETS.md), and [docs/TESTING.md](docs/TESTING.md). The official repository is [joepak-swiger/Grand-Glory](https://github.com/joepak-swiger/Grand-Glory).
+See [docs/STATUS.md](docs/STATUS.md), [docs/GAMEPLAY.md](docs/GAMEPLAY.md), [docs/CANON.md](docs/CANON.md), [docs/ASSETS.md](docs/ASSETS.md), [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md), and [docs/TESTING.md](docs/TESTING.md). The official repository is [joepak-swiger/Grand-Glory](https://github.com/joepak-swiger/Grand-Glory).

@@ -1,5 +1,11 @@
 # Prototype gameplay
 
+## Visual stage
+
+The `City Street (Prototype)` stage is an 1800×1200 neighborhood with a broad east-west boulevard, a second cross street, two north-south avenues, sidewalks, four marked intersections, and six coherent building footprints. Shared geometry in `src/game/stage.ts` drives the rendered map, walkability, bounds, spawning, collision, projectiles, and enemy route field. Asphalt and road paint are authored separately from the atlas because its road crops contain repeated baked lane lines. Building roofs use consistent original brick, glass, and industrial palettes; the CC0 atlas supplies pavement and sidewalk textures.
+
+Buildings are solid rectangular footprints. Players, enemies, and dashes stop at those footprints and can slide along their edges; collision is swept in bounded substeps. Projectiles stop at buildings, and automatic attacks require a clear shot. The Gang Leader and ordinary enemies share one breadth-first flow field, rebuilt when Blue Pinwheel enters a new 32-unit stage cell. Roads, sidewalks, and open ground are walkable. Street lamps and paint are decorative and nonblocking. Press F4 in development to compare collision cells and actor radii with the rendered city.
+
 ## Controls
 
 - Move: WASD / arrow keys

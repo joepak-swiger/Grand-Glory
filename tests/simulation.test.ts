@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
 import { acquireTarget, chooseUpgrade, createGame, damagePlayer, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { isWalkable } from '../src/game/stage';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
 function steps(state: ReturnType<typeof createGame>, count: number, input = idle, cfg = testRun): void { for (let i = 0; i < count; i++) updateGame(state, 1 / 60, input, cfg); }
@@ -84,9 +85,9 @@ describe('deterministic gameplay simulation', () => {
   });
 
   it('keeps movement within arena and walkable street bounds', () => {
-    const s = createGame(1, testRun); movePlayer(s.player, -1, -1, 200, testRun);
-    expect(s.player.x).toBeGreaterThanOrEqual(28); expect(s.player.y).toBe(288);
-    movePlayer(s.player, 1, 1, 200, testRun); expect(s.player.x).toBeLessThanOrEqual(testRun.arenaWidth - 28); expect(s.player.y).toBeLessThanOrEqual(752);
+    const s = createGame(1, testRun); movePlayer(s.player, -1, -1, 200, testRun, s.stage);
+    expect(s.player.x).toBeGreaterThanOrEqual(18); expect(s.player.y).toBeGreaterThanOrEqual(18); expect(isWalkable(s.stage, s.player.x, s.player.y, 18)).toBe(true);
+    movePlayer(s.player, 1, 1, 200, testRun, s.stage); expect(s.player.x).toBeLessThanOrEqual(testRun.arenaWidth - 18); expect(s.player.y).toBeLessThanOrEqual(testRun.arenaHeight - 18); expect(isWalkable(s.stage, s.player.x, s.player.y, 18)).toBe(true);
   });
 
   it('acquires the nearest living target and ignores dead enemies', () => {
@@ -138,7 +139,7 @@ describe('deterministic gameplay simulation', () => {
 
   it('spawns enemies away from the player and within arena bounds', () => {
     const s = createGame(14, testRun);
-    for (let i = 0; i < 100; i++) { const e = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun); expect(Math.hypot(e.x - s.player.x, e.y - s.player.y)).toBeGreaterThanOrEqual(180); expect(e.x).toBeGreaterThanOrEqual(28); expect(e.x).toBeLessThanOrEqual(testRun.arenaWidth - 28); expect(e.y).toBeGreaterThanOrEqual(288); expect(e.y).toBeLessThanOrEqual(752); }
+    for (let i = 0; i < 100; i++) { const e = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun); expect(Math.hypot(e.x - s.player.x, e.y - s.player.y)).toBeGreaterThanOrEqual(180); expect(e.x).toBeGreaterThanOrEqual(e.radius); expect(e.x).toBeLessThanOrEqual(testRun.arenaWidth - e.radius); expect(e.y).toBeGreaterThanOrEqual(e.radius); expect(e.y).toBeLessThanOrEqual(testRun.arenaHeight - e.radius); expect(isWalkable(s.stage, e.x, e.y, e.radius)).toBe(true); }
   });
 
   it('distributes generated enemies across camera-adjacent street regions for multiple seeds', () => {
@@ -147,15 +148,15 @@ describe('deterministic gameplay simulation', () => {
       const s = createGame(seed, testRun);
       for (let i = 0; i < 200; i++) {
         const e = spawnEnemy(s, 'thug', testRun);
-        if (e.y <= 290) edges.top++;
-        else if (e.x >= s.player.x + 500) edges.right++;
-        else if (e.y >= 750) edges.bottom++;
-        else if (e.x <= s.player.x - 500) edges.left++;
+        if (e.y <= 220) edges.top++;
+        else if (e.x >= s.player.x + 400) edges.right++;
+        else if (e.y >= 980) edges.bottom++;
+        else if (e.x <= s.player.x - 400) edges.left++;
         else throw new Error(`spawn was not on a camera-adjacent valid street region: ${e.x}, ${e.y}`);
       }
     }
-    expect(edges.top).toBeGreaterThan(80); expect(edges.right).toBeGreaterThan(40);
-    expect(edges.bottom).toBeGreaterThan(80); expect(edges.left).toBeGreaterThan(40);
+    expect(edges.top).toBeGreaterThan(40); expect(edges.right).toBeGreaterThan(40);
+    expect(edges.bottom).toBeGreaterThan(40); expect(edges.left).toBeGreaterThan(40);
   });
 
   it('reproduces spawn coordinates independently for multiple seeds', () => {

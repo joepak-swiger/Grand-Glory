@@ -79,3 +79,39 @@ Population fill remains a tradeoff: this small three-seed sample shows better ta
 ## Artifacts and limitations
 
 Browser screenshots are in `artifacts/evidence/`. `stress-*.png` are real rendered synthetic stress scenes and must not be represented as natural progression. `natural-*-population.png` and standard-run screens come from standard run rules with natural spawns. Simulation continues for offscreen enemies, as needed for fair attacks and recycling; culling affects their display objects only. Headless frame rate remains a separate limitation, and ordinary desktop GPU performance still needs owner-side observation.
+
+## Assignment 006 city-renderer check
+
+The visual branch assembles the Kenney tile layers into one nearest-neighbor canvas texture once during renderer initialization. No per-frame tile redraw is added; the map is one static sprite beneath the existing dynamic entity layers. The browser test exercises synthetic 25/50/100/150/200 visible crowds with 1.4 seconds of warm-up per count. This is an isolated renderer stress setup, not natural horde evidence.
+
+Current local environment: Windows Chromium `HeadlessChrome/156.0.8078.4`, 1365×900, 16 reported hardware threads, WebGL on `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)))`. This run therefore measures software rendering, not the owner's regular GPU browser. JS heap metric was 20.69 MiB for each snapshot; it does not report GPU memory. The stress hook pauses simulation, so simulation p95 is 0 and dropped updates do not describe a normally advancing run.
+
+| Visible enemies | Active sprites | FPS sample | Average frame ms | p95 frame ms | Worst frame ms | Renderer update current / p95 / worst ms |
+|---:|---:|---:|---:|---:|---:|---:|
+| 25 | 39 | 30 | 21.26 | 33.40 | 100.0 | 0.20 / 0.30 / 1.40 |
+| 50 | 78 | 60 | 20.91 | 33.40 | 100.0 | 0.30 / 0.30 / 1.40 |
+| 100 | 155 | 30 | 21.98 | 33.40 | 100.0 | 0.20 / 0.40 / 1.80 |
+| 150 | 232 | 30 | 22.89 | 33.40 | 33.50 | 0.30 / 0.40 / 1.80 |
+| 200 | 309 | 30 | 25.44 | 33.40 | 33.50 | 0.50 / 0.50 / 1.80 |
+
+For context, the pre-overhaul hosted sample in the preceding table was 30/20/30/15/15 FPS and 39.96–45.54 ms average frame time. Although both identified SwiftShader and Chromium 156, they were taken in different run environments; do not interpret that difference as a controlled before/after GPU speedup. The current scene-update p95 is 0.3–0.5 ms and worst is at most 1.8 ms in this local run, so CPU-side view updates remain small. Full-frame p95 is quantized at 33.4 ms and occasional 100 ms outliers reveal the software compositor as the visible constraint here. Owner-side normal-GPU measurements remain unverified.
+
+The standard-config browser run retained the Assignment 005 natural results: at 15/30/35/60/90/120/150 simulated seconds it recorded active/visible counts of 24/20, 27/21, 46/34 during a surge, 62/47, 80/63, 81/46, and 94/75 with the boss. It won at 155.52 simulated seconds at level 22 and 137.5/160 HP. That automated driver fast-forwards fixed simulation steps, so its variable 30–60 FPS ticker samples are not an ordinary continuous playthrough benchmark. The renderer now adds one cached city image and four small static street-light/car accents; no horde density or simulation rules changed in Assignment 006.
+
+## Assignment 006B — collision and navigation cost
+
+I ran the same `tests/performance.benchmark.test.ts` fixture from the parent commit and the corrected source, on this Windows x64 Node 24.22.1 runtime. Each population is seeded identically, warmed for 120 updates, then sampled for 600 fixed updates. The scenes include mixed enemy types, moving player/enemy shots, XP and floating labels. The old committed source's y=290–748 placement now sanitizes into walkable positions, so this benchmark exercises the old simulation as committed while preserving the same fixture and seed.
+
+| Enemies | Parent median ms/update | Parent p95 | Corrected median ms/update | Corrected p95 | Corrected worst |
+|---:|---:|---:|---:|---:|---:|
+| 25 | 0.0287 | 0.0699 | 0.0452 | 0.1414 | 0.5828 |
+| 50 | 0.0436 | 0.1252 | 0.0626 | 0.1316 | 0.6330 |
+| 100 | 0.1025 | 0.1724 | 0.1601 | 0.3047 | 1.3777 |
+| 150 | 0.1987 | 0.4043 | 0.2778 | 0.4614 | 0.8122 |
+| 200 | 0.2477 | 0.4246 | 0.3617 | 0.5723 | 1.2147 |
+
+The shared collision and routing work increases simulation cost, but the largest measured p95 is 0.573ms per update and the worst sample is 1.38ms in this Node run. This leaves substantial headroom within the 16.7ms fixed-update budget. These simulation figures exclude browser rendering.
+
+The final serial Chromium stress pass used HeadlessChrome 156, 1365×900, WebGL through SwiftShader, and the existing synthetic 25–200 visible-population setup. It reported 30/30/30/30/20 sampled FPS. Average whole-frame time was 24.5/24.6/25.9/27.4/29.3ms; p95 was 33.4ms for 25–150 and 50ms at 200; worst frames were 100ms for 25–100 and 50.1ms for 150–200. Scene-update p95 stayed at 0.4–0.6ms and worst at 1.7–1.9ms. JS heap was 19.55MiB across the sweep; the browser does not expose GPU memory. The synthetic scenario pauses simulation, so zero simulation cost and zero dropped updates do not characterize a normal advancing run. This is a software-renderer measurement, not the owner's desktop GPU. The prior Assignment 006 run ranged 20.9–25.4ms average frame time and 0.3–0.5ms scene-update p95 in a separate run environment; treat it as context, not a controlled GPU speed comparison. The browser reported 16 hardware threads; exact CPU model and system memory were unavailable. Owner-side normal-GPU measurements and a human playtest of the corrected city remain outstanding.
+
+The final standard-configuration Chromium run used normal game health, damage, XP and boss parameters with an accelerated fixed-step driver. At 15/30/35/60/90/120/150 simulated seconds, active/visible counts were 23/16 (target 27), 39/26 (41), 50/38 during a surge (59), 59/37 (64), 71/35 (82), 97/86 (106), and 66/35 during boss phase (ordinary target 87). The run peaked at 128 active, spawned 1,015, defeated 943, and spent 135.1 simulated seconds below the adaptive target. It reached level 23 and won at 159.58 simulated seconds with 124.28/160 HP; this is a deterministic automated scenario, not ordinary wall-clock play or human testing. The late boss phase decreases ordinary target pressure to make the boss encounter legible.

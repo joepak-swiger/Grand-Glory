@@ -1,5 +1,6 @@
 import { ATTACKS, BLUE_PINWHEEL, ENEMIES, GANG_LEADER, PINWHEEL_EVOLUTION, standardRun, UPGRADES, type EnemyKind, type GameStatus, type HordeEntrySide, type RunConfig, type UpgradeId } from './definitions';
 import { SpatialGrid } from './spatial-grid';
+import { buildNavigationField, createCityStage, isWalkable, moveOnStage, navigationDirection, nearestWalkablePoint, segmentHitsBuilding, type CityStage, type NavigationField } from './stage';
 
 export interface Vec { x: number; y: number }
 export type HorizontalFacing = 'left' | 'right';
@@ -16,6 +17,9 @@ export interface SimState {
   readonly enemyQueryScratch: Enemy[];
   readonly pickupGrid: SpatialGrid<Pickup>;
   readonly pickupQueryScratch: Pickup[];
+  readonly stage: CityStage;
+  navigation: NavigationField;
+  navigationTargetCell: number;
   elapsed: number; kills: number; bossDefeated: boolean; bossArrivalAt: number | null; bossFightDuration: number | null; endReason: 'player-down' | 'boss-escaped' | null; seed: number; nextId: number; spawnTimer: number; spawnBudget: number; levelChoices: number; surgeRemaining: number; surgeCount: number; surgeDirection: HordeEntrySide; pickupMergeTimer: number;
   peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; killWindowCount: number; killWindowSeconds: number; killRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number;
   options: UpgradeId[]; chosen: UpgradeId[]; attacks: string[]; messages: string[]; specialTimer: number;
@@ -26,9 +30,11 @@ const dist2 = (a: Vec, b: Vec) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 const normalize = (x: number, y: number): Vec => { const m = Math.hypot(x, y); return m > 0 ? { x: x / m, y: y / m } : { x: 0, y: 0 }; };
 
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun): SimState {
+  const stage = createCityStage(config.arenaWidth, config.arenaHeight);
+  const player = { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right' as const, damageBonus: 0, extraShots: 0, pickupRadius: 150, orbit: false, orbitTimer: 0, damageDealt: 0, weaponRanks: { pinwheel: 1, orbitGuard: 0, piercingThrow: 0 }, powerRank: 0, evolvedPinwheel: false, piercingTimer: 0.6 };
   return {
-    status: 'playing', player: { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right', damageBonus: 0, extraShots: 0, pickupRadius: 150, orbit: false, orbitTimer: 0, damageDealt: 0, weaponRanks: { pinwheel: 1, orbitGuard: 0, piercingThrow: 0 }, powerRank: 0, evolvedPinwheel: false, piercingTimer: 0.6 },
-    enemies: [], projectiles: [], pickups: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], elapsed: 0, kills: 0, bossDefeated: false, bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
+    status: 'playing', player,
+    enemies: [], projectiles: [], pickups: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
   };
 }
 
@@ -37,35 +43,35 @@ export function random(state: SimState): number {
   return state.seed / 4294967296;
 }
 
-export function movePlayer(player: Player, dx: number, dy: number, dt: number, config: RunConfig): void {
+export function movePlayer(player: Player, dx: number, dy: number, dt: number, config: RunConfig, stage = createCityStage(config.arenaWidth, config.arenaHeight)): void {
   const dir = normalize(dx, dy);
   if (dir.x || dir.y) player.facing = dir;
   if (dir.x > 0.08) player.horizontalFacing = 'right';
   else if (dir.x < -0.08) player.horizontalFacing = 'left';
-  player.x = clamp(player.x + dir.x * player.speed * dt, 28, config.arenaWidth - 28);
-  player.y = clamp(player.y + dir.y * player.speed * dt, 288, Math.min(config.arenaHeight - 28, 752));
+  const moved = moveOnStage(stage, player, { x: dir.x * player.speed * dt, y: dir.y * player.speed * dt }, 18);
+  player.x = moved.x; player.y = moved.y;
 }
 
 export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig = standardRun, position?: Vec, spatialIndex?: SpatialGrid<Enemy>, entrySide?: HordeEntrySide): Enemy {
   const def = ENEMIES[kind]; let x: number; let y: number;
-  if (position) ({ x, y } = position);
+  if (position) ({ x, y } = nearestWalkablePoint(state.stage, position.x, position.y, def.radius));
   else {
-    // Spawn just outside the current camera view so waves enter the street visibly.
-    const bounds = { left: 28, right: config.arenaWidth - 28, top: 288, bottom: Math.min(config.arenaHeight - 28, 752) };
+    // Spawn just outside the current camera view, but only on stage-defined walkable cells.
+    const bounds = { left: def.radius + 2, right: config.arenaWidth - def.radius - 2, top: def.radius + 2, bottom: config.arenaHeight - def.radius - 2 };
     const sample = (): Vec => {
       const side = entrySide ? ({ left: 0, right: 1, top: 2, bottom: 3 } as const)[entrySide] : Math.floor(random(state) * 4); const mx = config.horde.spawnMarginX; const my = config.horde.spawnMarginY;
       const cameraLeft = clamp(state.player.x - 480, bounds.left, bounds.right); const cameraRight = clamp(state.player.x + 480, bounds.left, bounds.right);
       const cameraTop = clamp(state.player.y - 320, bounds.top, bounds.bottom); const cameraBottom = clamp(state.player.y + 320, bounds.top, bounds.bottom);
-      if (side === 0) return { x: clamp(cameraLeft - mx - random(state) * 110, bounds.left, bounds.right), y: clamp(cameraTop + random(state) * Math.max(1, cameraBottom - cameraTop), bounds.top, bounds.bottom) };
-      if (side === 1) return { x: clamp(cameraRight + mx + random(state) * 110, bounds.left, bounds.right), y: clamp(cameraTop + random(state) * Math.max(1, cameraBottom - cameraTop), bounds.top, bounds.bottom) };
-      if (side === 2) return { x: clamp(cameraLeft + random(state) * Math.max(1, cameraRight - cameraLeft), bounds.left, bounds.right), y: clamp(cameraTop - my - random(state) * 90, bounds.top, bounds.bottom) };
-      return { x: clamp(cameraLeft + random(state) * Math.max(1, cameraRight - cameraLeft), bounds.left, bounds.right), y: clamp(cameraBottom + my + random(state) * 90, bounds.top, bounds.bottom) };
+      if (side === 0) return { x: clamp(cameraLeft - mx - random(state) * 120, bounds.left, bounds.right), y: clamp(cameraTop + random(state) * Math.max(1, cameraBottom - cameraTop), bounds.top, bounds.bottom) };
+      if (side === 1) return { x: clamp(cameraRight + mx + random(state) * 120, bounds.left, bounds.right), y: clamp(cameraTop + random(state) * Math.max(1, cameraBottom - cameraTop), bounds.top, bounds.bottom) };
+      if (side === 2) return { x: clamp(cameraLeft + random(state) * Math.max(1, cameraRight - cameraLeft), bounds.left, bounds.right), y: clamp(cameraTop - my - random(state) * 100, bounds.top, bounds.bottom) };
+      return { x: clamp(cameraLeft + random(state) * Math.max(1, cameraRight - cameraLeft), bounds.left, bounds.right), y: clamp(cameraBottom + my + random(state) * 100, bounds.top, bounds.bottom) };
     };
     const minimumDistanceSquared = 180 ** 2; let safest: Vec | undefined; let chosen: Vec | undefined; let bestClearance = -1;
     const nearby: Enemy[] = [];
     for (let attempt = 0; attempt < 48; attempt++) {
       const candidate = sample(); const playerDistance = dist2(candidate, state.player);
-      if (playerDistance < minimumDistanceSquared) continue;
+      if (playerDistance < minimumDistanceSquared || !isWalkable(state.stage, candidate.x, candidate.y, def.radius)) continue;
       let nearestEnemyDistance = Number.POSITIVE_INFINITY;
       if (spatialIndex) {
         spatialIndex.queryRadius(candidate.x, candidate.y, 160, nearby);
@@ -77,7 +83,16 @@ export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig =
       if (nearestEnemyDistance >= safeSpacing) { chosen = candidate; break; }
     }
     if (!chosen) state.spawnPlacementFallbacks++;
-    const spawn = chosen ?? safest ?? { x: (bounds.left + bounds.right) / 2, y: bounds.top };
+    if (!safest) {
+      // If a blocked edge meets a solid building, choose the safest walkable cell deterministically.
+      for (let row = 0; row < state.stage.rows; row++) for (let column = 0; column < state.stage.columns; column++) {
+        const candidate = { x: (column + 0.5) * state.stage.cellSize, y: (row + 0.5) * state.stage.cellSize };
+        if (!isWalkable(state.stage, candidate.x, candidate.y, def.radius) || dist2(candidate, state.player) < minimumDistanceSquared) continue;
+        const clearance = dist2(candidate, state.player);
+        if (clearance > bestClearance) { safest = candidate; bestClearance = clearance; }
+      }
+    }
+    const spawn = chosen ?? safest ?? nearestWalkablePoint(state.stage, state.player.x, state.player.y, def.radius);
     x = spawn.x; y = spawn.y;
   }
   return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackState: 'idle', attackDirection: { x: 0, y: 0 }, horizontalFacing: 'right', animationTime: 0, chargeReady: false, chargeConnected: false, dead: false, phase: 0, rangedTimer: 1.2, distantTime: 0 };
@@ -90,12 +105,13 @@ function updateFacingFromHorizontal(enemy: Enemy, directionX: number): void {
 }
 
 function spawnBossForEncounter(state: SimState, config: RunConfig): Enemy {
-  // Enter from a visible horizontal side of the street, not beneath the fixed HUD at the top edge.
+  // Enter from a visible horizontal side in the same walkable geometry as the city.
   const left = 28; const right = config.arenaWidth - 28; const gap = 360;
   const canSpawnLeft = state.player.x - gap >= left; const canSpawnRight = state.player.x + gap <= right;
   const side = canSpawnLeft && canSpawnRight ? (random(state) < 0.5 ? -1 : 1) : canSpawnRight ? 1 : -1;
-  const safeTop = Math.min(360, config.arenaHeight - 60); const safeBottom = Math.min(680, config.arenaHeight - 60);
-  return spawnEnemy(state, 'boss', config, { x: clamp(state.player.x + side * gap, left, right), y: clamp(state.player.y, safeTop, safeBottom) });
+  const x = clamp(state.player.x + side * gap, left, right);
+  const y = clamp(state.player.y, 60, config.arenaHeight - 60);
+  return spawnEnemy(state, 'boss', config, nearestWalkablePoint(state.stage, x, y, GANG_LEADER.radius));
 }
 
 export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
@@ -108,14 +124,25 @@ export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
 
 function acquireTargetFromGrid(state: SimState, range: number, nearby: Enemy[]): Enemy | undefined {
   const boss = state.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
-  if (boss && dist2(state.player, boss) < range * range) return boss;
+  if (boss && dist2(state.player, boss) < range * range && !segmentHitsBuilding(state.stage, state.player, boss)) return boss;
   let target: Enemy | undefined; let best = range * range;
   for (const enemy of state.enemyGrid.queryRadius(state.player.x, state.player.y, range, nearby)) {
-    if (enemy.dead) continue;
+    if (enemy.dead || segmentHitsBuilding(state.stage, state.player, enemy)) continue;
     const d = dist2(state.player, enemy);
     if (d < best) { target = enemy; best = d; }
   }
   return target;
+}
+
+function pursuitDirection(state: SimState, enemy: Enemy, direct: Vec): Vec {
+  if (!segmentHitsBuilding(state.stage, enemy, state.player, enemy.radius + 2)) return direct;
+  const direction = navigationDirection(state.stage, state.navigation, enemy.x, enemy.y);
+  return direction.x || direction.y ? normalize(direction.x, direction.y) : direct;
+}
+
+function moveEnemy(state: SimState, enemy: Enemy, direction: Vec, speed: number, dt: number): void {
+  const moved = moveOnStage(state.stage, enemy, { x: direction.x * speed * dt, y: direction.y * speed * dt }, enemy.radius);
+  enemy.x = moved.x; enemy.y = moved.y;
 }
 
 function float(state: SimState, text: string, x: number, y: number): void { state.numbers.push({ id: state.nextId++, text, x, y, life: 0.75 }); }
@@ -223,7 +250,7 @@ function chooseEnemyKind(state: SimState, elapsed: number, bossPhase: boolean, s
 }
 
 function safeSurgeSides(state: SimState, config: RunConfig): HordeEntrySide[] {
-  const left = 28; const right = config.arenaWidth - 28; const top = 288; const bottom = Math.min(config.arenaHeight - 28, 752);
+  const left = 28; const right = config.arenaWidth - 28; const top = 28; const bottom = config.arenaHeight - 28;
   const required = 180 + Math.max(config.horde.spawnMarginX, config.horde.spawnMarginY);
   return ([
     ['left', state.player.x - left], ['right', right - state.player.x],
@@ -307,7 +334,7 @@ function fireEnemyVolley(state: SimState, enemy: Enemy, aim: Vec): void {
   }
 }
 
-function separateEnemies(state: SimState, config: RunConfig): void {
+function separateEnemies(state: SimState): void {
   const enemies = state.enemies; const grid = state.enemyGrid; const nearby = state.enemyQueryScratch;
   grid.rebuild(enemies, enemy => !enemy.dead);
   for (const enemy of enemies) {
@@ -318,8 +345,9 @@ function separateEnemies(state: SimState, config: RunConfig): void {
       const dx = other.x - enemy.x; const dy = other.y - enemy.y; const minimum = (enemy.radius + other.radius) * 0.84; const d2 = dx * dx + dy * dy;
       if (d2 >= minimum * minimum) continue;
       const d = Math.sqrt(d2) || 0.001; const push = (minimum - d) * 0.28; const nx = dx / d; const ny = dy / d;
-      enemy.x = clamp(enemy.x - nx * push, enemy.radius, config.arenaWidth - enemy.radius); enemy.y = clamp(enemy.y - ny * push, 288, Math.min(752, config.arenaHeight - enemy.radius));
-      other.x = clamp(other.x + nx * push, other.radius, config.arenaWidth - other.radius); other.y = clamp(other.y + ny * push, 288, Math.min(752, config.arenaHeight - other.radius));
+      const movedEnemy = moveOnStage(state.stage, enemy, { x: -nx * push, y: -ny * push }, enemy.radius);
+      const movedOther = moveOnStage(state.stage, other, { x: nx * push, y: ny * push }, other.radius);
+      enemy.x = movedEnemy.x; enemy.y = movedEnemy.y; other.x = movedOther.x; other.y = movedOther.y;
     }
   }
 }
@@ -348,18 +376,20 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   const startingDash = input.dash && p.dashCooldown === 0;
   if (startingDash) { p.dashTimer = 0.16; p.dashCooldown = 3; p.invulnerable = Math.max(p.invulnerable, 0.22); }
   const dashX = input.x || (startingDash ? p.facing.x : 0); const dashY = input.y || (startingDash ? p.facing.y : 0);
-  movePlayer(p, dashX, dashY, step * (p.dashTimer > 0 ? 2.7 : 1), config);
+  movePlayer(p, dashX, dashY, step * (p.dashTimer > 0 ? 2.7 : 1), config, state.stage);
+  const playerCell = Math.floor(p.y / state.stage.cellSize) * state.stage.columns + Math.floor(p.x / state.stage.cellSize);
+  if (playerCell !== state.navigationTargetCell) { state.navigationTargetCell = playerCell; state.navigation = buildNavigationField(state.stage, p.x, p.y); }
   state.enemyGrid.rebuild(state.enemies, enemy => !enemy.dead);
   const nearbyEnemies = state.enemyQueryScratch;
   if (input.special && p.special >= 100 && state.specialTimer === 0) {
     p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name);
-    for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config);
+    for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2 && !segmentHitsBuilding(state.stage, p, e)) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config);
   }
   if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { const boss = spawnBossForEncounter(state, config); state.enemies.push(boss); state.enemyGrid.insert(boss); state.bossArrivalAt = state.elapsed; state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
   updateHordeDirector(state, step, config);
   // Orbit Guard prototype: short-range recurring pulse, visibly separate from the starter projectile.
   p.orbitTimer -= step;
-  if (p.orbit && p.orbitTimer <= 0) { const rank = p.weaponRanks.orbitGuard; const rankIndex = Math.max(0, rank - 1); const range = ATTACKS.orbitGuard.targetRange + (rank - 1) * 7; p.orbitTimer = ATTACKS.orbitGuard.cooldown * (ATTACKS.orbitGuard.rankCooldown?.[rankIndex] ?? 1); for (const e of state.enemyGrid.queryRadius(p.x, p.y, range, nearbyEnemies)) if (!e.dead && dist2(p, e) < range ** 2) applyEnemyDamage(state, e, ATTACKS.orbitGuard.damage * (1 + p.damageBonus) * (ATTACKS.orbitGuard.rankDamage?.[rankIndex] ?? 1), normalize(e.x - p.x, e.y - p.y), config); }
+  if (p.orbit && p.orbitTimer <= 0) { const rank = p.weaponRanks.orbitGuard; const rankIndex = Math.max(0, rank - 1); const range = ATTACKS.orbitGuard.targetRange + (rank - 1) * 7; p.orbitTimer = ATTACKS.orbitGuard.cooldown * (ATTACKS.orbitGuard.rankCooldown?.[rankIndex] ?? 1); for (const e of state.enemyGrid.queryRadius(p.x, p.y, range, nearbyEnemies)) if (!e.dead && dist2(p, e) < range ** 2 && !segmentHitsBuilding(state.stage, p, e)) applyEnemyDamage(state, e, ATTACKS.orbitGuard.damage * (1 + p.damageBonus) * (ATTACKS.orbitGuard.rankDamage?.[rankIndex] ?? 1), normalize(e.x - p.x, e.y - p.y), config); }
   p.attackTimer -= step;
   if (p.attackTimer <= 0) {
     const target = acquireTargetFromGrid(state, ATTACKS.pinwheel.targetRange, nearbyEnemies);
@@ -385,7 +415,9 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     }
   }
   for (const shot of state.projectiles) {
+    const previous = { x: shot.x, y: shot.y };
     shot.x += shot.vx * step; shot.y += shot.vy * step; shot.life -= step; shot.spin += step * 16;
+    if (segmentHitsBuilding(state.stage, previous, shot, 2)) { shot.life = 0; continue; }
     if (shot.owner === 'player') for (const e of state.enemyGrid.queryRadius(shot.x, shot.y, GANG_LEADER.radius + 9, nearbyEnemies)) if (!e.dead && !shot.hitIds.includes(e.id) && dist2(shot, e) < (e.radius + 9) ** 2) { applyEnemyDamage(state, e, shot.damage, normalize(e.x - p.x, e.y - p.y), config); shot.hitIds.push(e.id); if (shot.pierce > 0) shot.pierce--; else { shot.life = 0; break; } }
   }
   let writeProjectiles = 0;
@@ -396,6 +428,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     const toward = normalize(p.x - enemy.x, p.y - enemy.y);
     enemy.animationTime += step;
     const dx = enemy.x - p.x; const dy = enemy.y - p.y; const d = Math.hypot(dx, dy);
+    const route = pursuitDirection(state, enemy, toward);
     if (enemy.kind === 'boss') {
       const previousPhase = enemy.phase % GANG_LEADER.phaseLength;
       enemy.phase += step;
@@ -412,37 +445,43 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
         if (beginsSegment(GANG_LEADER.chargeStart)) { enemy.chargeReady = d < GANG_LEADER.chargeRange; enemy.chargeConnected = false; if (enemy.chargeReady) enemy.attackDirection = normalize(p.x - enemy.x, p.y - enemy.y); }
         enemy.attackState = enemy.chargeReady ? 'charge-telegraph' : 'idle';
       } else if (phase >= GANG_LEADER.chargeEnd && phase < GANG_LEADER.chargeActiveEnd) {
-        if (enemy.chargeReady) { enemy.x += enemy.attackDirection.x * GANG_LEADER.chargeSpeed * step; enemy.y += enemy.attackDirection.y * GANG_LEADER.chargeSpeed * step; enemy.attackState = 'charging'; }
+        if (enemy.chargeReady) enemy.attackState = 'charging';
         else enemy.attackState = 'idle';
       } else if (phase >= GANG_LEADER.rangedTelegraphEnd && phase < GANG_LEADER.recoveryEnd) enemy.attackState = 'recovering';
       else enemy.attackState = 'idle';
       if (enemy.attackState === 'ranged-telegraph' || enemy.attackState === 'charge-telegraph' || enemy.attackState === 'charging' || enemy.attackState === 'recovering') updateFacingFromHorizontal(enemy, enemy.attackDirection.x);
       else updateFacingFromHorizontal(enemy, toward.x);
-      if (enemy.attackState === 'idle' && d > 125) { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
+      if (enemy.attackState === 'idle' && d > 125) moveEnemy(state, enemy, route, enemy.speed, step);
+      if (enemy.attackState === 'charging') {
+        const moved = moveOnStage(state.stage, enemy, { x: enemy.attackDirection.x * GANG_LEADER.chargeSpeed * step, y: enemy.attackDirection.y * GANG_LEADER.chargeSpeed * step }, enemy.radius);
+        enemy.x = moved.x; enemy.y = moved.y;
+      }
       if (enemy.attackState === 'charging' && !enemy.chargeConnected && Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.radius + 18) {
         enemy.chargeConnected = true;
         damagePlayer(state, GANG_LEADER.contactDamage);
       }
     } else if (ENEMIES[enemy.kind].ranged) {
       enemy.rangedTimer -= step; enemy.phase = Math.max(0, enemy.phase - step);
-      if (enemy.rangedTimer <= 0) { fireEnemyVolley(state, enemy, enemy.attackDirection); enemy.rangedTimer = 2.8; enemy.phase = 0.38; enemy.attackState = 'recovering'; }
+      if (enemy.rangedTimer <= 0 && !segmentHitsBuilding(state.stage, enemy, p)) { fireEnemyVolley(state, enemy, enemy.attackDirection); enemy.rangedTimer = 2.8; enemy.phase = 0.38; enemy.attackState = 'recovering'; }
+      else if (enemy.rangedTimer <= 0) enemy.rangedTimer = 0.35;
       else if (enemy.phase > 0) enemy.attackState = 'recovering';
       else if (enemy.rangedTimer <= 0.46) { if (enemy.attackState !== 'ranged-telegraph') enemy.attackDirection = toward; enemy.attackState = 'ranged-telegraph'; }
       else enemy.attackState = 'idle';
       updateFacingFromHorizontal(enemy, enemy.attackState === 'ranged-telegraph' ? enemy.attackDirection.x : toward.x);
       const preferred = ENEMIES[enemy.kind].preferredRange ?? 250;
-      if (d > preferred + 24) { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
-      else if (d < preferred - 36) { enemy.x -= toward.x * enemy.speed * 0.72 * step; enemy.y -= toward.y * enemy.speed * 0.72 * step; }
-    } else { updateFacingFromHorizontal(enemy, toward.x); enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
-    enemy.x += enemy.knockback.x * step; enemy.y += enemy.knockback.y * step; enemy.knockback.x *= Math.exp(-9 * step); enemy.knockback.y *= Math.exp(-9 * step); enemy.hitFlash = Math.max(0, enemy.hitFlash - step);
-    enemy.x = clamp(enemy.x, enemy.radius, config.arenaWidth - enemy.radius); enemy.y = clamp(enemy.y, 288, Math.min(752, config.arenaHeight - enemy.radius));
+      if (d > preferred + 24 || segmentHitsBuilding(state.stage, enemy, p, enemy.radius + 2)) moveEnemy(state, enemy, route, enemy.speed, step);
+      else if (d < preferred - 36) moveEnemy(state, enemy, normalize(-toward.x, -toward.y), enemy.speed * 0.72, step);
+    } else { updateFacingFromHorizontal(enemy, route.x); moveEnemy(state, enemy, route, enemy.speed, step); }
+    const movedByKnockback = moveOnStage(state.stage, enemy, { x: enemy.knockback.x * step, y: enemy.knockback.y * step }, enemy.radius);
+    enemy.x = movedByKnockback.x; enemy.y = movedByKnockback.y;
+    enemy.knockback.x *= Math.exp(-9 * step); enemy.knockback.y *= Math.exp(-9 * step); enemy.hitFlash = Math.max(0, enemy.hitFlash - step);
     const distance = Math.hypot(enemy.x - p.x, enemy.y - p.y);
     if (distance < enemy.radius + 18 && enemy.kind !== 'boss') damagePlayer(state, enemy.damage);
     if (enemy.kind !== 'boss' && distance > 760) enemy.distantTime += step; else enemy.distantTime = 0;
     if (enemy.distantTime >= config.horde.recycleAfter) { const recycled = spawnEnemy(state, enemy.kind, config); enemy.x = recycled.x; enemy.y = recycled.y; enemy.distantTime = 0; state.recycledEnemies++; }
     if (state.status !== 'playing') break;
   }
-  separateEnemies(state, config);
+  separateEnemies(state);
   // Resolve enemy projectiles against the player after movement (boss attacks are telegraphed in the renderer).
   for (const s of state.projectiles) if (s.owner === 'enemy' && dist2(s, p) < 30 ** 2) { damagePlayer(state, s.damage); s.life = 0; }
   writeProjectiles = 0;
@@ -456,7 +495,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   for (const pickup of state.pickups) {
     const dx = p.x - pickup.x; const dy = p.y - pickup.y; const d2 = dx * dx + dy * dy;
     if (d2 < p.pickupRadius ** 2) { p.xp += pickup.value; p.special = Math.min(100, p.special + pickup.value * 0.42); float(state, `+${pickup.value} XP`, pickup.x, pickup.y); pickup.value = 0; }
-    else if (d2 < 300 ** 2) { const distance = Math.sqrt(d2) || 1; const pull = Math.min(distance, 230 * step); pickup.x += dx / distance * pull; pickup.y += dy / distance * pull; }
+    else if (d2 < 300 ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { const distance = Math.sqrt(d2) || 1; const pull = Math.min(distance, 230 * step); const moved = moveOnStage(state.stage, pickup, { x: dx / distance * pull, y: dy / distance * pull }, 0); pickup.x = moved.x; pickup.y = moved.y; }
   }
   let writePickups = 0;
   for (const pickup of state.pickups) if (pickup.value > 0) state.pickups[writePickups++] = pickup;
