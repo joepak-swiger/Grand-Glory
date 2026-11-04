@@ -10,7 +10,7 @@
 
 Blue Pinwheel and both thug sprite strips use supplied right-facing source art. While the player or an enemy deliberately moves left/right, its sprite turns horizontally to match. Vertical movement and idle retain the last horizontal facing (right at run start). Knockback never determines enemy facing. Boss facing follows pursuit or its locked attack aim. This uses mirroring only; no authentic front/back animation frames are currently available.
 
-The Gang Leader has no supplied character art and remains a geometric gameplay placeholder.
+The Gang Leader has no supplied character art and remains a geometric gameplay placeholder with a small directional cue; its facing follows pursuit and locked attack aim. Supplied right-facing thug sprites and the hero's right-facing profile mirror only the individual character sprite when facing left.
 
 ## Run and prototype balance
 

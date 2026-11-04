@@ -136,10 +136,15 @@ export class GameRenderer {
       if (!this.enemySprites.has(enemy.id) && enemy.kind !== 'boss') {
         g.roundRect(enemy.x - enemy.radius * 0.85, enemy.y - enemy.radius * 0.2, enemy.radius * 1.7, enemy.radius * 1.75, 7).fill(enemy.hitFlash > 0 ? 0xffffff : color);
         g.circle(enemy.x, enemy.y - enemy.radius * 0.75, enemy.radius * 0.65).fill(enemy.hitFlash > 0 ? 0xffffff : 0xe5c5a7);
+        const side = enemy.horizontalFacing === 'left' ? -1 : 1;
+        g.circle(enemy.x + side * enemy.radius * 0.25, enemy.y - enemy.radius * 0.78, 2).fill(0x18202a);
       } else if (enemy.kind === 'boss') {
         g.ellipse(enemy.x, enemy.y + enemy.radius + 4, enemy.radius + 8, 7).fill({ color: 0x07111a, alpha: 0.4 });
         g.roundRect(enemy.x - enemy.radius, enemy.y - 16, enemy.radius * 2, enemy.radius * 2.1, 8).fill(enemy.hitFlash > 0 ? 0xffffff : color);
         g.circle(enemy.x, enemy.y - enemy.radius, enemy.radius * 0.72).fill(enemy.hitFlash > 0 ? 0xffffff : 0xe5c5a7);
+        // Direction cue keeps the geometric boss placeholder readable until art is supplied.
+        const side = enemy.horizontalFacing === 'left' ? -1 : 1;
+        g.circle(enemy.x + side * 10, enemy.y - enemy.radius - 4, 3).fill(0x251d2a);
       }
       g.roundRect(enemy.x - 18, enemy.y - enemy.radius - 19, 36, 5, 2).fill(0x161c24); g.roundRect(enemy.x - 17, enemy.y - enemy.radius - 18, 34 * Math.max(0, enemy.health / enemy.maxHealth), 3, 2).fill(color);
       if (enemy.kind === 'boss') {
@@ -217,10 +222,10 @@ export class GameRenderer {
     }
   }
 
-  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number }> } {
-    const enemies = state ? state.enemies.filter(enemy => !enemy.dead && this.enemySprites.has(enemy.id)).map(enemy => {
-      const sprite = this.enemySprites.get(enemy.id)!; const clip = ENEMIES[enemy.kind].animation;
-      return { id: enemy.id, facing: enemy.horizontalFacing, frame: clip ? Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % clip.frameCount : 0, scaleX: sprite.scale.x };
+  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
+    const enemies = state ? state.enemies.filter(enemy => !enemy.dead).map(enemy => {
+      const sprite = this.enemySprites.get(enemy.id); const clip = ENEMIES[enemy.kind].animation;
+      return { id: enemy.id, facing: enemy.horizontalFacing, frame: clip ? Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % clip.frameCount : 0, scaleX: sprite?.scale.x ?? (enemy.horizontalFacing === 'left' ? -1 : 1), hasSprite: sprite !== undefined };
     }) : [];
     return { playerTextureLoaded: this.playerTextureLoaded, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', enemySprites: this.enemySprites.size, enemies };
   }

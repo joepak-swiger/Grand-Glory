@@ -73,7 +73,9 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.getByRole('button', { name: 'Resume' }).click();
   await page.evaluate(() => window.__GG_TEST__?.startBoss());
   await expect(page.getByText('GANG LEADER · PROTOTYPE')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => enemy.id > 0) ?? false)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => !enemy.hasSprite) ?? false)).toBe(true);
+  const bossFacing = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => !enemy.hasSprite)?.facing);
+  expect(['left', 'right']).toContain(bossFacing);
   await page.screenshot({ path: `${evidence}/06-boss-encounter.png` });
   await page.evaluate(() => window.__GG_TEST__?.prepareBossForAttack());
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.bossDefeated ?? false), { timeout: 6000 }).toBe(true);
