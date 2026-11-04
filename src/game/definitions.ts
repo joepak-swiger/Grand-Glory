@@ -24,7 +24,7 @@ export interface HeroDefinition {
 export interface AnimationClipDefinition { readonly asset: string; readonly frameWidth: number; readonly frameHeight: number; readonly frameCount: number; readonly frameDurationMs: number }
 
 export const BLUE_PINWHEEL: HeroDefinition = {
-  id: 'blue-pinwheel', name: 'Blue Pinwheel', placeholder: false, maxHealth: 140, moveSpeed: 210,
+  id: 'blue-pinwheel', name: 'Blue Pinwheel', placeholder: false, maxHealth: 160, moveSpeed: 210,
   attackName: 'Pinwheel (Prototype)',
   animation: {
     anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
@@ -49,10 +49,10 @@ export const PINWHEEL_EVOLUTION: EvolutionDefinition = { id: 'pinwheel-evolution
 export interface BossDefinition { readonly name: string; readonly health: number; readonly speed: number; readonly contactDamage: number; readonly radius: number; readonly xp: number; readonly phaseLength: number; readonly approachUntil: number; readonly rangedTelegraphStart: number; readonly rangedTelegraphEnd: number; readonly rangedDamage: number; readonly rangedSpeed: number; readonly chargeStart: number; readonly chargeEnd: number; readonly chargeActiveEnd: number; readonly recoveryEnd: number; readonly chargeRange: number; readonly chargeSpeed: number }
 export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', health: 460, speed: 45, contactDamage: 18, radius: 31, xp: 120, phaseLength: 7.4, approachUntil: 2.35, rangedTelegraphStart: 2.35, rangedTelegraphEnd: 3.1, rangedDamage: 16, rangedSpeed: 280, chargeStart: 4.15, chargeEnd: 4.95, chargeActiveEnd: 5.55, recoveryEnd: 6.25, chargeRange: 300, chargeSpeed: 430 };
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
-  thug: { kind: 'thug', health: 34, speed: 55, damage: 7, radius: 15, xp: 12, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
-  fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 6, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
-  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 6, radius: 15, xp: 22, ranged: true, preferredRange: 270, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 165 } },
-  bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 14, radius: 21, xp: 30 },
+  thug: { kind: 'thug', health: 34, speed: 55, damage: 5, radius: 15, xp: 12, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
+  fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 4, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
+  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, ranged: true, preferredRange: 270, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 165 } },
+  bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30 },
   boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp },
 };
 
@@ -74,7 +74,7 @@ export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: str
 export interface HordeConfig { readonly targetCounts: readonly { readonly at: number; readonly count: number }[]; readonly batchMin: number; readonly batchMax: number; readonly baseBatchInterval: number; readonly surgeEvery: number; readonly surgeDuration: number; readonly surgeBonus: number; readonly maxActive: number; readonly spawnMarginX: number; readonly spawnMarginY: number; readonly recycleAfter: number }
 export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean; readonly horde: HordeConfig }
 export interface StageDefinition { readonly id: string; readonly name: string; readonly run: RunConfig; readonly visualStyle: 'city-street-placeholder' }
-const standardHorde: HordeConfig = { targetCounts: [{ at: 0, count: 8 }, { at: 18, count: 15 }, { at: 45, count: 26 }, { at: 80, count: 34 }, { at: 120, count: 44 }, { at: 150, count: 52 }], batchMin: 2, batchMax: 3, baseBatchInterval: 1.3, surgeEvery: 35, surgeDuration: 8, surgeBonus: 8, maxActive: 90, spawnMarginX: 84, spawnMarginY: 74, recycleAfter: 7 };
-export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 90, testMode: false, horde: standardHorde };
+const standardHorde: HordeConfig = { targetCounts: [{ at: 0, count: 8 }, { at: 15, count: 22 }, { at: 30, count: 34 }, { at: 60, count: 56 }, { at: 90, count: 76 }, { at: 120, count: 96 }, { at: 150, count: 112 }], batchMin: 3, batchMax: 5, baseBatchInterval: 0.95, surgeEvery: 35, surgeDuration: 8, surgeBonus: 10, maxActive: 128, spawnMarginX: 84, spawnMarginY: 74, recycleAfter: 7 };
+export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 128, testMode: false, horde: standardHorde };
 export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, overtimeLimit: 12, seed: 1741, maxEnemies: 56, testMode: true, horde: { ...standardHorde, targetCounts: [{ at: 0, count: 5 }, { at: 5, count: 12 }, { at: 15, count: 22 }, { at: 25, count: 32 }], batchMin: 2, batchMax: 3, baseBatchInterval: 0.65, surgeEvery: 10, surgeDuration: 4, surgeBonus: 8, maxActive: 56 } };
 export const CITY_STREET_STAGE: StageDefinition = { id: 'city-street', name: 'City Street (Prototype)', run: standardRun, visualStyle: 'city-street-placeholder' };

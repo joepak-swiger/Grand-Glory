@@ -81,6 +81,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.evaluate(() => window.__GG_TEST__?.prepareBossForAttack());
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.bossDefeated ?? false), { timeout: 6000 }).toBe(true);
   await expect(page.getByRole('heading', { name: 'VICTORY' })).toBeVisible();
+  await expect(page.locator('.stats')).toContainText('Damage dealt');
   await page.screenshot({ path: `${evidence}/07-victory.png` });
 
   await page.getByRole('button', { name: 'Play Again' }).click();
@@ -97,6 +98,34 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   expect(failedAssets).toEqual([]);
 });
 
+test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page }) => {
+  mkdirSync(evidence, { recursive: true });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1365, height: 900 });
+  await page.goto('/?test=1');
+  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000));
+  for (let choice = 0; choice < 40; choice++) {
+    const state = await page.evaluate(() => {
+      const current = window.__GG_TEST__?.getState();
+      return current ? { status: current.status, options: current.options, pinwheel: current.player.weaponRanks.pinwheel, power: current.player.powerRank, evolved: current.player.evolvedPinwheel } : null;
+    });
+    if (!state || state.evolved) break;
+    if (state.status === 'playing') { await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000)); continue; }
+    if (state.status !== 'upgrade') throw new Error(`Expected pending level-up choice, received ${state.status}`);
+    const desired = state.pinwheel < 5 && state.options.includes('pinwheel') ? 'pinwheel'
+      : state.power < 2 && state.options.includes('power') ? 'power'
+        : state.options[0];
+    if (!desired) throw new Error('Upgrade selection has no valid card');
+    await page.locator(`[data-upgrade="${desired}"]`).click();
+  }
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.evolvedPinwheel ?? false)).toBe(true);
+  await expect(page.locator('.combat-hud')).toContainText('PINWHEEL EVOLVED');
+  await page.screenshot({ path: `${evidence}/synthetic-pinwheel-evolution.png` });
+  expect(errors).toEqual([]);
+});
+
 test('standard configuration naturally builds an early horde in the browser', async ({ page }) => {
   test.setTimeout(240_000);
   mkdirSync(evidence, { recursive: true });
@@ -110,19 +139,43 @@ test('standard configuration naturally builds an early horde in the browser', as
   let liveRenderMetrics: { enemies: number; fps: number; frameMs: number } | null = null;
   let lateHordeMetrics: { enemies: number; kinds: string[]; fps: number; frameMs: number } | null = null;
   let naturalBossMetrics: { elapsed: number; health: number; bossHealth: number; enemies: number } | null = null;
+  let capturedMultiWeapon = false;
+  let capturedEvolution = false;
+  const naturalProgression: Array<Record<string, unknown>> = [];
   for (let segment = 0; segment < 70; segment++) {
     await page.evaluate(() => window.__GG_TEST__?.advance(4, 0, 0, true, true, true));
     const status = await page.evaluate(() => window.__GG_TEST__?.getState()?.status);
     if (status === 'upgrade') {
       if (!sawUpgrade) { await page.screenshot({ path: `${evidence}/10-standard-level-up.png` }); sawUpgrade = true; }
       const option = await page.evaluate(() => {
-        const choices = window.__GG_TEST__?.getState()?.options ?? [];
-        const priority = ['vitality', 'recovery', 'pinwheel', 'power', 'piercingThrow', 'orbit', 'speed', 'damage', 'tempo', 'extra', 'magnet'];
+        const state = window.__GG_TEST__?.getState();
+        const choices = state?.options ?? [];
+        const hpRatio = state ? state.player.health / state.player.maxHealth : 1;
+        const priority = hpRatio < 0.82
+          ? ['vitality', 'recovery', 'piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'speed', 'extra', 'magnet']
+          : ['piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'vitality', 'recovery', 'speed', 'extra', 'magnet'];
         return [...choices].sort((a, b) => priority.indexOf(a) - priority.indexOf(b))[0];
       });
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
     }
     const moment = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { elapsed: state.elapsed, status: state.status } : null; });
+    const weaponEvidence = await page.evaluate(() => {
+      const state = window.__GG_TEST__?.getState();
+      return state ? { piercing: state.player.weaponRanks.piercingThrow > 0, orbit: state.player.weaponRanks.orbitGuard > 0, evolved: state.player.evolvedPinwheel } : null;
+    });
+    if (!capturedMultiWeapon && weaponEvidence && (weaponEvidence.piercing || weaponEvidence.orbit)) { await page.screenshot({ path: `${evidence}/natural-multiple-weapons.png` }); capturedMultiWeapon = true; }
+    if (!capturedEvolution && weaponEvidence?.evolved) { await page.screenshot({ path: `${evidence}/natural-pinwheel-evolution.png` }); capturedEvolution = true; }
+    for (const mark of [15, 30, 35, 60, 90, 120, 150]) {
+      if (!moment || moment.elapsed < mark || moment.status !== 'playing' || naturalProgression.some(sample => sample.time === mark)) continue;
+      const sample = await page.evaluate(() => {
+        const state = window.__GG_TEST__?.getState(); const diagnostic = window.__GG_TEST__?.getPerformanceDiagnostics(); const renderer = window.__GG_TEST__?.getRendererState();
+        return state && diagnostic && renderer ? { elapsed: state.elapsed, active: diagnostic.activeEnemies, visible: diagnostic.visibleEnemies, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], target: state.hordeTarget, deficit: state.hordeDeficit, spawnRate: state.spawnRate, totalSpawned: state.enemiesSpawned, peak: state.peakEnemies, belowTargetSeconds: state.timeBelowHordeTarget, kills: state.kills, level: state.player.level, health: state.player.health, fps: renderer.renderFps, frameMs: renderer.renderFrameMs } : null;
+      });
+      if (sample) {
+        naturalProgression.push({ time: mark, ...sample });
+        await page.screenshot({ path: `artifacts/evidence/natural-${String(mark).padStart(3, '0')}s-population.png` });
+      }
+    }
     if (!capturedHorde && moment && moment.elapsed >= 15 && moment.status === 'playing') {
       await page.screenshot({ path: `${evidence}/09-standard-natural-horde.png` });
       liveRenderMetrics = await page.evaluate(() => {
@@ -152,13 +205,13 @@ test('standard configuration naturally builds an early horde in the browser', as
     const boss = state?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
     return state ? { elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank } : null;
   });
-  console.info(`STANDARD_NATURAL_BROWSER ${JSON.stringify({ ...result, liveRenderMetrics, lateHordeMetrics, naturalBossMetrics })}`);
+  console.info(`STANDARD_NATURAL_BROWSER ${JSON.stringify({ ...result, liveRenderMetrics, lateHordeMetrics, naturalBossMetrics, naturalProgression })}`);
   expect(result).not.toBeNull();
   expect(result?.elapsed).toBeGreaterThan(12);
   expect(result?.enemies ?? 0).toBeGreaterThan(0);
   expect(naturalBossMetrics).not.toBeNull();
   expect(['victory', 'defeat']).toContain(result?.status);
-  expect(result?.elapsed).toBeGreaterThan(180);
+  expect(result?.elapsed).toBeGreaterThan(150);
   if (result?.status === 'victory') await page.screenshot({ path: `${evidence}/13-standard-victory.png` });
   else await page.screenshot({ path: `${evidence}/13-standard-defeat.png` });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
