@@ -12,4 +12,14 @@ The following PNG files were supplied directly by the project owner and are appr
 
 The character strips are right-facing source art. Left-facing display uses horizontal mirroring. Vertical movement retains the last horizontal direction. Authentic front-facing, back-facing, and left-facing source animation has not been supplied. Mirroring is a display fallback, not a claim that a distinct left-facing design exists. Enemy walk strips and the Blue Pinwheel strip keep their own simulation time; textures are loaded once and reused.
 
-All other street, projectile, UI, effect, and boss graphics are drawn from original code-based placeholder shapes. Thugs and the gang leader are prototype gameplay concepts. No third-party sprites, sound, or font assets are included.
+## City environment
+
+| In-game use | Repository asset | Source and terms |
+|---|---|---|
+| City stage tile atlas | `public/assets/city/kenney-city.png` | Kenney, “Roguelike Modern City”; user-supplied handoff. The original CC0 notice is retained in `public/assets/city/LICENSE.txt`. Source: <https://opengameart.org/content/roguelike-modern-city-pack>. Handoff SHA-256: `8f31898af10f55160d55bebe5fbc183718e00e13de152f9b14bf916190edbfe0`. |
+
+The atlas is 628×475 and uses 16×16 tiles with a 1-pixel gutter. Its alpha channel was checked directly; `roguelikeCity_magenta.png` is the alpha-bearing source. The similarly named `roguelikeCity_transparent.png` is RGB and is not used. Individual source tiles are cropped to assemble the stage; the supplied town sample is not used as a background. The map is cached as one nearest-neighbor texture.
+
+The supplied rubberduck `city_extension.png` was reviewed. Its handoff records CC0 1.0 and <https://opengameart.org/content/modern-city-extension>, but the sheet includes baked `JVBot Inc.` marks in its lower tile rows, so it is not included in runtime assets. The Abandon City background is side-on scenery and is excluded: it does not fit the top-down stage, and applicable publisher terms remain unresolved. The optional Factory tileset was not imported.
+
+Street composition, lane paint, curb accents, small parking details, and all projectile, UI, effect, and boss placeholder graphics are original code-based artwork. Thugs and the Gang Leader remain prototype gameplay concepts. No third-party sprites, sound, or font assets were added. Blue Pinwheel and thug artwork remains owner-supplied and owner-approved for public publication; this does not establish additional character lore or canon powers.

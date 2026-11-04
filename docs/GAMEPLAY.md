@@ -1,5 +1,9 @@
 # Prototype gameplay
 
+## Visual stage
+
+The current `City Street (Prototype)` stage uses a tiled neighborhood with a broad marked boulevard, cross streets, sidewalks, intersections, and small building blocks around walkable combat routes. Buildings and roadside details are visual only; there is no map collision. The camera reveals more of the configured city area as the player moves. The map is assembled once from the CC0 atlas and rendered as a cached nearest-neighbor texture.
+
 ## Controls
 
 - Move: WASD / arrow keys

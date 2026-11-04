@@ -1,6 +1,7 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { Enemy, SimState, Vec } from '../game/simulation';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, type AnimationClipDefinition, type EnemyKind, type RunConfig } from '../game/definitions';
+import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-map';
 
 const W = 960; const H = 640;
 const COLORS = { ink: 0x101923, road: 0x303a45, sidewalk: 0x78838a, line: 0xe4bf57, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
@@ -19,6 +20,8 @@ export class GameRenderer {
   private readonly labels = new Container();
   private readonly characters = new Container();
   private readonly generatedFrames: Texture[] = [];
+  private cityAtlas?: Texture;
+  private cityMapSprite?: Sprite;
   private readonly clipCache = new Map<string, Texture[]>();
   private readonly enemyViews = new Map<number, EnemyView>();
   private readonly freeEnemyViews: EnemyView[] = [];
@@ -50,10 +53,37 @@ export class GameRenderer {
 
   static async create(host: HTMLElement, config: RunConfig): Promise<GameRenderer> {
     const renderer = new GameRenderer(config);
-    await renderer.loadCharacterAssets();
+    await Promise.all([renderer.loadCharacterAssets(), renderer.loadCityAssets()]);
     await renderer.app.init({ background: COLORS.ink, antialias: true, resolution: Math.min(window.devicePixelRatio || 1, 2), autoDensity: true, resizeTo: host, preference: 'webgl' });
     renderer.createPrimitiveTextures();
-    renderer.app.stage.addChild(renderer.root); host.appendChild(renderer.app.canvas); renderer.createCharacterSprites(); renderer.drawRoad(); renderer.ready = true; return renderer;
+    renderer.createCityMap();
+    renderer.app.stage.addChild(renderer.root); host.appendChild(renderer.app.canvas); renderer.createCharacterSprites(); renderer.ready = true; return renderer;
+  }
+
+  private async loadCityAssets(): Promise<void> {
+    try {
+      this.cityAtlas = await Assets.load<Texture>('/assets/city/kenney-city.png');
+      this.cityAtlas.source.scaleMode = 'nearest';
+    } catch (error) {
+      console.warn('Unable to load city atlas; using the original street placeholder.', error);
+    }
+  }
+
+  private createCityMap(): void {
+    if (!this.cityAtlas) { this.drawRoad(); return; }
+    const definition = buildCityMapDefinition(this.config.arenaWidth, this.config.arenaHeight);
+    const errors = validateCityMap(definition);
+    if (errors.length) throw new Error(`Invalid city stage: ${errors.join(' ')}`);
+    const canvas = renderCityMap(this.cityAtlas.source.resource as unknown as CanvasImageSource, definition);
+    const texture = Texture.from(canvas);
+    texture.source.scaleMode = 'nearest';
+    this.generatedFrames.push(texture);
+    const sprite = new Sprite(texture);
+    sprite.roundPixels = true;
+    sprite.position.set(0, 0);
+    this.cityMapSprite = sprite;
+    this.world.addChildAt(sprite, 0);
+    this.cityAtlas = undefined;
   }
 
   private textureFromGraphics(draw: (graphics: Graphics) => void): Texture {
@@ -335,12 +365,13 @@ export class GameRenderer {
     return { sprite, shadow, barBack, barFill, kind: enemy.kind, frameSeen: this.renderFrame, displayedFrame: -1 } as EnemyView;
   }
 
-  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
+  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; cityMapLoaded: boolean; cityMapSize: { width: number; height: number } | null; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
     const enemies = state ? state.enemies.filter(enemy => !enemy.dead).map(enemy => {
       const view = this.enemyViews.get(enemy.id); const clip = ENEMIES[enemy.kind].animation;
       return { id: enemy.id, facing: enemy.horizontalFacing, frame: clip ? Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % clip.frameCount : 0, scaleX: view?.sprite.scale.x ?? (enemy.horizontalFacing === 'left' ? -1 : 1), hasSprite: Boolean(clip) };
     }) : [];
-    return { playerTextureLoaded: this.playerTextureLoaded, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', enemySprites: this.enemyViews.size, renderFps: Math.round(this.app.ticker.FPS), renderFrameMs: Math.round(this.app.ticker.deltaMS * 100) / 100, enemies };
+    const cityMapSize = this.cityMapSprite ? { width: this.cityMapSprite.texture.width, height: this.cityMapSprite.texture.height } : null;
+    return { playerTextureLoaded: this.playerTextureLoaded, cityMapLoaded: cityMapSize !== null, cityMapSize, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', enemySprites: this.enemyViews.size, renderFps: Math.round(this.app.ticker.FPS), renderFrameMs: Math.round(this.app.ticker.deltaMS * 100) / 100, enemies };
   }
 
   getPerformanceDiagnostics(state?: SimState): { rendererUpdateMs: number; rendererP95Ms: number; rendererWorstMs: number; activeEnemies: number; visibleEnemies: number; projectiles: number; pickups: number; damageTexts: number; sprites: number } {

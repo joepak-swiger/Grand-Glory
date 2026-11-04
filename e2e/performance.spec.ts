@@ -3,12 +3,12 @@ import { mkdirSync } from 'node:fs';
 
 test('records real-browser render performance for isolated synthetic crowd sizes', async ({ page }) => {
   test.setTimeout(120_000);
-  mkdirSync('artifacts/evidence', { recursive: true });
+  mkdirSync('artifacts/evidence/visual-rebirth', { recursive: true });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=stress');
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
   const rows: Array<Record<string, number | null>> = [];
   const browserDetails = await page.evaluate(() => {
     const canvas = document.querySelector('canvas');
@@ -50,7 +50,7 @@ test('records real-browser render performance for isolated synthetic crowd sizes
     expect(result?.active).toBe(count);
     expect(result?.visible).toBe(count);
     rows.push({ population: count, ...result! });
-    await page.screenshot({ path: `artifacts/evidence/stress-${String(count).padStart(3, '0')}.png` });
+    await page.screenshot({ path: `artifacts/evidence/visual-rebirth/stress-${String(count).padStart(3, '0')}.png` });
   }
   console.info(`BROWSER_CROWD_STRESS ${JSON.stringify({ browser: 'Playwright Chromium, headed=false', viewport: '1365x900', rendering: 'WebGL preferred', synthetic: true, browserDetails, rows })}`);
   expect(errors).toEqual([]);

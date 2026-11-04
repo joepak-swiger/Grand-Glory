@@ -79,3 +79,21 @@ Population fill remains a tradeoff: this small three-seed sample shows better ta
 ## Artifacts and limitations
 
 Browser screenshots are in `artifacts/evidence/`. `stress-*.png` are real rendered synthetic stress scenes and must not be represented as natural progression. `natural-*-population.png` and standard-run screens come from standard run rules with natural spawns. Simulation continues for offscreen enemies, as needed for fair attacks and recycling; culling affects their display objects only. Headless frame rate remains a separate limitation, and ordinary desktop GPU performance still needs owner-side observation.
+
+## Assignment 006 city-renderer check
+
+The visual branch assembles the Kenney tile layers into a single 1824×1216 nearest-neighbor canvas texture once during renderer initialization. No per-frame tile redraw is added; the map is one static sprite beneath the existing dynamic entity layers. The browser test still exercises synthetic 25/50/100/150/200 visible crowds with 1.4 seconds of warm-up per count. This is an isolated renderer stress setup, not natural horde evidence.
+
+Current local environment: Windows Chromium `HeadlessChrome/156.0.8078.4`, 1365×900, 16 reported hardware threads, WebGL on `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)))`. This run therefore measures software rendering, not the owner's regular GPU browser. JS heap metric was 20.69 MiB for each snapshot; it does not report GPU memory. The stress hook pauses simulation, so simulation p95 is 0 and dropped updates do not describe a normally advancing run.
+
+| Visible enemies | Active sprites | FPS sample | Average frame ms | p95 frame ms | Worst frame ms | Renderer update current / p95 / worst ms |
+|---:|---:|---:|---:|---:|---:|---:|
+| 25 | 39 | 30 | 21.26 | 33.40 | 100.0 | 0.20 / 0.30 / 1.40 |
+| 50 | 78 | 60 | 20.91 | 33.40 | 100.0 | 0.30 / 0.30 / 1.40 |
+| 100 | 155 | 30 | 21.98 | 33.40 | 100.0 | 0.20 / 0.40 / 1.80 |
+| 150 | 232 | 30 | 22.89 | 33.40 | 33.50 | 0.30 / 0.40 / 1.80 |
+| 200 | 309 | 30 | 25.44 | 33.40 | 33.50 | 0.50 / 0.50 / 1.80 |
+
+For context, the pre-overhaul hosted sample in the preceding table was 30/20/30/15/15 FPS and 39.96–45.54 ms average frame time. Although both identified SwiftShader and Chromium 156, they were taken in different run environments; do not interpret that difference as a controlled before/after GPU speedup. The current scene-update p95 is 0.3–0.5 ms and worst is at most 1.8 ms in this local run, so CPU-side view updates remain small. Full-frame p95 is quantized at 33.4 ms and occasional 100 ms outliers reveal the software compositor as the visible constraint here. Owner-side normal-GPU measurements remain unverified.
+
+The standard-config browser run retained the Assignment 005 natural results: at 15/30/35/60/90/120/150 simulated seconds it recorded active/visible counts of 24/20, 27/21, 46/34 during a surge, 62/47, 80/63, 81/46, and 94/75 with the boss. It won at 155.52 simulated seconds at level 22 and 137.5/160 HP. That automated driver fast-forwards fixed simulation steps, so its variable 30–60 FPS ticker samples are not an ordinary continuous playthrough benchmark. The renderer now adds one cached city image and four small static street-light/car accents; no horde density or simulation rules changed in Assignment 006.
