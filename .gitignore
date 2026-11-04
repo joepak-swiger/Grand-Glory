@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+artifacts/recordings/
+artifacts/playwright-browsers/
+.vite/
+.cache/
+.env
+.env.*
+!.env.example
+*.log
