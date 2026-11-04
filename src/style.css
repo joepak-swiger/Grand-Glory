@@ -122,6 +122,30 @@ button { font: inherit; color: inherit; pointer-events: auto; cursor: pointer; b
 .results-lost h2 { color: #ff9a83; text-shadow: 3px 4px 0 #782f39, 5px 6px 0 #061522; }
 .stats span { border: 1px solid #59708666; border-radius: 2px; background: #091725; }
 .stats strong { color: #fff2d4; }
+.title-settings { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 5px 0 2px; }
+.title-settings label { display: grid; gap: 4px; color: #87d9f3; font-size: 8px; font-weight: 900; letter-spacing: 1px; }
+.title-settings select, .sound-toggle { min-height: 28px; padding: 5px 8px; border: 1px solid #647b8e; border-radius: 2px; background: #102235; color: #e9f4f6; font: 10px Arial, sans-serif; letter-spacing: .2px; }
+.title-settings input[type="range"] { width: 78px; accent-color: #69d4f3; }
+.sound-toggle { color: #f3d37b; font-weight: 800; cursor: pointer; }
+.mode-pill { padding: 5px 7px; border: 1px solid #5fa7c3; color: #a3e6f9; font-size: 8px; font-weight: 900; letter-spacing: 1px; }
+.mode-heroic { border-color: #df865e; color: #ffb08c; }
+.health-bar { height: 11px; border: 1px solid #f3bf7a66; }
+.health-fill { box-shadow: 0 0 9px #ff836655; }
+.results { width: min(760px, calc(100% - 28px)); padding: clamp(20px, 3vw, 32px); }
+.results .stats { max-height: 45vh; overflow: auto; }
+@media (max-width: 800px) {
+  .hud { inset: 8px 8px auto; gap: 8px; padding: 8px; }
+  .hero-tag { min-width: 112px; gap: 6px; }
+  .hero-tag strong { font-size: 9px; }
+  .hero-tag small { font-size: 8px; }
+  .mode-pill { padding: 4px; font-size: 7px; }
+  .health-block { max-width: 150px; }
+  .level-block { width: 80px; }
+  .special-block { width: 65px; }
+  .timer { font-size: 18px; }
+  .combat-hud { inset-inline: 8px; bottom: 8px; flex-wrap: wrap; font-size: 8px; }
+}
+.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after { scroll-behavior: auto !important; transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 @media (max-width: 720px) {
   .title-screen-v2 { grid-template-columns: minmax(135px, 32vw) 1fr; gap: 16px; min-height: 0; padding: 20px; }
   .title-copy h1 { font-size: clamp(48px, 10vw, 74px); }

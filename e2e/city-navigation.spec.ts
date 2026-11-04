@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence/city-reconstruction';
+const evidence = 'artifacts/evidence/heroic-makeover/city';
 
 test('shared city geometry supports street travel, wall slides, dashes and enemy routing', async ({ page }) => {
   test.setTimeout(90_000);

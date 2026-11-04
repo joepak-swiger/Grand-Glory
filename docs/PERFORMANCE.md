@@ -115,3 +115,31 @@ The shared collision and routing work increases simulation cost, but the largest
 The final serial Chromium stress pass used HeadlessChrome 156, 1365×900, WebGL through SwiftShader, and the existing synthetic 25–200 visible-population setup. It reported 30/30/30/30/20 sampled FPS. Average whole-frame time was 24.5/24.6/25.9/27.4/29.3ms; p95 was 33.4ms for 25–150 and 50ms at 200; worst frames were 100ms for 25–100 and 50.1ms for 150–200. Scene-update p95 stayed at 0.4–0.6ms and worst at 1.7–1.9ms. JS heap was 19.55MiB across the sweep; the browser does not expose GPU memory. The synthetic scenario pauses simulation, so zero simulation cost and zero dropped updates do not characterize a normal advancing run. This is a software-renderer measurement, not the owner's desktop GPU. The prior Assignment 006 run ranged 20.9–25.4ms average frame time and 0.3–0.5ms scene-update p95 in a separate run environment; treat it as context, not a controlled GPU speed comparison. The browser reported 16 hardware threads; exact CPU model and system memory were unavailable. Owner-side normal-GPU measurements and a human playtest of the corrected city remain outstanding.
 
 The final standard-configuration Chromium run used normal game health, damage, XP and boss parameters with an accelerated fixed-step driver. At 15/30/35/60/90/120/150 simulated seconds, active/visible counts were 23/16 (target 27), 39/26 (41), 50/38 during a surge (59), 59/37 (64), 71/35 (82), 97/86 (106), and 66/35 during boss phase (ordinary target 87). The run peaked at 128 active, spawned 1,015, defeated 943, and spent 135.1 simulated seconds below the adaptive target. It reached level 23 and won at 159.58 simulated seconds with 124.28/160 HP; this is a deterministic automated scenario, not ordinary wall-clock play or human testing. The late boss phase decreases ordinary target pressure to make the boss encounter legible.
+
+## Assignment 007 — baseline after difficulty and presentation changes
+
+The current benchmark used Windows x64, Node 24.22.1, a seeded mixed-entity simulation, 120 warm-up updates, then 900 measured fixed updates per population. Each table entry is median / p95 / worst in ms per simulation update. This is comparable to the 006B fixture but uses a longer sample; it is not a controlled same-process before/after pair. It does not include Pixi rendering.
+
+| Enemies | Current median / p95 / worst ms |
+|---:|---:|
+| 25 | 0.0355 / 0.1289 / 0.5172 |
+| 50 | 0.0648 / 0.1493 / 0.7158 |
+| 100 | 0.1510 / 0.2712 / 0.6903 |
+| 150 | 0.2510 / 0.4292 / 1.0812 |
+| 200 | 0.3778 / 0.6063 / 0.9359 |
+
+These measurements remain far below the 16.7ms fixed-step budget. They do not show a broad improvement over the 006B table: the 200-enemy median is similar (0.378 versus 0.362ms) and this run's tail is noisy. Assignment 007 did not rewrite the simulation or horde director. Its renderer additions are cached/generated enemy silhouette textures, small effects, and more screen-space UI; the comparison below measures the actual browser scene in headless mode, not a desktop GPU.
+
+The final local crowd sweep used HeadlessChrome 156 on Windows, 1365×900, WebGL ANGLE via Vulkan SwiftShader (software rendering), and a paused synthetic scene. It reported FPS / average frame / p95 / worst frame in ms; scene-update current / p95 / worst is CPU-side renderer update only. Scene update cost is not GPU/compositor cost.
+
+| Visible enemies | Active sprites | FPS | Frame avg / p95 / worst ms | Renderer current / p95 / worst ms | JS heap |
+|---:|---:|---:|---:|---:|---:|
+| 25 | 39 | 60 | 27.78 / 50.1 / 100.0 | 0.3 / 0.6 / 2.3 | 22.03 MiB |
+| 50 | 78 | 30 | 26.19 / 33.4 / 100.0 | 0.2 / 0.6 / 2.3 | 22.03 MiB |
+| 100 | 155 | 30 | 27.32 / 33.4 / 100.0 | 0.4 / 0.6 / 2.3 | 22.03 MiB |
+| 150 | 232 | 30 | 28.81 / 33.4 / 100.0 | 0.4 / 0.6 / 2.3 | 22.03 MiB |
+| 200 | 309 | 30 | 30.22 / 50.0 / 66.6 | 0.7 / 0.7 / 2.2 | 22.03 MiB |
+
+This synthetic scenario pauses simulation, so its reported simulation update cost and dropped-update count are not representative of a running horde. Frame samples are quantized by SwiftShader and show software-rendered browser limits; do not infer the owner's Windows GPU performance. The CPU-side view update stays below 1ms p95 in this sample. On the actual accelerated natural run, sampled headless FPS varied from 12 to 60, reaching 12 FPS / 83.3ms at 150.9 simulated seconds with 127 active enemies and the boss. This is not a normal wall-clock responsiveness measurement. No desktop-GPU performance session was available.
+
+The standard-config browser run retained the horde target curve and used normal enemy health, XP, player HP, and boss parameters. It recorded 27/12 active/visible at 15s (target 28), 41/22 at 30s (41), 60/24 at 60s (66), 71/29 at 90s (84), 85/22 at 120s (105), and 127/73 at 150s including the boss (ordinary target 87). It spawned 963 enemies, defeated 881, peaked at 128 active, and won at 161.57 simulated seconds at level 22; the Gang Leader lived about 10.6 simulated seconds after arrival. The visible-count dip despite near-target active counts shows offscreen population remains a tuning concern. This was an accelerated automated browser driver, not human playtesting or a wall-clock run.

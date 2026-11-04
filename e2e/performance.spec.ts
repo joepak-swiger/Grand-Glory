@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 
 test('records real-browser render performance for isolated synthetic crowd sizes', async ({ page }) => {
   test.setTimeout(120_000);
-  mkdirSync('artifacts/evidence/city-reconstruction/stress', { recursive: true });
+  mkdirSync('artifacts/evidence/heroic-makeover/stress', { recursive: true });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
@@ -50,7 +50,7 @@ test('records real-browser render performance for isolated synthetic crowd sizes
     expect(result?.active).toBe(count);
     expect(result?.visible).toBe(count);
     rows.push({ population: count, ...result! });
-    await page.screenshot({ path: `artifacts/evidence/city-reconstruction/stress/stress-${String(count).padStart(3, '0')}.png` });
+    await page.screenshot({ path: `artifacts/evidence/heroic-makeover/stress/stress-${String(count).padStart(3, '0')}.png` });
   }
   console.info(`BROWSER_CROWD_STRESS ${JSON.stringify({ browser: 'Playwright Chromium, headed=false', viewport: '1365x900', rendering: 'WebGL preferred', synthetic: true, browserDetails, rows })}`);
   expect(errors).toEqual([]);

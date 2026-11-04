@@ -5,6 +5,8 @@ import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-m
 import { getTerrain } from '../game/stage';
 
 const W = 960; const H = 640;
+export type CameraPreset = 'wide' | 'standard' | 'close';
+const CAMERA_ZOOM: Record<CameraPreset, number> = { wide: 0.94, standard: 1.08, close: 1.2 };
 const COLORS = { ink: 0x101923, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
 const DAMAGE_STYLE = new TextStyle({ fontFamily: 'Arial, sans-serif', fontSize: 13, fill: '#fff2c6', fontWeight: '700' });
 interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number }
@@ -36,6 +38,7 @@ export class GameRenderer {
   private renderFrame = 0;
   private playerShadow?: Sprite;
   private readonly primitiveTextures = new Map<string, Texture>();
+  private readonly proceduralEnemyFrames = new Map<EnemyKind, Texture[]>();
   private playerSprite?: Sprite;
   private playerFrame = -1;
   private playerTextureLoaded = false;
@@ -48,9 +51,12 @@ export class GameRenderer {
   private lastSceneUpdateMs = 0;
   private cameraX = 0;
   private cameraY = 0;
+  private cameraPreset: CameraPreset = 'standard';
+  private get cameraZoom(): number { return CAMERA_ZOOM[this.cameraPreset]; }
   private readonly config: RunConfig;
   private ready = false;
   private collisionDebugEnabled = false;
+  private reducedMotion = false;
 
   private constructor(config: RunConfig) { this.config = config; this.root.addChild(this.world); this.world.addChild(this.road, this.entities, this.decals, this.bars, this.characters, this.effects, this.labels, this.collisionDebug); this.characters.sortableChildren = true; }
 
@@ -107,11 +113,39 @@ export class GameRenderer {
   }
 
   setCollisionDebugEnabled(enabled: boolean): void { this.collisionDebugEnabled = enabled; if (!enabled) this.collisionDebug.clear(); }
+  setCameraPreset(preset: CameraPreset): void { this.cameraPreset = preset; }
+  setReducedMotion(enabled: boolean): void { this.reducedMotion = enabled; }
 
   private textureFromGraphics(draw: (graphics: Graphics) => void): Texture {
     const graphics = new Graphics(); draw(graphics);
     const texture = this.app.renderer.generateTexture(graphics);
     graphics.destroy(); texture.source.scaleMode = 'nearest'; this.generatedFrames.push(texture); return texture;
+  }
+
+  private createPrototypeEnemyTexture(kind: 'gangster' | 'bruiser' | 'boss', frame: number): Texture {
+    const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 40;
+    const context = canvas.getContext('2d'); if (!context) throw new Error('Prototype enemy art canvas is unavailable.');
+    const px = (x: number, y: number, w: number, h: number, color: string): void => { context.fillStyle = color; context.fillRect(x, y, w, h); };
+    const outline = '#171d27'; const skin = '#ddb28e';
+    const wide = kind !== 'gangster';
+    // Compact authored pixel silhouettes, generated once and reused. All are explicitly temporary enemy art.
+    const bodyLeft = wide ? 5 : 8; const bodyWidth = wide ? 22 : 16; const torso = kind === 'boss' ? '#813e79' : kind === 'bruiser' ? '#72505c' : '#354357';
+    px(bodyLeft + 3, 3, bodyWidth - 6, 9, outline); px(bodyLeft + 5, 4, bodyWidth - 10, 7, skin); px(bodyLeft + 5, 4, bodyWidth - 10, 2, kind === 'gangster' ? '#282a32' : '#2f2630');
+    px(bodyLeft + 4, 10, bodyWidth - 7, 2, outline); px(bodyLeft + 2, 12, bodyWidth - 4, 15, outline); px(bodyLeft + 3, 13, bodyWidth - 6, 13, torso);
+    px(bodyLeft, 14, 4, 11, outline); px(bodyLeft + 1, 15, 3, 9, kind === 'boss' ? '#b1764e' : torso);
+    px(bodyLeft + bodyWidth - 4, 14, 4, 11, outline); px(bodyLeft + bodyWidth - 3, 15, 3, 9, kind === 'gangster' ? '#6e4a38' : torso);
+    const step = frame ? 2 : 0; px(11, 26, 5, 8 + step, outline); px(19, 26, 5, 8 + (2 - step), outline);
+    px(12, 27, 3, 6 + step, kind === 'boss' ? '#3c2c48' : '#303641'); px(20, 27, 3, 8 - step, kind === 'boss' ? '#3c2c48' : '#303641');
+    px(9, 34 + step, 8, 4, outline); px(18, 34 + (2 - step), 8, 4, outline); px(10, 34 + step, 6, 2, '#d5d7d4'); px(19, 34 + (2 - step), 6, 2, '#d5d7d4');
+    if (kind === 'gangster') {
+      px(8, 8, 16, 3, '#242833'); px(13, 14, 3, 10, '#d4bd79'); px(24, 17, 5, 2, outline); px(27, 16, 3, 4, '#b4bbc3');
+    } else if (kind === 'bruiser') {
+      px(4, 13, 5, 5, '#a75b55'); px(23, 13, 5, 5, '#a75b55'); px(8, 19, 16, 3, '#c4a776'); px(13, 15, 6, 6, '#986e78');
+    } else {
+      px(6, 11, 20, 4, '#d3a052'); px(4, 14, 4, 9, '#b04e55'); px(24, 14, 4, 9, '#b04e55'); px(12, 18, 8, 5, '#d3a052');
+    }
+    px(13, 8, 2, 2, outline); px(20, 8, 2, 2, outline);
+    const texture = Texture.from(canvas); texture.source.scaleMode = 'nearest'; this.generatedFrames.push(texture); return texture;
   }
 
   private createPrimitiveTextures(): void {
@@ -124,15 +158,9 @@ export class GameRenderer {
     }));
     this.primitiveTextures.set('piercing', this.textureFromGraphics(g => g.poly([0, 10, 17, 10, 17, 5, 28, 14, 17, 23, 17, 18, 0, 18]).fill(0xffffff)));
     this.primitiveTextures.set('enemy-shot', this.textureFromGraphics(g => { g.circle(16, 16, 7).fill(0xffffff); g.circle(16, 16, 12).stroke({ color: 0xffffff, width: 2, alpha: 0.65 }); }));
-    this.primitiveTextures.set('bruiser', this.textureFromGraphics(g => {
-      g.ellipse(28, 42, 22, 29).fill(0x9d6979); g.ellipse(28, 16, 15, 14).fill(0xdbc2bc); g.circle(34, 15, 2.5).fill(0x251d2a);
-    }));
-    this.primitiveTextures.set('boss', this.textureFromGraphics(g => {
-      g.roundRect(8, 27, 84, 88, 18).fill(0x743aab).stroke({ color: 0xffd978, width: 5 });
-      g.roundRect(1, 46, 24, 30, 7).fill(0xf0b94e); g.roundRect(75, 46, 24, 30, 7).fill(0xf0b94e);
-      g.circle(50, 24, 27).fill(0xe5c5a7).stroke({ color: 0xffd978, width: 4 }); g.circle(60, 21, 4).fill(0x251d2a);
-      g.rect(34, 70, 32, 8).fill(0xffd978);
-    }));
+    for (const kind of ['gangster', 'bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, [this.createPrototypeEnemyTexture(kind, 0), this.createPrototypeEnemyTexture(kind, 1)]);
+    this.primitiveTextures.set('bruiser', this.proceduralEnemyFrames.get('bruiser')![0]!);
+    this.primitiveTextures.set('boss', this.proceduralEnemyFrames.get('boss')![0]!);
   }
 
   private async loadClip(clip: AnimationClipDefinition): Promise<Texture[]> {
@@ -179,14 +207,22 @@ export class GameRenderer {
     const drawStarted = performance.now();
     const scale = Math.min(this.app.screen.width / W, this.app.screen.height / H);
     this.root.scale.set(scale); this.root.position.set((this.app.screen.width - W * scale) / 2, (this.app.screen.height - H * scale) / 2);
-    const camX = Math.max(0, Math.min(this.config.arenaWidth - W, state.player.x - W / 2));
-    const camY = Math.max(0, Math.min(this.config.arenaHeight - H, state.player.y - H / 2));
+    const viewWidth = W / this.cameraZoom; const viewHeight = H / this.cameraZoom;
+    const camX = Math.max(0, Math.min(this.config.arenaWidth - viewWidth, state.player.x - viewWidth / 2));
+    const camY = Math.max(0, Math.min(this.config.arenaHeight - viewHeight, state.player.y - viewHeight / 2));
     this.cameraX = camX; this.cameraY = camY;
-    this.world.position.set(-camX, -camY);
+    this.world.scale.set(this.cameraZoom); this.world.position.set(-camX * this.cameraZoom, -camY * this.cameraZoom);
     this.updateCharacterSprites(state);
     this.updateTransientSprites(state);
     this.updateDamageLabels(state);
     const g = this.entities; g.clear();
+    for (const shot of state.projectiles) {
+      if (shot.owner !== 'player' || !this.isVisible(shot.x, shot.y, 36)) continue;
+      const speed = Math.hypot(shot.vx, shot.vy) || 1; const piercing = shot.weaponId === 'piercingThrow'; const length = piercing ? 38 : 23;
+      const tailX = shot.x - shot.vx / speed * length; const tailY = shot.y - shot.vy / speed * length;
+      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xffd56f : 0x4bbdff, width: piercing ? 5 : 4, alpha: 0.28 });
+      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xfff0a5 : 0xd4faff, width: 1.5, alpha: 0.78 });
+    }
     for (const enemy of state.enemies) {
       if (enemy.dead || !this.isVisible(enemy.x, enemy.y, 80)) continue;
       if (enemy.kind === 'gangster' && enemy.attackState === 'ranged-telegraph') {
@@ -214,13 +250,17 @@ export class GameRenderer {
         g.moveTo(startX, startY).lineTo(startX - this.playerMotion.x * 0.04, startY - this.playerMotion.y * 0.04).stroke({ color: 0x8be4ff, width: 4 - streak * 0.6, alpha: 0.24 });
       }
     }
-    if (p.orbit) { const angle = state.elapsed * 6; g.circle(p.x + Math.cos(angle) * 39, p.y + Math.sin(angle) * 39, 8).fill(0x6fc7ff); g.circle(p.x - Math.cos(angle) * 39, p.y - Math.sin(angle) * 39, 8).fill(0xb8f2ff); }
+    if (p.orbit) {
+      const spin = this.reducedMotion ? 0 : state.elapsed * 5.2;
+      g.circle(p.x, p.y, 37).stroke({ color: 0x66c9ff, width: 1.5, alpha: 0.22 });
+      for (let blade = 0; blade < 4; blade++) { const angle = spin + blade * Math.PI / 2; const x = p.x + Math.cos(angle) * 39; const y = p.y + Math.sin(angle) * 39; g.poly([x, y - 8, x + 3, y - 2, x + 9, y, x + 3, y + 2, x, y + 8, x - 3, y + 2, x - 9, y, x - 3, y - 2]).fill(blade % 2 ? 0xb8f2ff : 0x55baff); }
+    }
     if (!this.playerSprite) {
       const color = flash ? 0xffffff : COLORS.blue;
       g.roundRect(p.x - 14, p.y - 10, 28, 38, 10).fill(color); g.circle(p.x, p.y - 18, 12).fill(flash ? 0xffffff : 0xd8f3ff);
     }
     if (p.invulnerable > 0) g.circle(p.x, p.y + 4, 35).stroke({ color: flash ? 0xffffff : 0x7ee5ff, width: 2, alpha: flash ? 0.7 : 0.38 });
-    if (state.specialTimer > 0) g.circle(p.x, p.y, 220 * (1 - state.specialTimer / 0.7)).stroke({ color: COLORS.cyan, width: 4, alpha: 0.75 });
+    if (state.specialTimer > 0) { const radius = this.reducedMotion ? 205 : 220 * (1 - state.specialTimer / 0.7); g.circle(p.x, p.y, radius).stroke({ color: COLORS.cyan, width: this.reducedMotion ? 2 : 4, alpha: this.reducedMotion ? 0.4 : 0.75 }); if (!this.reducedMotion) g.circle(p.x, p.y, radius * 0.82).stroke({ color: 0xffffff, width: 1, alpha: 0.34 }); }
     this.characters.sortChildren();
     this.updateCollisionDebug(state);
     this.lastSceneUpdateMs = performance.now() - drawStarted;
@@ -246,7 +286,7 @@ export class GameRenderer {
   }
 
   private isVisible(x: number, y: number, margin = 48): boolean {
-    return x >= this.cameraX - margin && x <= this.cameraX + W + margin && y >= this.cameraY - margin && y <= this.cameraY + H + margin;
+    return x >= this.cameraX - margin && x <= this.cameraX + W / this.cameraZoom + margin && y >= this.cameraY - margin && y <= this.cameraY + H / this.cameraZoom + margin;
   }
 
   private updateTransientSprites(state: SimState): void {
@@ -310,12 +350,12 @@ export class GameRenderer {
       if (frames.length) {
         this.playerFrame = state.status === 'defeat' ? 0 : Math.floor(state.elapsed * 1000 / clip.frameDurationMs) % frames.length;
         this.playerSprite.texture = frames[this.playerFrame] ?? frames[0]!;
-        if (this.playerSprite.width !== 56) this.playerSprite.width = 56;
-        if (this.playerSprite.height !== 75) this.playerSprite.height = 75;
+        if (this.playerSprite.width !== 62) this.playerSprite.width = 62;
+        if (this.playerSprite.height !== 83) this.playerSprite.height = 83;
         this.playerSprite.position.set(p.x, p.y + 28);
         const flip = anim.mirrorLeft && p.horizontalFacing === 'left';
         this.playerSprite.scale.x = Math.abs(this.playerSprite.scale.x) * (flip ? -1 : 1);
-        this.playerSprite.tint = p.invulnerable > 0 && Math.floor(state.elapsed * 18) % 2 === 0 ? 0xffffff : p.invulnerable > 0.45 ? 0xffb5b5 : 0xffffff;
+        this.playerSprite.tint = !this.reducedMotion && p.invulnerable > 0 && Math.floor(state.elapsed * 18) % 2 === 0 ? 0xffffff : p.invulnerable > 0.45 ? 0xffb5b5 : 0xffffff;
         this.playerSprite.alpha = state.status === 'defeat' ? 0.78 : 1;
         this.playerSprite.rotation = state.status === 'defeat' ? 0.28 : 0;
         // Keep the hero readable above the crowd; this only affects draw order, never world coordinates or hitboxes.
@@ -335,13 +375,17 @@ export class GameRenderer {
       if (!view) continue;
       view.frameSeen = this.renderFrame;
       const visible = this.isVisible(enemy.x, enemy.y, 72);
-      view.sprite.renderable = visible; view.shadow.renderable = visible; view.barBack.renderable = visible; view.barFill.renderable = visible;
+      const showHealth = enemy.kind === 'boss' || enemy.kind === 'bruiser' || enemy.hitFlash > 0;
+      view.sprite.renderable = visible; view.shadow.renderable = visible; view.barBack.renderable = visible && showHealth; view.barFill.renderable = visible && showHealth;
       if (!visible) continue;
       const clip = ENEMIES[enemy.kind].animation;
       if (clip) {
         const frames = this.framesFor(clip);
         const frame = Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % Math.max(1, frames.length);
         if (frames[frame] && frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; }
+      } else {
+        const frames = this.proceduralEnemyFrames.get(enemy.kind);
+        if (frames?.length) { const frame = Math.floor(enemy.animationTime * 5) % frames.length; if (frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; } }
       }
       view.sprite.position.set(enemy.x, enemy.y + enemy.radius + 9);
       view.sprite.scale.x = Math.abs(view.sprite.scale.x) * (enemy.horizontalFacing === 'left' ? -1 : 1);
@@ -368,11 +412,11 @@ export class GameRenderer {
   private enemyTexture(enemy: Enemy): Texture {
     const clip = ENEMIES[enemy.kind].animation;
     if (clip) return this.framesFor(clip)[0] ?? this.primitiveTextures.get('bruiser')!;
-    return this.primitiveTextures.get(enemy.kind === 'boss' ? 'boss' : 'bruiser')!;
+    return this.proceduralEnemyFrames.get(enemy.kind)?.[0] ?? this.primitiveTextures.get('bruiser')!;
   }
 
   private setEnemySpriteSize(sprite: Sprite, enemy: Enemy): void {
-    const size = enemy.kind === 'boss' ? [116, 130] : enemy.kind === 'bruiser' ? [56, 58] : enemy.kind === 'fastThug' ? [40, 54] : [38, 51];
+    const size = enemy.kind === 'boss' ? [126, 142] : enemy.kind === 'bruiser' ? [60, 64] : enemy.kind === 'fastThug' ? [43, 58] : [41, 55];
     sprite.width = size[0]!; sprite.height = size[1]!;
   }
 
@@ -384,13 +428,14 @@ export class GameRenderer {
     return { sprite, shadow, barBack, barFill, kind: enemy.kind, frameSeen: this.renderFrame, displayedFrame: -1 } as EnemyView;
   }
 
-  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; cityMapLoaded: boolean; cityMapSize: { width: number; height: number } | null; playerFrame: number; moving: boolean; playerFacing: string; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
+  getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; cityMapLoaded: boolean; cityMapSize: { width: number; height: number } | null; playerFrame: number; moving: boolean; playerFacing: string; cameraZoom: number; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; kind: EnemyKind; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {
     const enemies = state ? state.enemies.filter(enemy => !enemy.dead).map(enemy => {
       const view = this.enemyViews.get(enemy.id); const clip = ENEMIES[enemy.kind].animation;
-      return { id: enemy.id, facing: enemy.horizontalFacing, frame: clip ? Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % clip.frameCount : 0, scaleX: view?.sprite.scale.x ?? (enemy.horizontalFacing === 'left' ? -1 : 1), hasSprite: Boolean(clip) };
+      const generatedFrames = this.proceduralEnemyFrames.get(enemy.kind);
+      return { id: enemy.id, kind: enemy.kind, facing: enemy.horizontalFacing, frame: clip ? Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % clip.frameCount : generatedFrames?.length ? Math.floor(enemy.animationTime * 5) % generatedFrames.length : 0, scaleX: view?.sprite.scale.x ?? (enemy.horizontalFacing === 'left' ? -1 : 1), hasSprite: Boolean(clip || generatedFrames?.length) };
     }) : [];
     const cityMapSize = this.cityMapSprite ? { width: this.cityMapSprite.texture.width, height: this.cityMapSprite.texture.height } : null;
-    return { playerTextureLoaded: this.playerTextureLoaded, cityMapLoaded: cityMapSize !== null, cityMapSize, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', enemySprites: this.enemyViews.size, renderFps: Math.round(this.app.ticker.FPS), renderFrameMs: Math.round(this.app.ticker.deltaMS * 100) / 100, enemies };
+    return { playerTextureLoaded: this.playerTextureLoaded, cityMapLoaded: cityMapSize !== null, cityMapSize, playerFrame: this.playerFrame, moving: this.playerIsMoving, playerFacing: state?.player.horizontalFacing ?? 'right', cameraZoom: this.cameraZoom, enemySprites: this.enemyViews.size, renderFps: Math.round(this.app.ticker.FPS), renderFrameMs: Math.round(this.app.ticker.deltaMS * 100) / 100, enemies };
   }
 
   getPerformanceDiagnostics(state?: SimState): { rendererUpdateMs: number; rendererP95Ms: number; rendererWorstMs: number; activeEnemies: number; visibleEnemies: number; projectiles: number; pickups: number; damageTexts: number; sprites: number } {
@@ -399,7 +444,7 @@ export class GameRenderer {
     let activeEnemies = 0; let visibleEnemies = 0;
     if (state) for (const enemy of state.enemies) if (!enemy.dead) {
       activeEnemies++;
-      if (enemy.x >= this.cameraX - 40 && enemy.x <= this.cameraX + W + 40 && enemy.y >= this.cameraY - 60 && enemy.y <= this.cameraY + H + 60) visibleEnemies++;
+      if (enemy.x >= this.cameraX - 40 && enemy.x <= this.cameraX + W / this.cameraZoom + 40 && enemy.y >= this.cameraY - 60 && enemy.y <= this.cameraY + H / this.cameraZoom + 60) visibleEnemies++;
     }
     return { rendererUpdateMs: this.lastSceneUpdateMs, rendererP95Ms: samples[p95Index] ?? 0, rendererWorstMs: samples[samples.length - 1] ?? 0, activeEnemies, visibleEnemies, projectiles: state?.projectiles.length ?? 0, pickups: state?.pickups.length ?? 0, damageTexts: state?.numbers.length ?? 0, sprites: this.enemyViews.size + this.projectileViewCount + this.pickupViewCount + this.damageLabelCount + Number(Boolean(this.playerSprite)) };
   }
