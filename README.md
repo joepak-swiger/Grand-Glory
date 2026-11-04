@@ -18,6 +18,10 @@ npm run dev
 
 Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, **1/2/3** to choose upgrades, and the mouse to choose menu options. Weapons target automatically. The three-minute prototype run introduces an overtime Gang Leader if not defeated by the target time.
 
+### Windows one-click launcher
+
+Double-click **`PLAY GRAND GLORY.bat`** in this folder. It uses the folder's current location, checks Node.js/npm, runs `npm ci` if Vite dependencies are missing, finds an available localhost port (or opens an already-running GRAND GLORY server), waits for Vite to be ready, then opens the default browser. Keep the terminal open while playing; press **Ctrl+C** or close that terminal window to stop the server. It does not kill other processes or bypass Node manager trust checks. If NVM reports `NVM4306`, resolve that warning through your normal NVM setup before retrying.
+
 ## Development commands
 
 ```sh
@@ -25,6 +29,7 @@ npm run typecheck
 npm run test
 npm run build
 npm run test:e2e
+npm run benchmark:sim
 ```
 
 The `?test=1` URL uses a shorter development encounter with deterministic test hooks enabled in dev mode. It is for browser verification, not normal play. `?test=normal` uses the standard run with those development-only test hooks for natural-spawn browser diagnostics.

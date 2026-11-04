@@ -228,6 +228,13 @@ describe('deterministic gameplay simulation', () => {
     const selected = choice(s); expect(chooseUpgrade(s, selected)).toBe(true); expect(s.status).toBe('playing');
   });
 
+  it('offers unranked prototype attack paths before repeating a starter weapon rank', () => {
+    const s = createGame(161, testRun); s.pickups.push({ id: 160, x: s.player.x, y: s.player.y, value: 30 }); steps(s, 1);
+    expect(s.options).toContain('orbit'); expect(chooseUpgrade(s, 'orbit')).toBe(true);
+    s.pickups.push({ id: 161, x: s.player.x, y: s.player.y, value: 100 }); steps(s, 1);
+    expect(s.status).toBe('upgrade'); expect(s.options).toContain('piercingThrow');
+  });
+
   it('offers consecutive choices when one pickup crosses multiple level thresholds', () => {
     const s = createGame(17, testRun); s.pickups.push({ id: 91, x: s.player.x, y: s.player.y, value: 180 }); steps(s, 1);
     expect(s.status).toBe('upgrade'); expect(s.player.level).toBe(2); expect(s.player.xp).toBeGreaterThan(s.player.xpNext);
@@ -325,14 +332,18 @@ describe('deterministic gameplay simulation', () => {
   });
 
   it('simulates the standard horde economy across multiple reproducible seeds', () => {
-    const observations: Array<{ seed: number; elapsed: number; status: string; level: number; kills: number; enemies: number }> = [];
-    for (const seed of [1741, 42, 2026]) {
+    const observations: Array<Record<string, unknown>> = [];
+    const scenarios: Array<{ seed: number; strategy: UpgradeId[] }> = [
+      { seed: 1741, strategy: ['piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'vitality', 'recovery', 'speed', 'extra', 'magnet'] },
+      { seed: 42, strategy: ['vitality', 'recovery', 'speed', 'orbit', 'piercingThrow', 'power', 'damage', 'tempo', 'pinwheel', 'extra', 'magnet'] },
+      { seed: 2026, strategy: ['orbit', 'piercingThrow', 'vitality', 'recovery', 'power', 'pinwheel', 'damage', 'tempo', 'speed', 'extra', 'magnet'] },
+    ];
+    for (const { seed, strategy } of scenarios) {
       const s = createGame(seed, standardRun);
       let guard = 0;
       while (s.status === 'playing' || s.status === 'upgrade') {
         if (s.status === 'upgrade') {
-          const priority: UpgradeId[] = ['vitality', 'recovery', 'pinwheel', 'power', 'piercingThrow', 'orbit', 'speed', 'damage', 'tempo', 'extra', 'magnet'];
-          const selected = priority.find(id => s.options.includes(id)) ?? s.options[0];
+          const selected = strategy.find(id => s.options.includes(id)) ?? s.options[0];
           if (!selected || !chooseUpgrade(s, selected)) throw new Error('A generated level-up had no valid selection');
         } else {
           const angle = s.elapsed * 0.5;
@@ -340,7 +351,7 @@ describe('deterministic gameplay simulation', () => {
         }
         if (++guard > 24_000) throw new Error(`Seed ${seed} exceeded the four-minute simulation bound`);
       }
-      observations.push({ seed, elapsed: Math.round(s.elapsed * 100) / 100, status: s.status, level: s.player.level, kills: s.kills, enemies: s.enemies.length });
+      observations.push({ seed, strategy: strategy.slice(0, 3), elapsed: Math.round(s.elapsed * 100) / 100, status: s.status, level: s.player.level, hp: Math.ceil(s.player.health), maxHp: s.player.maxHealth, kills: s.kills, enemies: s.enemies.length, peakEnemies: s.peakEnemies, spawned: s.enemiesSpawned, belowTargetSeconds: Math.round(s.timeBelowHordeTarget), weapons: s.player.weaponRanks, evolved: s.player.evolvedPinwheel });
       expect(Number.isFinite(s.player.health)).toBe(true); expect(s.player.health).toBeGreaterThanOrEqual(0);
       expect(s.enemies.length).toBeLessThanOrEqual(standardRun.horde.maxActive + 1);
     }
@@ -361,5 +372,31 @@ describe('deterministic gameplay simulation', () => {
       expect(s.enemies).toHaveLength(count); expect(s.projectiles.length).toBeLessThan(20);
     }
     console.info(`SIM_LOAD_300_FRAMES ${JSON.stringify(measurements)}`);
+  });
+
+  it('hits enemies across a spatial cell boundary and preserves piercing hit uniqueness', () => {
+    const s = createGame(330, testRun); s.player.attackTimer = 10_000; s.spawnTimer = 10_000;
+    const first = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 50, y: s.player.y });
+    const second = spawnEnemy(s, 'fastThug', testRun, { x: s.player.x + 74, y: s.player.y });
+    first.health = second.health = 1_000; first.maxHealth = second.maxHealth = 1_000;
+    s.enemies.push(first, second);
+    const shot = { id: s.nextId++, x: s.player.x + 62, y: s.player.y, vx: 0, vy: 0, damage: 5, life: 1, pierce: 4, hitIds: [] as number[], special: false, owner: 'player' as const, spin: 0 };
+    s.projectiles.push(shot);
+    steps(s, 1);
+    expect(shot.hitIds).toEqual(expect.arrayContaining([first.id, second.id]));
+    const healthAfterFirstHit = [first.health, second.health];
+    steps(s, 1);
+    expect([first.health, second.health]).toEqual(healthAfterFirstHit);
+    expect(new Set(shot.hitIds).size).toBe(shot.hitIds.length);
+  });
+
+  it('records only actual damage when the final projectile hit overkills an enemy', () => {
+    const s = createGame(331, testRun); s.player.attackTimer = 10_000; s.spawnTimer = 10_000;
+    const enemy = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 120, y: s.player.y });
+    enemy.health = 5; enemy.maxHealth = 34; s.enemies.push(enemy);
+    s.projectiles.push({ id: s.nextId++, x: enemy.x, y: enemy.y, vx: 0, vy: 0, damage: 100, life: 1, pierce: 0, hitIds: [], special: false, owner: 'player', spin: 0 });
+    steps(s, 1);
+    expect(enemy.dead).toBe(true);
+    expect(s.player.damageDealt).toBe(5);
   });
 });

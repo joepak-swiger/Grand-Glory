@@ -1,4 +1,5 @@
 import { ATTACKS, BLUE_PINWHEEL, ENEMIES, GANG_LEADER, PINWHEEL_EVOLUTION, standardRun, UPGRADES, type EnemyKind, type GameStatus, type RunConfig, type UpgradeId } from './definitions';
+import { SpatialGrid } from './spatial-grid';
 
 export interface Vec { x: number; y: number }
 export type HorizontalFacing = 'left' | 'right';
@@ -11,7 +12,12 @@ export interface Pickup extends Vec { id: number; value: number }
 export interface FloatText extends Vec { id: number; text: string; life: number }
 export interface SimState {
   status: GameStatus; player: Player; enemies: Enemy[]; projectiles: Projectile[]; pickups: Pickup[]; numbers: FloatText[];
+  readonly enemyGrid: SpatialGrid<Enemy>;
+  readonly enemyQueryScratch: Enemy[];
+  readonly pickupGrid: SpatialGrid<Pickup>;
+  readonly pickupQueryScratch: Pickup[];
   elapsed: number; kills: number; bossDefeated: boolean; endReason: 'player-down' | 'boss-escaped' | null; seed: number; nextId: number; spawnTimer: number; levelChoices: number; surgeRemaining: number; surgeCount: number; pickupMergeTimer: number;
+  peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number;
   options: UpgradeId[]; chosen: UpgradeId[]; attacks: string[]; messages: string[]; specialTimer: number;
 }
 export interface InputState { x: number; y: number; dash: boolean; special: boolean }
@@ -22,7 +28,7 @@ const normalize = (x: number, y: number): Vec => { const m = Math.hypot(x, y); r
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun): SimState {
   return {
     status: 'playing', player: { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right', damageBonus: 0, extraShots: 0, pickupRadius: 150, orbit: false, orbitTimer: 0, damageDealt: 0, weaponRanks: { pinwheel: 1, orbitGuard: 0, piercingThrow: 0 }, powerRank: 0, evolvedPinwheel: false, piercingTimer: 0.6 },
-    enemies: [], projectiles: [], pickups: [], numbers: [], elapsed: 0, kills: 0, bossDefeated: false, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, pickupMergeTimer: 0.5, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
+    enemies: [], projectiles: [], pickups: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], elapsed: 0, kills: 0, bossDefeated: false, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
   };
 }
 
@@ -40,7 +46,7 @@ export function movePlayer(player: Player, dx: number, dy: number, dt: number, c
   player.y = clamp(player.y + dir.y * player.speed * dt, 288, Math.min(config.arenaHeight - 28, 752));
 }
 
-export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig = standardRun, position?: Vec): Enemy {
+export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig = standardRun, position?: Vec, spatialIndex?: SpatialGrid<Enemy>): Enemy {
   const def = ENEMIES[kind]; let x: number; let y: number;
   if (position) ({ x, y } = position);
   else {
@@ -56,18 +62,25 @@ export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig =
       return { x: clamp(cameraLeft + random(state) * Math.max(1, cameraRight - cameraLeft), bounds.left, bounds.right), y: clamp(cameraBottom + my + random(state) * 90, bounds.top, bounds.bottom) };
     };
     const minimumDistanceSquared = 180 ** 2; let safest: Vec | undefined; let chosen: Vec | undefined; let bestClearance = -1;
+    const nearby: Enemy[] = [];
     for (let attempt = 0; attempt < 48; attempt++) {
       const candidate = sample(); const playerDistance = dist2(candidate, state.player);
       if (playerDistance < minimumDistanceSquared) continue;
       let nearestEnemyDistance = Number.POSITIVE_INFINITY;
-      for (const enemy of state.enemies) if (!enemy.dead) nearestEnemyDistance = Math.min(nearestEnemyDistance, dist2(candidate, enemy));
+      if (spatialIndex) {
+        spatialIndex.queryRadius(candidate.x, candidate.y, 160, nearby);
+        for (const enemy of nearby) if (!enemy.dead) nearestEnemyDistance = Math.min(nearestEnemyDistance, dist2(candidate, enemy));
+        nearestEnemyDistance = Math.min(nearestEnemyDistance, 160 ** 2);
+      } else for (const enemy of state.enemies) if (!enemy.dead) nearestEnemyDistance = Math.min(nearestEnemyDistance, dist2(candidate, enemy));
       if (nearestEnemyDistance > bestClearance) { safest = candidate; bestClearance = nearestEnemyDistance; }
       const safeSpacing = (def.radius + 24) ** 2;
       if (nearestEnemyDistance >= safeSpacing) { chosen = candidate; break; }
     }
+    if (!chosen) state.spawnPlacementFallbacks++;
     const spawn = chosen ?? safest ?? { x: (bounds.left + bounds.right) / 2, y: bounds.top };
     x = spawn.x; y = spawn.y;
   }
+  state.enemiesSpawned++; state.spawnWindowCount++;
   return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackState: 'idle', attackDirection: { x: 0, y: 0 }, horizontalFacing: 'right', animationTime: 0, chargeReady: false, chargeConnected: false, dead: false, phase: 0, rangedTimer: 1.2, distantTime: 0 };
 }
 
@@ -94,15 +107,28 @@ export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
   return target;
 }
 
+function acquireTargetFromGrid(state: SimState, range: number, nearby: Enemy[]): Enemy | undefined {
+  const boss = state.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
+  if (boss && dist2(state.player, boss) < range * range) return boss;
+  let target: Enemy | undefined; let best = range * range;
+  for (const enemy of state.enemyGrid.queryRadius(state.player.x, state.player.y, range, nearby)) {
+    if (enemy.dead) continue;
+    const d = dist2(state.player, enemy);
+    if (d < best) { target = enemy; best = d; }
+  }
+  return target;
+}
+
 function float(state: SimState, text: string, x: number, y: number): void { state.numbers.push({ id: state.nextId++, text, x, y, life: 0.75 }); }
 function applyEnemyDamage(state: SimState, enemy: Enemy, damage: number, direction: Vec, config: RunConfig): void {
   if (enemy.dead || enemy.health <= 0) return;
-  enemy.health = Math.max(0, enemy.health - damage); enemy.hitFlash = 0.16;
+  const actualDamage = Math.min(enemy.health, damage);
+  enemy.health = Math.max(0, enemy.health - actualDamage); enemy.hitFlash = 0.16;
   enemy.knockback.x += direction.x * (enemy.kind === 'boss' ? 90 : 230);
   enemy.knockback.y += direction.y * (enemy.kind === 'boss' ? 90 : 230);
-  state.player.damageDealt += damage;
+  state.player.damageDealt += actualDamage;
   if (enemy.health === 0) { enemy.dead = true; state.kills++; state.pickups.push({ id: state.nextId++, x: enemy.x, y: enemy.y, value: enemy.xp }); if (enemy.kind === 'boss') state.bossDefeated = true; }
-  else float(state, `${Math.round(damage)}`, enemy.x, enemy.y - enemy.radius);
+  else float(state, `${Math.round(actualDamage)}`, enemy.x, enemy.y - enemy.radius);
   if (enemy.kind !== 'boss') enemy.phase = Math.min(1, enemy.phase + 0.12);
   void config;
 }
@@ -140,7 +166,8 @@ function populateOptions(state: SimState): void {
     const vitalityRanks = state.chosen.filter(id => id === 'vitality').length;
     const recoveryRanks = state.chosen.filter(id => id === 'recovery').length;
     const defensivePick = group.includes('vitality') && vitalityRanks < 2 ? 'vitality' : group.includes('recovery') && recoveryRanks < 3 ? 'recovery' : undefined;
-    const picked = defensivePick ?? group[Math.floor(random(state) * group.length)];
+    const freshWeapon = group.find(id => (id === 'orbit' && p.weaponRanks.orbitGuard === 0) || (id === 'piercingThrow' && p.weaponRanks.piercingThrow === 0));
+    const picked = defensivePick ?? freshWeapon ?? group[Math.floor(random(state) * group.length)];
     if (picked) { state.options.push(picked); const removeIndex = pool.findIndex(upgrade => upgrade.id === picked); if (removeIndex >= 0) pool.splice(removeIndex, 1); }
   }
   while (state.options.length < 3 && pool.length) { const index = Math.floor(random(state) * pool.length); const picked = pool.splice(index, 1)[0]; if (picked) state.options.push(picked.id); }
@@ -200,13 +227,18 @@ function chooseEnemyKind(state: SimState, elapsed: number, bossPhase: boolean): 
 }
 
 function spawnBatch(state: SimState, config: RunConfig, targetCount: number, bossPhase: boolean): void {
-  const livingOrdinary = state.enemies.filter(enemy => !enemy.dead && enemy.kind !== 'boss').length;
+  let livingOrdinary = 0;
+  for (const enemy of state.enemies) if (!enemy.dead && enemy.kind !== 'boss') livingOrdinary++;
   const pressureCap = bossPhase ? Math.max(1, Math.floor(config.horde.maxActive * 0.68)) : config.horde.maxActive;
   const desired = Math.min(targetCount, pressureCap, config.maxEnemies);
   const deficit = desired - livingOrdinary;
   if (deficit <= 0) return;
   const size = Math.min(deficit, config.horde.batchMin + Math.floor(random(state) * (config.horde.batchMax - config.horde.batchMin + 1)));
-  for (let i = 0; i < size; i++) state.enemies.push(spawnEnemy(state, chooseEnemyKind(state, state.elapsed, bossPhase), config));
+  for (let i = 0; i < size; i++) {
+    const enemy = spawnEnemy(state, chooseEnemyKind(state, state.elapsed, bossPhase), config, undefined, state.enemyGrid);
+    state.enemies.push(enemy);
+    state.enemyGrid.insert(enemy);
+  }
 }
 
 function updateHordeDirector(state: SimState, step: number, config: RunConfig): void {
@@ -226,6 +258,20 @@ function updateHordeDirector(state: SimState, step: number, config: RunConfig): 
     const haste = state.surgeRemaining > 0 ? 0.68 : 1;
     state.spawnTimer = Math.max(0.32, config.horde.baseBatchInterval * (1 - Math.min(0.45, pressure * 0.34)) * haste);
   }
+  const request = hordeTargetAt(config, Math.min(state.elapsed, config.duration)) + (state.surgeRemaining > 0 ? config.horde.surgeBonus : 0);
+  const cap = bossPhase ? Math.max(1, Math.floor(config.horde.maxActive * 0.68)) : config.horde.maxActive;
+  const desired = Math.min(request, cap, config.maxEnemies);
+  let active = 0;
+  for (const enemy of state.enemies) if (!enemy.dead && enemy.kind !== 'boss') active++;
+  state.hordeTarget = desired;
+  state.hordeDeficit = Math.max(0, desired - active);
+  state.peakEnemies = Math.max(state.peakEnemies, active);
+  if (active < desired) state.timeBelowHordeTarget += step;
+  state.spawnWindowSeconds += step;
+  if (state.spawnWindowSeconds >= 1) {
+    state.spawnRate = state.spawnWindowCount / state.spawnWindowSeconds;
+    state.spawnWindowCount = 0; state.spawnWindowSeconds = 0;
+  }
 }
 
 function fireEnemyVolley(state: SimState, enemy: Enemy, aim: Vec): void {
@@ -235,13 +281,13 @@ function fireEnemyVolley(state: SimState, enemy: Enemy, aim: Vec): void {
   }
 }
 
-function separateEnemies(enemies: Enemy[], config: RunConfig): void {
-  const cellSize = 52; const cells = new Map<string, Enemy[]>();
-  for (const enemy of enemies) if (!enemy.dead) { const key = `${Math.floor(enemy.x / cellSize)},${Math.floor(enemy.y / cellSize)}`; const cell = cells.get(key) ?? []; cell.push(enemy); cells.set(key, cell); }
+function separateEnemies(state: SimState, config: RunConfig): void {
+  const enemies = state.enemies; const grid = state.enemyGrid; const nearby = state.enemyQueryScratch;
+  grid.rebuild(enemies, enemy => !enemy.dead);
   for (const enemy of enemies) {
     if (enemy.dead) continue;
-    const cx = Math.floor(enemy.x / cellSize); const cy = Math.floor(enemy.y / cellSize);
-    for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) for (const other of cells.get(`${gx},${gy}`) ?? []) {
+    grid.queryRadius(enemy.x, enemy.y, 56, nearby);
+    for (const other of nearby) {
       if (other.id <= enemy.id || other.dead) continue;
       const dx = other.x - enemy.x; const dy = other.y - enemy.y; const minimum = (enemy.radius + other.radius) * 0.84; const d2 = dx * dx + dy * dy;
       if (d2 >= minimum * minimum) continue;
@@ -253,20 +299,20 @@ function separateEnemies(enemies: Enemy[], config: RunConfig): void {
 }
 
 function mergeNearbyPickups(state: SimState): void {
-  const cellSize = 32; const cells = new Map<string, Pickup[]>();
-  for (const pickup of state.pickups) { const key = `${Math.floor(pickup.x / cellSize)},${Math.floor(pickup.y / cellSize)}`; const cell = cells.get(key) ?? []; cell.push(pickup); cells.set(key, cell); }
-  const removed = new Set<number>();
+  const grid = state.pickupGrid; const nearby = state.pickupQueryScratch;
+  grid.rebuild(state.pickups, pickup => pickup.value > 0);
   for (const pickup of state.pickups) {
-    if (removed.has(pickup.id)) continue;
-    const cx = Math.floor(pickup.x / cellSize); const cy = Math.floor(pickup.y / cellSize);
-    for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) for (const other of cells.get(`${gx},${gy}`) ?? []) {
-      if (other.id <= pickup.id || removed.has(other.id) || dist2(pickup, other) > 28 ** 2) continue;
+    if (pickup.value <= 0) continue;
+    for (const other of grid.queryRadius(pickup.x, pickup.y, 28, nearby)) {
+      if (other.id <= pickup.id || other.value <= 0 || dist2(pickup, other) > 28 ** 2) continue;
       const total = pickup.value + other.value;
       pickup.x = (pickup.x * pickup.value + other.x * other.value) / total; pickup.y = (pickup.y * pickup.value + other.y * other.value) / total;
-      pickup.value = total; removed.add(other.id);
+      pickup.value = total; other.value = 0;
     }
   }
-  if (removed.size) state.pickups = state.pickups.filter(pickup => !removed.has(pickup.id));
+  let write = 0;
+  for (const pickup of state.pickups) if (pickup.value > 0) state.pickups[write++] = pickup;
+  state.pickups.length = write;
 }
 
 export function updateGame(state: SimState, dt: number, input: InputState, config: RunConfig = standardRun): void {
@@ -277,15 +323,20 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   if (startingDash) { p.dashTimer = 0.16; p.dashCooldown = 3; p.invulnerable = Math.max(p.invulnerable, 0.22); }
   const dashX = input.x || (startingDash ? p.facing.x : 0); const dashY = input.y || (startingDash ? p.facing.y : 0);
   movePlayer(p, dashX, dashY, step * (p.dashTimer > 0 ? 2.7 : 1), config);
-  if (input.special && p.special >= 100 && state.specialTimer === 0) { p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name); for (const e of state.enemies) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config); }
-  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { state.enemies.push(spawnBossForEncounter(state, config)); state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
+  state.enemyGrid.rebuild(state.enemies, enemy => !enemy.dead);
+  const nearbyEnemies = state.enemyQueryScratch;
+  if (input.special && p.special >= 100 && state.specialTimer === 0) {
+    p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name);
+    for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config);
+  }
+  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { const boss = spawnBossForEncounter(state, config); state.enemies.push(boss); state.enemyGrid.insert(boss); state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
   updateHordeDirector(state, step, config);
   // Orbit Guard prototype: short-range recurring pulse, visibly separate from the starter projectile.
   p.orbitTimer -= step;
-  if (p.orbit && p.orbitTimer <= 0) { const rank = p.weaponRanks.orbitGuard; const rankIndex = Math.max(0, rank - 1); p.orbitTimer = ATTACKS.orbitGuard.cooldown * (ATTACKS.orbitGuard.rankCooldown?.[rankIndex] ?? 1); for (const e of state.enemies) if (!e.dead && dist2(p, e) < (ATTACKS.orbitGuard.targetRange + (rank - 1) * 7) ** 2) applyEnemyDamage(state, e, ATTACKS.orbitGuard.damage * (1 + p.damageBonus) * (ATTACKS.orbitGuard.rankDamage?.[rankIndex] ?? 1), normalize(e.x - p.x, e.y - p.y), config); }
+  if (p.orbit && p.orbitTimer <= 0) { const rank = p.weaponRanks.orbitGuard; const rankIndex = Math.max(0, rank - 1); const range = ATTACKS.orbitGuard.targetRange + (rank - 1) * 7; p.orbitTimer = ATTACKS.orbitGuard.cooldown * (ATTACKS.orbitGuard.rankCooldown?.[rankIndex] ?? 1); for (const e of state.enemyGrid.queryRadius(p.x, p.y, range, nearbyEnemies)) if (!e.dead && dist2(p, e) < range ** 2) applyEnemyDamage(state, e, ATTACKS.orbitGuard.damage * (1 + p.damageBonus) * (ATTACKS.orbitGuard.rankDamage?.[rankIndex] ?? 1), normalize(e.x - p.x, e.y - p.y), config); }
   p.attackTimer -= step;
   if (p.attackTimer <= 0) {
-    const target = acquireTarget(state, ATTACKS.pinwheel.targetRange);
+    const target = acquireTargetFromGrid(state, ATTACKS.pinwheel.targetRange, nearbyEnemies);
     if (target) {
       const rank = p.weaponRanks.pinwheel;
       const rankIndex = Math.max(0, rank - 1);
@@ -298,7 +349,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   if (p.weaponRanks.piercingThrow > 0) {
     p.piercingTimer -= step;
     if (p.piercingTimer <= 0) {
-      const target = acquireTarget(state, ATTACKS.piercingThrow.targetRange);
+      const target = acquireTargetFromGrid(state, ATTACKS.piercingThrow.targetRange, nearbyEnemies);
       if (target) {
         const rank = p.weaponRanks.piercingThrow;
         const rankIndex = Math.max(0, rank - 1);
@@ -309,9 +360,11 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   }
   for (const shot of state.projectiles) {
     shot.x += shot.vx * step; shot.y += shot.vy * step; shot.life -= step; shot.spin += step * 16;
-    if (shot.owner === 'player') for (const e of state.enemies) if (!e.dead && !shot.hitIds.includes(e.id) && dist2(shot, e) < (e.radius + 9) ** 2) { applyEnemyDamage(state, e, shot.damage, normalize(e.x - p.x, e.y - p.y), config); shot.hitIds.push(e.id); if (shot.pierce > 0) shot.pierce--; else { shot.life = 0; break; } }
+    if (shot.owner === 'player') for (const e of state.enemyGrid.queryRadius(shot.x, shot.y, GANG_LEADER.radius + 9, nearbyEnemies)) if (!e.dead && !shot.hitIds.includes(e.id) && dist2(shot, e) < (e.radius + 9) ** 2) { applyEnemyDamage(state, e, shot.damage, normalize(e.x - p.x, e.y - p.y), config); shot.hitIds.push(e.id); if (shot.pierce > 0) shot.pierce--; else { shot.life = 0; break; } }
   }
-  state.projectiles = state.projectiles.filter(s => s.life > 0 && s.x > 0 && s.y > 0 && s.x < config.arenaWidth && s.y < config.arenaHeight);
+  let writeProjectiles = 0;
+  for (const shot of state.projectiles) if (shot.life > 0 && shot.x > 0 && shot.y > 0 && shot.x < config.arenaWidth && shot.y < config.arenaHeight) state.projectiles[writeProjectiles++] = shot;
+  state.projectiles.length = writeProjectiles;
   for (const enemy of state.enemies) {
     if (enemy.dead) continue;
     const toward = normalize(p.x - enemy.x, p.y - enemy.y);
@@ -360,14 +413,18 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     const distance = Math.hypot(enemy.x - p.x, enemy.y - p.y);
     if (distance < enemy.radius + 18 && enemy.kind !== 'boss') damagePlayer(state, enemy.damage);
     if (enemy.kind !== 'boss' && distance > 940) enemy.distantTime += step; else enemy.distantTime = 0;
-    if (enemy.distantTime >= config.horde.recycleAfter) { const recycled = spawnEnemy(state, enemy.kind, config); enemy.x = recycled.x; enemy.y = recycled.y; enemy.distantTime = 0; }
+    if (enemy.distantTime >= config.horde.recycleAfter) { const recycled = spawnEnemy(state, enemy.kind, config); enemy.x = recycled.x; enemy.y = recycled.y; enemy.distantTime = 0; state.recycledEnemies++; }
     if (state.status !== 'playing') break;
   }
-  separateEnemies(state.enemies, config);
+  separateEnemies(state, config);
   // Resolve enemy projectiles against the player after movement (boss attacks are telegraphed in the renderer).
   for (const s of state.projectiles) if (s.owner === 'enemy' && dist2(s, p) < 30 ** 2) { damagePlayer(state, s.damage); s.life = 0; }
-  state.projectiles = state.projectiles.filter(s => s.life > 0);
-  state.enemies = state.enemies.filter(e => !e.dead);
+  writeProjectiles = 0;
+  for (const shot of state.projectiles) if (shot.life > 0) state.projectiles[writeProjectiles++] = shot;
+  state.projectiles.length = writeProjectiles;
+  let writeEnemies = 0;
+  for (const enemy of state.enemies) if (!enemy.dead) state.enemies[writeEnemies++] = enemy;
+  state.enemies.length = writeEnemies;
   state.pickupMergeTimer -= step;
   if (state.pickupMergeTimer <= 0) { mergeNearbyPickups(state); state.pickupMergeTimer = 0.5; }
   for (const pickup of state.pickups) {
@@ -375,8 +432,12 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     if (d2 < p.pickupRadius ** 2) { p.xp += pickup.value; p.special = Math.min(100, p.special + pickup.value * 0.42); float(state, `+${pickup.value} XP`, pickup.x, pickup.y); pickup.value = 0; }
     else if (d2 < 300 ** 2) { const distance = Math.sqrt(d2) || 1; const pull = Math.min(distance, 230 * step); pickup.x += dx / distance * pull; pickup.y += dy / distance * pull; }
   }
-  state.pickups = state.pickups.filter(x => x.value > 0);
-  state.numbers = state.numbers.filter(n => { n.life -= step; n.y -= 24 * step; return n.life > 0; });
+  let writePickups = 0;
+  for (const pickup of state.pickups) if (pickup.value > 0) state.pickups[writePickups++] = pickup;
+  state.pickups.length = writePickups;
+  let writeNumbers = 0;
+  for (const number of state.numbers) { number.life -= step; number.y -= 24 * step; if (number.life > 0) state.numbers[writeNumbers++] = number; }
+  state.numbers.length = writeNumbers;
   while (p.xp >= p.xpNext && state.status === 'playing') { p.xp -= p.xpNext; offerLevel(state); }
   if (state.bossDefeated && !state.enemies.some(e => !e.dead && e.kind === 'boss')) state.status = 'victory';
   if (state.elapsed >= config.duration + config.overtimeLimit && !state.bossDefeated && state.status === 'playing') { state.status = 'defeat'; state.endReason = 'boss-escaped'; }
