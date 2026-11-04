@@ -1,6 +1,7 @@
 import { createGame, damagePlayer, spawnEnemy, updateGame, chooseUpgrade, getUpgrade, type InputState, type SimState } from './game/simulation';
 import { ATTACKS, standardRun, testRun, type RunConfig, type UpgradeId } from './game/definitions';
 import { GameRenderer } from './render/renderer';
+import { nearestWalkablePoint } from './game/stage';
 import './style.css';
 
 const ui = document.querySelector<HTMLDivElement>('#ui')!;
@@ -10,6 +11,7 @@ const config: RunConfig = params.has('test') && params.get('test') !== 'normal' 
 const manualRenderStress = import.meta.env.DEV && params.get('test') === 'stress';
 const manualTestDrive = import.meta.env.DEV && (params.get('test') === 'normal' || manualRenderStress);
 let debugVisible = import.meta.env.DEV && params.has('debug');
+let collisionDebugVisible = false;
 let renderer: GameRenderer;
 let game: SimState | null = null;
 let accumulator = 0; let lastTime = 0; let hudTime = 0;
@@ -46,7 +48,7 @@ function menu(titleText: string, body: string, action: string, label: string): s
 
 function renderUi(force = false): void {
   const diagnostics = game && renderer ? renderer.getPerformanceDiagnostics(game) : undefined;
-  const debug = debugVisible ? `<aside class="debug-panel">FPS ${renderer?.app.ticker.FPS.toFixed(0) ?? '--'} · frame ${averageFrameMs.toFixed(1)} ms<br>${game ? `state ${game.status} · t ${game.elapsed.toFixed(1)}s · seed ${game.seed}<br>player ${game.player.x.toFixed(0)}, ${game.player.y.toFixed(0)} · hp ${Math.ceil(game.player.health)} · lv ${game.player.level} · xp ${Math.floor(game.player.xp)}/${game.player.xpNext}<br>enemies ${diagnostics?.activeEnemies ?? 0} active / ${diagnostics?.visibleEnemies ?? 0} visible · target ${game.hordeTarget} · deficit ${game.hordeDeficit} · spawn ${game.spawnRate.toFixed(1)}/s · kills ${game.killRate.toFixed(1)}/s · peak ${game.peakEnemies}<br>shots ${diagnostics?.projectiles ?? 0} · surge ${game.surgeRemaining > 0 ? `${game.surgeRemaining.toFixed(1)}s ${game.surgeDirection}` : 'off'} · spawn fallbacks ${game.spawnPlacementFallbacks} · recycled ${game.recycledEnemies}` : 'state title · seed pending'}<br><button class="debug-copy" data-action="copy-diagnostics">Copy run diagnostics</button></aside>` : '';
+  const debug = debugVisible ? `<aside class="debug-panel">FPS ${renderer?.app.ticker.FPS.toFixed(0) ?? '--'} · frame ${averageFrameMs.toFixed(1)} ms<br>${game ? `state ${game.status} · t ${game.elapsed.toFixed(1)}s · seed ${game.seed}<br>player ${game.player.x.toFixed(0)}, ${game.player.y.toFixed(0)} · hp ${Math.ceil(game.player.health)} · lv ${game.player.level} · xp ${Math.floor(game.player.xp)}/${game.player.xpNext}<br>enemies ${diagnostics?.activeEnemies ?? 0} active / ${diagnostics?.visibleEnemies ?? 0} visible · target ${game.hordeTarget} · deficit ${game.hordeDeficit} · spawn ${game.spawnRate.toFixed(1)}/s · kills ${game.killRate.toFixed(1)}/s · peak ${game.peakEnemies}<br>shots ${diagnostics?.projectiles ?? 0} · surge ${game.surgeRemaining > 0 ? `${game.surgeRemaining.toFixed(1)}s ${game.surgeDirection}` : 'off'} · spawn fallbacks ${game.spawnPlacementFallbacks} · recycled ${game.recycledEnemies}` : 'state title · seed pending'}<br>F4 collision overlay ${collisionDebugVisible ? 'ON' : 'OFF'} · <button class="debug-copy" data-action="copy-diagnostics">Copy run diagnostics</button></aside>` : '';
   if (!game) {
     ui.innerHTML = `<section class="screen-card title-screen title-screen-v2"><div class="portrait-frame"><span class="portrait-label">HERO FILE 001</span><div class="hero-portrait-wrap"><img class="hero-portrait" src="/assets/blue-pinwheel/select-portrait.png" alt="Blue Pinwheel owner-provided selection portrait" /></div><span class="portrait-status"><i></i> READY TO DEPLOY</span></div><div class="title-copy"><div class="eyebrow">A CITY UNDER PRESSURE · AN ORIGINAL SUPERHERO SURVIVOR</div><h1>GRAND<br><em>GLORY</em></h1><div class="title-rule"><i></i><span>PROTOTYPE BUILD 006</span><i></i></div><div class="selected-hero"><span>SELECTED HERO</span><strong>BLUE PINWHEEL</strong></div><p>Move through the city. Hold the line. Shape your build one upgrade at a time.</p><button class="primary play-button" data-action="start"><span>▶</span> PLAY NOW <small>ENTER</small></button><div class="title-controls"><strong>FIELD CONTROLS</strong><span><b>MOVE</b> WASD / ARROWS <b>DASH</b> SHIFT / SPACE</span><span><b>SPECIAL</b> Q <b>PAUSE</b> ESC</span></div><small class="canon-note">Abilities are prototype mechanics · Canon remains owner-controlled</small></div></section>${debug}`;
     return;
@@ -109,6 +111,7 @@ window.addEventListener('keydown', e => {
   const k = keyName(e); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   held.add(k); setInput();
   if (k === 'f3' && import.meta.env.DEV) { debugVisible = !debugVisible; renderUi(true); }
+  if (k === 'f4' && import.meta.env.DEV) { collisionDebugVisible = !collisionDebugVisible; renderer?.setCollisionDebugEnabled(collisionDebugVisible); renderUi(true); }
   if (game?.status === 'upgrade' && ['1', '2', '3'].includes(k)) { const picked = game.options[Number(k) - 1]; if (picked) chooseUpgrade(game, picked); renderUi(true); }
   if (k === 'escape' && game) { if (game.status === 'playing') game.status = 'paused'; else if (game.status === 'paused') game.status = 'playing'; renderUi(true); }
   if (k === 'enter' && !game) start();
@@ -165,6 +168,7 @@ if (import.meta.env.DEV && params.has('test')) {
       renderer.draw(game); renderUi(true);
     },
     start: () => start(),
+    setPlayerPosition: (x: number, y: number) => { if (!game) return; const point = nearestWalkablePoint(game.stage, x, y, 18); game.player.x = point.x; game.player.y = point.y; game.navigationTargetCell = -1; },
     grantXp: (amount = 60) => { if (!game) return; game.player.xp += amount; timedUpdate(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
     spawn: (kind: 'thug' | 'fastThug' | 'boss' = 'thug', x?: number, y?: number) => { if (!game) return; game.enemies.push(spawnEnemy(game, kind, config, { x: x ?? game.player.x + 150, y: y ?? game.player.y })); renderUi(true); },
     startBoss: () => { if (!game) return; game.elapsed = config.bossAt; timedUpdate(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
@@ -186,4 +190,4 @@ if (import.meta.env.DEV && params.has('test')) {
   } });
 }
 
-declare global { interface Window { __GG_TEST__?: { getState: () => SimState | null; getRendererState: () => ReturnType<GameRenderer['getAnimationDiagnostics']>; getPerformanceDiagnostics: () => ReturnType<GameRenderer['getPerformanceDiagnostics']> & { simulation: { average: number; p95: number; worst: number }; frames: { average: number; p95: number; worst: number }; droppedSimulationUpdates: number; longFrames: number }; populateStress: (count: number) => void; start: () => void; grantXp: (amount?: number) => void; spawn: (kind?: 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'boss', x?: number, y?: number) => void; prepareBossForAttack: () => void; startBoss: () => void; damagePlayer: (amount?: number) => void; pause: () => void; injectPickup: (value?: number) => void; advance: (seconds: number, x?: number, y?: number, dash?: boolean, special?: boolean, orbitPath?: boolean) => void; chooseOption: (index: number) => boolean } } }
+declare global { interface Window { __GG_TEST__?: { getState: () => SimState | null; getRendererState: () => ReturnType<GameRenderer['getAnimationDiagnostics']>; getPerformanceDiagnostics: () => ReturnType<GameRenderer['getPerformanceDiagnostics']> & { simulation: { average: number; p95: number; worst: number }; frames: { average: number; p95: number; worst: number }; droppedSimulationUpdates: number; longFrames: number }; populateStress: (count: number) => void; start: () => void; setPlayerPosition: (x: number, y: number) => void; grantXp: (amount?: number) => void; spawn: (kind?: 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'boss', x?: number, y?: number) => void; prepareBossForAttack: () => void; startBoss: () => void; damagePlayer: (amount?: number) => void; pause: () => void; injectPickup: (value?: number) => void; advance: (seconds: number, x?: number, y?: number, dash?: boolean, special?: boolean, orbitPath?: boolean) => void; chooseOption: (index: number) => boolean } } }

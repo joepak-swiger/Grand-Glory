@@ -2,9 +2,10 @@ import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Text
 import type { Enemy, SimState, Vec } from '../game/simulation';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, type AnimationClipDefinition, type EnemyKind, type RunConfig } from '../game/definitions';
 import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-map';
+import { getTerrain } from '../game/stage';
 
 const W = 960; const H = 640;
-const COLORS = { ink: 0x101923, road: 0x303a45, sidewalk: 0x78838a, line: 0xe4bf57, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
+const COLORS = { ink: 0x101923, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
 const DAMAGE_STYLE = new TextStyle({ fontFamily: 'Arial, sans-serif', fontSize: 13, fill: '#fff2c6', fontWeight: '700' });
 interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number }
 
@@ -18,6 +19,7 @@ export class GameRenderer {
   private readonly bars = new Container();
   private readonly effects = new Container();
   private readonly labels = new Container();
+  private readonly collisionDebug = new Graphics();
   private readonly characters = new Container();
   private readonly generatedFrames: Texture[] = [];
   private cityAtlas?: Texture;
@@ -48,8 +50,9 @@ export class GameRenderer {
   private cameraY = 0;
   private readonly config: RunConfig;
   private ready = false;
+  private collisionDebugEnabled = false;
 
-  private constructor(config: RunConfig) { this.config = config; this.root.addChild(this.world); this.world.addChild(this.road, this.entities, this.decals, this.bars, this.characters, this.effects, this.labels); this.characters.sortableChildren = true; }
+  private constructor(config: RunConfig) { this.config = config; this.root.addChild(this.world); this.world.addChild(this.road, this.entities, this.decals, this.bars, this.characters, this.effects, this.labels, this.collisionDebug); this.characters.sortableChildren = true; }
 
   static async create(host: HTMLElement, config: RunConfig): Promise<GameRenderer> {
     const renderer = new GameRenderer(config);
@@ -70,11 +73,11 @@ export class GameRenderer {
   }
 
   private createCityMap(): void {
-    if (!this.cityAtlas) { this.drawRoad(); return; }
     const definition = buildCityMapDefinition(this.config.arenaWidth, this.config.arenaHeight);
     const errors = validateCityMap(definition);
     if (errors.length) throw new Error(`Invalid city stage: ${errors.join(' ')}`);
-    const canvas = renderCityMap(this.cityAtlas.source.resource as unknown as CanvasImageSource, definition);
+    const atlas = this.cityAtlas?.source.resource as unknown as CanvasImageSource | undefined;
+    const canvas = renderCityMap(atlas ?? this.createFallbackCityAtlas(), definition);
     const texture = Texture.from(canvas);
     texture.source.scaleMode = 'nearest';
     this.generatedFrames.push(texture);
@@ -85,6 +88,25 @@ export class GameRenderer {
     this.world.addChildAt(sprite, 0);
     this.cityAtlas = undefined;
   }
+
+  private createFallbackCityAtlas(): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = 37 * 17; canvas.height = 28 * 17;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Fallback city texture could not be created.');
+    const tiles = [
+      { column: 0, row: 19, color: '#3e4a50' },
+      { column: 10, row: 19, color: '#27343c' },
+      { column: 0, row: 22, color: '#89918b' },
+    ];
+    for (const tile of tiles) {
+      context.fillStyle = tile.color;
+      context.fillRect(tile.column * 17, tile.row * 17, 16, 16);
+    }
+    return canvas;
+  }
+
+  setCollisionDebugEnabled(enabled: boolean): void { this.collisionDebugEnabled = enabled; if (!enabled) this.collisionDebug.clear(); }
 
   private textureFromGraphics(draw: (graphics: Graphics) => void): Texture {
     const graphics = new Graphics(); draw(graphics);
@@ -152,26 +174,6 @@ export class GameRenderer {
     return this.clipCache.get(`${clip.asset}:${clip.frameWidth}x${clip.frameHeight}:${clip.frameCount}`) ?? [];
   }
 
-  private drawRoad(): void {
-    const g = this.road; const aw = this.config.arenaWidth; const ah = this.config.arenaHeight;
-    g.rect(0, 0, aw, ah).fill(0x253140);
-    // Purpose drawn brick blocks around a readable street grid.
-    for (let x = 0; x < aw; x += 560) for (let y = 0; y < ah; y += 500) {
-      g.roundRect(x + 28, y + 26, 470, 168, 9).fill((x + y) % 2 ? 0x37475a : 0x3f4b5a);
-      g.rect(x + 44, y + 44, 82, 24).fill(0x566476); g.rect(x + 152, y + 44, 82, 24).fill(0x566476); g.rect(x + 264, y + 44, 82, 24).fill(0x566476); g.rect(x + 376, y + 44, 82, 24).fill(0x566476);
-      g.rect(x + 44, y + 130, 412, 7).fill(0x263343);
-    }
-    g.rect(0, 260, aw, 520).fill(COLORS.road);
-    g.rect(0, 245, aw, 15).fill(COLORS.sidewalk); g.rect(0, 780, aw, 15).fill(COLORS.sidewalk);
-    for (let x = 10; x < aw; x += 230) g.roundRect(x, 515, 112, 9, 5).fill(COLORS.line);
-    for (let x = 180; x < aw; x += 590) {
-      g.rect(x, 228, 64, 36).fill(0x19242e); g.rect(x, 788, 64, 38).fill(0x19242e);
-      g.circle(x + 32, 246, 12).fill(0xffd770); g.circle(x + 32, 806, 12).fill(0xffd770);
-    }
-    g.rect(0, 260, aw, 2).fill(0x9ca9b0); g.rect(0, 778, aw, 2).fill(0x9ca9b0);
-    g.rect(0, 260, aw, 520).stroke({ color: 0xadb8c1, width: 2, alpha: 0.32 });
-  }
-
   draw(state: SimState): void {
     if (!this.ready) return;
     const drawStarted = performance.now();
@@ -220,10 +222,27 @@ export class GameRenderer {
     if (p.invulnerable > 0) g.circle(p.x, p.y + 4, 35).stroke({ color: flash ? 0xffffff : 0x7ee5ff, width: 2, alpha: flash ? 0.7 : 0.38 });
     if (state.specialTimer > 0) g.circle(p.x, p.y, 220 * (1 - state.specialTimer / 0.7)).stroke({ color: COLORS.cyan, width: 4, alpha: 0.75 });
     this.characters.sortChildren();
+    this.updateCollisionDebug(state);
     this.lastSceneUpdateMs = performance.now() - drawStarted;
     this.sceneUpdateSamples[this.sceneSampleIndex] = this.lastSceneUpdateMs;
     this.sceneSampleIndex = (this.sceneSampleIndex + 1) % 300;
     this.sceneSampleCount = Math.min(300, this.sceneSampleCount + 1);
+  }
+
+  private updateCollisionDebug(state: SimState): void {
+    const g = this.collisionDebug;
+    if (!this.collisionDebugEnabled) return;
+    g.clear();
+    const cell = state.stage.cellSize;
+    // Development overlay: translucent red cells are blocked; faint green cells are walkable.
+    for (let row = 0; row < state.stage.rows; row++) for (let column = 0; column < state.stage.columns; column++) {
+      const x = column * cell; const y = row * cell;
+      if (getTerrain(state.stage, column, row) === 'building') g.rect(x, y, Math.min(cell, state.stage.width - x), Math.min(cell, state.stage.height - y)).fill({ color: 0xff4f57, alpha: 0.15 });
+      else if ((column + row) % 2 === 0) g.rect(x, y, cell, cell).fill({ color: 0x56e28b, alpha: 0.025 });
+    }
+    for (const building of state.stage.buildings) g.rect(building.x * cell, building.y * cell, building.width * cell, building.height * cell).stroke({ color: 0xff6266, width: 3, alpha: 0.95 });
+    g.circle(state.player.x, state.player.y, 18).stroke({ color: 0x8af7ff, width: 3, alpha: 1 });
+    for (const enemy of state.enemies) if (!enemy.dead && this.isVisible(enemy.x, enemy.y, 40)) g.circle(enemy.x, enemy.y, enemy.radius).stroke({ color: 0xffce68, width: 2, alpha: 0.85 });
   }
 
   private isVisible(x: number, y: number, margin = 48): boolean {

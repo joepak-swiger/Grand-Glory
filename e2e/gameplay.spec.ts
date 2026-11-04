@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence/visual-rebirth';
+const evidence = 'artifacts/evidence/city-reconstruction/gameplay';
 test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
@@ -12,7 +12,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapLoaded ?? false)).toBe(true);
-  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapSize)).toEqual({ width: 1824, height: 1216 });
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapSize)).toEqual({ width: 1800, height: 1200 });
   const portrait = page.locator('.hero-portrait');
   await expect(portrait).toBeVisible();
   await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth === 1254)).toBe(true);

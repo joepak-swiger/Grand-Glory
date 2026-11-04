@@ -6,9 +6,9 @@ GRAND GLORY pairs comic-book superhero action with crisp top-down pixel art. Roy
 
 ## City map and scale
 
-`src/render/city-map.ts` defines the stage in 32-world-unit cells sourced from 16×16 Kenney tiles (2× nearest-neighbor scale). Grid size follows the configured arena bounds. Tile data is layered as pavement base, concrete, asphalt, sidewalks, and lane markings; tile-backed building blocks and original curb/lane paint finish the cached static canvas. Cross streets and building types vary across the configured map so the camera reveals more of the neighborhood during movement.
+`src/game/stage.ts` is the single source for the 1800×1200 stage: 32-unit terrain cells, road segments, sidewalks, and six building footprints. `src/render/city-map.ts` uses the same data for the static background. The atlas uses 16×16 source tiles with 1px gutters at 2× nearest-neighbor scale. Its asphalt crops contain baked repeating divider marks, so the rendered roadbed uses a uniform authored asphalt texture; road center lines and crosswalks derive from the typed road-segment overlaps. Pavement and sidewalk still use verified atlas tiles.
 
-The assembled canvas becomes one nearest-neighbor PixiJS texture during renderer initialization. Static map composition is not repeated per frame. Characters, shadows, health bars, projectiles, pickups, boss warnings, and floating text remain in their existing dynamic layers. Buildings and roadside details are decorative and nonblocking; the art does not imply map collision or pathfinding.
+Each building has one material style across its roof, trim, and edge treatment: brick, glass/concrete, or industrial. Windows or roof details stay within that style rather than rotating unrelated atlas crops. The cached canvas is one nearest-neighbor PixiJS texture, created during renderer initialization. Buildings have solid rectangular footprints, while road markings and sparse street lights remain decorative and nonblocking. One shared navigation field routes enemies around buildings, and projectiles stop at solid footprints. In development, F4 draws blocked cells and actor collision radii over the map.
 
 ## Interface conventions
 
