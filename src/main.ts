@@ -105,7 +105,16 @@ if (import.meta.env.DEV && params.has('test')) {
     grantXp: (amount = 60) => { if (!game) return; game.player.xp += amount; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
     spawn: (kind: 'thug' | 'fastThug' | 'boss' = 'thug', x?: number, y?: number) => { if (!game) return; game.enemies.push(spawnEnemy(game, kind, config, { x: x ?? game.player.x + 150, y: y ?? game.player.y })); renderUi(true); },
     startBoss: () => { if (!game) return; game.elapsed = config.bossAt; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
-    prepareBossForAttack: () => { if (!game) return; const boss = game.enemies.find(e => e.kind === 'boss' && !e.dead); if (boss) { game.enemies = [boss]; boss.x = game.player.x + 25; boss.y = game.player.y; boss.health = 1; boss.maxHealth = 1; game.player.attackTimer = 0; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderer.draw(game); renderUi(true); } },
+    prepareBossForAttack: () => {
+      if (!game) return;
+      const boss = game.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
+      if (!boss) return;
+      game.status = 'playing'; game.levelChoices = 0; game.options = []; game.pickups = []; game.projectiles = [];
+      game.player.xp = 0; game.player.xpNext = Number.MAX_SAFE_INTEGER;
+      game.enemies = [boss]; boss.x = game.player.x + 210; boss.y = game.player.y; boss.health = 1; boss.maxHealth = 1;
+      game.projectiles.push({ id: game.nextId++, x: boss.x - 6, y: boss.y, vx: 0, vy: 0, damage: 1, life: 1, pierce: 0, hitIds: [], special: false, owner: 'player', spin: 0, weaponId: 'pinwheel' });
+      updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderer.draw(game); renderUi(true);
+    },
     damagePlayer: (amount = 100) => { if (!game) return; game.player.invulnerable = 0; damagePlayer(game, amount); renderUi(true); },
     pause: () => { if (game) { game.status = 'paused'; renderUi(true); } },
     injectPickup: (value = 40) => { if (game) { game.pickups.push({ id: game.nextId++, x: game.player.x, y: game.player.y, value }); updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); } },
