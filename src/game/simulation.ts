@@ -74,6 +74,15 @@ function updateFacingFromHorizontal(enemy: Enemy, directionX: number): void {
   else if (directionX < -0.08) enemy.horizontalFacing = 'left';
 }
 
+function spawnBossForEncounter(state: SimState, config: RunConfig): Enemy {
+  // Enter from a visible horizontal side of the street, not beneath the fixed HUD at the top edge.
+  const left = 28; const right = config.arenaWidth - 28; const gap = 360;
+  const canSpawnLeft = state.player.x - gap >= left; const canSpawnRight = state.player.x + gap <= right;
+  const side = canSpawnLeft && canSpawnRight ? (random(state) < 0.5 ? -1 : 1) : canSpawnRight ? 1 : -1;
+  const safeTop = Math.min(360, config.arenaHeight - 60); const safeBottom = Math.min(680, config.arenaHeight - 60);
+  return spawnEnemy(state, 'boss', config, { x: clamp(state.player.x + side * gap, left, right), y: clamp(state.player.y, safeTop, safeBottom) });
+}
+
 export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
   let target: Enemy | undefined; let best = range * range;
   for (const enemy of state.enemies) if (!enemy.dead) { const d = dist2(state.player, enemy); if (d < best) { target = enemy; best = d; } }
@@ -148,7 +157,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   movePlayer(p, dashX, dashY, step * (p.dashTimer > 0 ? 2.7 : 1), config);
   if (input.special && p.special >= 100 && state.specialTimer === 0) { p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name); for (const e of state.enemies) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config); }
   state.spawnTimer -= step;
-  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { state.enemies.push(spawnEnemy(state, 'boss', config)); state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
+  if (state.elapsed >= config.bossAt && !state.enemies.some(e => e.kind === 'boss' && !e.dead) && !state.bossDefeated) { state.enemies.push(spawnBossForEncounter(state, config)); state.messages.push('GANG LEADER ARRIVED · PROTOTYPE'); }
   if (state.spawnTimer <= 0 && state.enemies.filter(e => !e.dead && e.kind !== 'boss').length < config.maxEnemies && state.elapsed < config.bossAt + 2) {
     const fast = state.elapsed > config.bossAt * 0.48 && random(state) < 0.42;
     state.enemies.push(spawnEnemy(state, fast ? 'fastThug' : 'thug', config));

@@ -53,6 +53,19 @@ describe('deterministic gameplay simulation', () => {
     steps(s, 110); expect(boss.attackState).toBe('recovering'); expect(boss.horizontalFacing).toBe('left');
   });
 
+  it('introduces the boss from a safe visible horizontal position', () => {
+    const run = { ...testRun, bossAt: 0, duration: 1_000 };
+    for (const seed of [1, 2, 3, 4]) {
+      const s = createGame(seed, run); s.spawnTimer = 10_000; s.player.attackTimer = 10_000;
+      updateGame(s, 1 / 60, idle, run);
+      const boss = s.enemies.find(enemy => enemy.kind === 'boss');
+      expect(boss).toBeDefined();
+      expect(Math.abs((boss?.x ?? 0) - s.player.x)).toBeGreaterThanOrEqual(359);
+      expect(boss?.y).toBeGreaterThanOrEqual(360); expect(boss?.y).toBeLessThanOrEqual(680);
+      expect(boss?.horizontalFacing).toBe(boss && boss.x > s.player.x ? 'left' : 'right');
+    }
+  });
+
   it('keeps facing out of position and collision data and resets it on a fresh run', () => {
     const s = createGame(105, testRun); const enemy = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 100, y: s.player.y });
     const position = { x: enemy.x, y: enemy.y, playerX: s.player.x, playerY: s.player.y };
