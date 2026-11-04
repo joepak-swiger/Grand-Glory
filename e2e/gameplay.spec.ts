@@ -23,13 +23,11 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemySprites ?? 0)).toBeGreaterThan(0);
   await page.screenshot({ path: `${evidence}/blue-pinwheel-standing.png` });
   const startX = await page.evaluate(() => window.__GG_TEST__?.getState()?.player.x);
-  await page.keyboard.down('d'); await page.waitForTimeout(50);
+  await page.keyboard.down('d');
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().moving)).toBe(true);
   const firstMovingFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFrame ?? -1);
-  await page.waitForTimeout(240);
-  const secondMovingFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFrame ?? -1);
-  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().moving)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFrame ?? -1), { timeout: 2000 }).not.toBe(firstMovingFrame);
   expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFacing)).toBe('right');
-  expect(secondMovingFrame).not.toBe(firstMovingFrame);
   await page.screenshot({ path: `${evidence}/blue-pinwheel-moving.png` });
   await page.waitForTimeout(160); await page.keyboard.up('d');
   await page.keyboard.down('a'); await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFacing)).toBe('left');
