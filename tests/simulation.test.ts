@@ -12,7 +12,62 @@ describe('deterministic gameplay simulation', () => {
     movePlayer(a.player, 1, 1, 1, testRun); movePlayer(b.player, 1, 0, 1, testRun);
     expect(Math.hypot(a.player.x - testRun.arenaWidth / 2, a.player.y - testRun.arenaHeight / 2)).toBeCloseTo(BLUE_PINWHEEL.moveSpeed);
     expect(a.player.facing.x).toBeCloseTo(Math.SQRT1_2); expect(a.player.facing.y).toBeCloseTo(Math.SQRT1_2);
+    expect(a.player.horizontalFacing).toBe('right');
     expect(b.player.x - testRun.arenaWidth / 2).toBeCloseTo(BLUE_PINWHEEL.moveSpeed);
+    movePlayer(a.player, 0, -1, 0.1, testRun); expect(a.player.horizontalFacing).toBe('right');
+    movePlayer(a.player, -1, 0, 0.1, testRun); expect(a.player.horizontalFacing).toBe('left');
+    movePlayer(a.player, 0, 1, 0.1, testRun); expect(a.player.horizontalFacing).toBe('left');
+  });
+
+  it('initializes supplied enemy orientation to right and turns with intended horizontal pursuit', () => {
+    for (const kind of ['thug', 'fastThug', 'boss'] as const) {
+      const s = createGame(101, testRun); s.player.attackTimer = 100;
+      const enemy = spawnEnemy(s, kind, testRun, { x: s.player.x - 120, y: s.player.y });
+      expect(enemy.horizontalFacing).toBe('right'); s.enemies.push(enemy); steps(s, 1);
+      expect(enemy.horizontalFacing).toBe('right');
+      enemy.x = s.player.x + 120; enemy.y = s.player.y; steps(s, 1);
+      expect(enemy.horizontalFacing).toBe('left');
+    }
+  });
+
+  it('retains enemy facing while moving vertically or standing still', () => {
+    const s = createGame(102, testRun); s.player.attackTimer = 100;
+    const enemy = spawnEnemy(s, 'thug', testRun, { x: s.player.x, y: s.player.y + 140 });
+    enemy.horizontalFacing = 'left'; s.enemies.push(enemy); steps(s, 1);
+    expect(enemy.horizontalFacing).toBe('left');
+    enemy.y = s.player.y; steps(s, 1); expect(enemy.horizontalFacing).toBe('left');
+  });
+
+  it('uses target intent rather than knockback to decide enemy facing', () => {
+    const s = createGame(103, testRun); s.player.attackTimer = 100;
+    const enemy = spawnEnemy(s, 'fastThug', testRun, { x: s.player.x + 120, y: s.player.y });
+    enemy.knockback = { x: 500, y: 0 }; s.enemies.push(enemy); steps(s, 1);
+    expect(enemy.horizontalFacing).toBe('left');
+  });
+
+  it('keeps boss orientation aligned to its aimed charge through recovery', () => {
+    const s = createGame(104, testRun); s.player.attackTimer = 100;
+    const boss = spawnEnemy(s, 'boss', testRun, { x: s.player.x + 90, y: s.player.y });
+    boss.phase = GANG_LEADER.chargeStart - 0.01; s.enemies.push(boss); steps(s, 1);
+    expect(boss.attackState).toBe('charge-telegraph'); expect(boss.horizontalFacing).toBe('left');
+    steps(s, 110); expect(boss.attackState).toBe('recovering'); expect(boss.horizontalFacing).toBe('left');
+  });
+
+  it('keeps facing out of position and collision data and resets it on a fresh run', () => {
+    const s = createGame(105, testRun); const enemy = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 100, y: s.player.y });
+    const position = { x: enemy.x, y: enemy.y, playerX: s.player.x, playerY: s.player.y };
+    enemy.horizontalFacing = 'left';
+    expect({ x: enemy.x, y: enemy.y, playerX: s.player.x, playerY: s.player.y }).toEqual(position);
+    expect(createGame(105, testRun).player.horizontalFacing).toBe('right');
+    expect(spawnEnemy(createGame(106, testRun), 'thug', testRun, position).horizontalFacing).toBe('right');
+  });
+
+  it('advances independent per-enemy animation clocks only during active simulation', () => {
+    const s = createGame(106, testRun); s.player.attackTimer = 100;
+    const first = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 250, y: s.player.y }); s.enemies.push(first);
+    steps(s, 3); const second = spawnEnemy(s, 'thug', testRun, { x: s.player.x - 250, y: s.player.y }); s.enemies.push(second);
+    steps(s, 1); expect(first.animationTime).toBeGreaterThan(second.animationTime);
+    s.status = 'paused'; const firstTime = first.animationTime; steps(s, 3); expect(first.animationTime).toBe(firstTime);
   });
 
   it('keeps movement within arena and walkable street bounds', () => {
@@ -133,7 +188,9 @@ describe('deterministic gameplay simulation', () => {
   });
 
   it('maps animation direction metadata and produces identical seeded spawn sequences', () => {
-    expect(BLUE_PINWHEEL.animation.facingRows.down).toBe(0); expect(BLUE_PINWHEEL.animation.frameWidth).toBe(48);
+    expect(BLUE_PINWHEEL.animation.anchor).toEqual({ x: 0.5, y: 1 }); expect(BLUE_PINWHEEL.animation.mirrorLeft).toBe(true);
+    expect(BLUE_PINWHEEL.animation.move.frameWidth).toBe(543); expect(BLUE_PINWHEEL.animation.move.frameCount).toBe(4);
+    expect(BLUE_PINWHEEL.animation.verticalFacingFallback).toContain('right-facing profile');
     const a = createGame(987, testRun); const b = createGame(987, testRun); const seqA = Array.from({ length: 8 }, () => [random(a), random(a)]); const seqB = Array.from({ length: 8 }, () => [random(b), random(b)]); expect(seqA).toEqual(seqB);
     const spawnA = createGame(987, testRun); const spawnB = createGame(987, testRun); expect(Array.from({ length: 8 }, () => { const e = spawnEnemy(spawnA, 'thug', testRun); return [e.x, e.y]; })).toEqual(Array.from({ length: 8 }, () => { const e = spawnEnemy(spawnB, 'thug', testRun); return [e.x, e.y]; }));
   });

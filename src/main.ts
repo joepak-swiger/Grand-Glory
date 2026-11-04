@@ -31,7 +31,7 @@ function menu(titleText: string, body: string, action: string, label: string): s
 function renderUi(force = false): void {
   const debug = debugVisible ? `<aside class="debug-panel">FPS ${renderer?.app.ticker.FPS.toFixed(0) ?? '--'} · frame ${averageFrameMs.toFixed(1)} ms<br>${game ? `state ${game.status} · t ${game.elapsed.toFixed(1)}s · seed ${game.seed}<br>player ${game.player.x.toFixed(0)}, ${game.player.y.toFixed(0)} · hp ${Math.ceil(game.player.health)} · lv ${game.player.level} · xp ${Math.floor(game.player.xp)}/${game.player.xpNext}<br>enemies ${game.enemies.length} · shots ${game.projectiles.length}` : 'state title · seed pending'}</aside>` : '';
   if (!game) {
-    ui.innerHTML = menu('GRAND GLORY', 'A first playable superhero survivors experiment.<br>Original character visuals and powers are still TBD.', 'start', 'Start Game') + `<div class="title-help"><strong>BLUE PINWHEEL</strong><br>Move: WASD / arrows · Dash: Shift / Space<br>Prototype Special: Q · Pause: Esc<br><span>One playable hero · Early prototype</span></div>${debug}`;
+    ui.innerHTML = `<section class="screen-card title-screen"><div class="hero-portrait-wrap"><img class="hero-portrait" src="/assets/blue-pinwheel/select-portrait.png" alt="Blue Pinwheel owner-provided selection portrait" /></div><div class="title-copy"><div class="eyebrow">INDEPENDENT SUPERHERO SURVIVORS · EARLY PROTOTYPE</div><h1>GRAND GLORY</h1><div class="selected-hero"><span>ONLY PLAYABLE HERO</span><strong>BLUE PINWHEEL</strong></div><p>Movement and combat abilities are temporary prototype mechanics. Character canon remains owner-controlled.</p><button class="primary" data-action="start">Start Game</button><div class="title-controls"><strong>CONTROLS</strong><span>Move: WASD / arrows · Dash: Shift / Space</span><span>Prototype Special: Q · Pause: Esc</span></div></div></section>${debug}`;
     return;
   }
   const g = game; const p = g.player;
@@ -96,6 +96,7 @@ renderUi(true);
 if (import.meta.env.DEV && params.has('test')) {
   Object.defineProperty(window, '__GG_TEST__', { configurable: false, value: {
     getState: () => game,
+    getRendererState: () => renderer.getAnimationDiagnostics(game ?? undefined),
     start: () => start(),
     grantXp: (amount = 60) => { if (!game) return; game.player.xp += amount; updateGame(game, fixed, { x: 0, y: 0, dash: false, special: false }, config); renderUi(true); },
     spawn: (kind: 'thug' | 'fastThug' | 'boss' = 'thug', x?: number, y?: number) => { if (!game) return; game.enemies.push(spawnEnemy(game, kind, config, { x: x ?? game.player.x + 150, y: y ?? game.player.y })); renderUi(true); },
@@ -107,4 +108,4 @@ if (import.meta.env.DEV && params.has('test')) {
   } });
 }
 
-declare global { interface Window { __GG_TEST__?: { getState: () => SimState | null; start: () => void; grantXp: (amount?: number) => void; spawn: (kind?: 'thug' | 'fastThug' | 'boss', x?: number, y?: number) => void; prepareBossForAttack: () => void; startBoss: () => void; damagePlayer: (amount?: number) => void; pause: () => void; injectPickup: (value?: number) => void } } }
+declare global { interface Window { __GG_TEST__?: { getState: () => SimState | null; getRendererState: () => ReturnType<GameRenderer['getAnimationDiagnostics']>; start: () => void; grantXp: (amount?: number) => void; spawn: (kind?: 'thug' | 'fastThug' | 'boss', x?: number, y?: number) => void; prepareBossForAttack: () => void; startBoss: () => void; damagePlayer: (amount?: number) => void; pause: () => void; injectPickup: (value?: number) => void } } }

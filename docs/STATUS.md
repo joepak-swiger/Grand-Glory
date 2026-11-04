@@ -2,28 +2,18 @@
 
 ## Milestone 001 — first playable slice
 
-The playable vertical slice is published in the official public repository at <https://github.com/joepak-swiger/Grand-Glory>. Pull request #1 is open and unmerged. The `main` branch preserves the initial repository baseline; substantive work is on `feature/first-playable`.
+Published in the official repository at <https://github.com/joepak-swiger/Grand-Glory>. PR #1 is open and unmerged. `main` preserves the initial baseline; gameplay foundation corrections are on `feature/first-playable`.
 
-## Milestone 002 — foundation corrections
+## Milestone 002 — foundation and visual integration
 
-Implemented locally on the existing PR branch:
+Foundation corrections were committed to `feature/first-playable` at `3cee00a9d2d2048039b06bfacfecb6c49079a62e`; PR #1 remains open. This visual feature branch is based on that commit. The current visual integration includes the owner-approved character and enemy artwork, the portrait menu, cached sprite frames, independent enemy animation clocks, and simulation-owned horizontal facing for Blue Pinwheel, both thug types, and the boss.
 
-- Enemy spawns sample all four edges of the playable street, remain in valid bounds, and reject points within 180 world units of the player.
-- Ordinary contact damage applies one full enemy damage value per hit. Shared 0.8-second player invulnerability prevents a group of touching enemies from dealing a frame-scaled trickle or stacking hits instantly.
-- Gang Leader projectile and charge warnings align with their attack vectors. The charge now moves along the warned path and deals a single contact hit when it connects.
-- The boss appears at 2:30. The 3:00 target starts a visible overtime phase; defeating the boss still wins, while an undefeated boss escapes and ends the run in defeat after 4:00.
-- HUD, results, and gameplay documentation describe the run rules.
+The owner confirmed the local game launches and is playable in a Windows browser before this visual pass. For the current visual source, local typechecking passed, all 35 simulation tests passed, the production build passed, and the real Vite application passed the Playwright Chromium browser suite. That deterministic browser suite checked asset loading and animation/facing behavior plus the gameplay path through upgrade, pause, boss, victory, defeat, and restart. It is automated browser verification, not human playtesting or a normal three-minute balance run. Current visual branch GitHub CI is pending publication.
 
-### Verification status
+## Known gaps
 
-- Local on the current foundation work: typecheck passed; all 29 simulation tests passed; production build passed.
-- GitHub CI for this foundation commit is pending. The previous PR revision's CI passed before these changes.
-- Deterministic browser automation covers the playable flow. A human has not completed a normal three-minute run yet.
-- Simulation performance measurements are separate from browser-rendering performance; no new renderer benchmark has been taken for these corrections.
-
-## Still planned
-
-- Import the supplied Blue Pinwheel artwork after source package inspection and update the title screen, character renderer, and animation.
-- Add real-browser checks for asset loading and animation playback, and capture new rendered evidence.
-- Conduct and document a representative normal-duration playthrough.
-- Final art, sound, touch controls, additional heroes/stages, and a longer run remain future work.
+- Blue Pinwheel's supplied four-frame strip is an idle cycle, provisionally reused while moving; there is no dedicated walk set or authentic left/up/down directional animation.
+- The Gang Leader has no supplied art and uses a geometric placeholder.
+- Browser animation and rendering performance have not been profiled separately.
+- The normal three-minute target needs human balance/playability review.
+- Music, sound, touch controls, additional heroes, and stages remain future work.

@@ -9,16 +9,34 @@ export interface HeroDefinition {
   readonly maxHealth: number;
   readonly moveSpeed: number;
   readonly attackName: string;
-  readonly animation: { readonly frameWidth: number; readonly frameHeight: number; readonly facingRows: Readonly<Record<string, number>>; readonly idle: string; readonly move: string; readonly damage: string; readonly defeat: string; readonly ability: string };
+  readonly animation: {
+    readonly anchor: { readonly x: number; readonly y: number };
+    readonly mirrorLeft: boolean;
+    readonly verticalFacingFallback: string;
+    readonly idle: AnimationClipDefinition;
+    readonly move: AnimationClipDefinition;
+    readonly damage: AnimationClipDefinition;
+    readonly defeat: AnimationClipDefinition;
+    readonly ability: AnimationClipDefinition;
+  };
 }
 
+export interface AnimationClipDefinition { readonly asset: string; readonly frameWidth: number; readonly frameHeight: number; readonly frameCount: number; readonly frameDurationMs: number }
+
 export const BLUE_PINWHEEL: HeroDefinition = {
-  id: 'blue-pinwheel', name: 'Blue Pinwheel', placeholder: true, maxHealth: 100, moveSpeed: 210,
+  id: 'blue-pinwheel', name: 'Blue Pinwheel', placeholder: false, maxHealth: 100, moveSpeed: 210,
   attackName: 'Pinwheel (Prototype)',
-  animation: { frameWidth: 48, frameHeight: 56, facingRows: { down: 0, left: 1, right: 2, up: 3 }, idle: 'idle', move: 'move', damage: 'damage', defeat: 'defeat', ability: 'ability' },
+  animation: {
+    anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
+    idle: { asset: '/assets/blue-pinwheel/idle-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 360 },
+    move: { asset: '/assets/blue-pinwheel/idle-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 120 },
+    damage: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+    defeat: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+    ability: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+  },
 };
 
-export interface EnemyDefinition { readonly kind: EnemyKind; readonly health: number; readonly speed: number; readonly damage: number; readonly radius: number; readonly xp: number }
+export interface EnemyDefinition { readonly kind: EnemyKind; readonly health: number; readonly speed: number; readonly damage: number; readonly radius: number; readonly xp: number; readonly animation?: AnimationClipDefinition }
 export interface AttackDefinition { readonly id: string; readonly name: string; readonly damage: number; readonly cooldown: number; readonly projectileSpeed: number; readonly lifetime: number; readonly targetRange: number }
 export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'special', AttackDefinition>> = {
   pinwheel: { id: 'pinwheel-prototype', name: 'Pinwheel (Prototype)', damage: 18, cooldown: 0.76, projectileSpeed: 410, lifetime: 1.5, targetRange: 520 },
@@ -28,8 +46,8 @@ export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'special', Att
 export interface BossDefinition { readonly name: string; readonly health: number; readonly speed: number; readonly contactDamage: number; readonly radius: number; readonly xp: number; readonly phaseLength: number; readonly approachUntil: number; readonly rangedTelegraphStart: number; readonly rangedTelegraphEnd: number; readonly rangedDamage: number; readonly rangedSpeed: number; readonly chargeStart: number; readonly chargeEnd: number; readonly chargeActiveEnd: number; readonly recoveryEnd: number; readonly chargeRange: number; readonly chargeSpeed: number }
 export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', health: 760, speed: 45, contactDamage: 18, radius: 31, xp: 120, phaseLength: 7.4, approachUntil: 2.35, rangedTelegraphStart: 2.35, rangedTelegraphEnd: 3.1, rangedDamage: 16, rangedSpeed: 280, chargeStart: 4.15, chargeEnd: 4.95, chargeActiveEnd: 5.55, recoveryEnd: 6.25, chargeRange: 300, chargeSpeed: 430 };
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
-  thug: { kind: 'thug', health: 34, speed: 55, damage: 9, radius: 15, xp: 12 },
-  fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 7, radius: 13, xp: 16 },
+  thug: { kind: 'thug', health: 34, speed: 55, damage: 9, radius: 15, xp: 12, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
+  fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 7, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
   boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp },
 };
 

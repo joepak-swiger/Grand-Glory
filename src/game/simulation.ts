@@ -1,9 +1,10 @@
 import { ATTACKS, BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, UPGRADES, type EnemyKind, type GameStatus, type RunConfig, type UpgradeId } from './definitions';
 
 export interface Vec { x: number; y: number }
-export interface Player extends Vec { health: number; maxHealth: number; speed: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; damageDealt: number }
+export type HorizontalFacing = 'left' | 'right';
+export interface Player extends Vec { health: number; maxHealth: number; speed: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; damageDealt: number }
 export type BossAttackState = 'idle' | 'ranged-telegraph' | 'charge-telegraph' | 'charging' | 'recovering';
-export interface Enemy extends Vec { id: number; kind: EnemyKind; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number }
+export interface Enemy extends Vec { id: number; kind: EnemyKind; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; horizontalFacing: HorizontalFacing; animationTime: number; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number }
 export interface Projectile extends Vec { id: number; vx: number; vy: number; damage: number; life: number; pierce: number; special: boolean; owner: 'player' | 'enemy'; spin: number }
 export interface Pickup extends Vec { id: number; value: number }
 export interface FloatText extends Vec { id: number; text: string; life: number }
@@ -19,7 +20,7 @@ const normalize = (x: number, y: number): Vec => { const m = Math.hypot(x, y); r
 
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun): SimState {
   return {
-    status: 'playing', player: { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, damageBonus: 0, extraShots: 0, pickupRadius: 74, orbit: false, orbitTimer: 0, damageDealt: 0 },
+    status: 'playing', player: { x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: BLUE_PINWHEEL.maxHealth, maxHealth: BLUE_PINWHEEL.maxHealth, speed: BLUE_PINWHEEL.moveSpeed, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right', damageBonus: 0, extraShots: 0, pickupRadius: 74, orbit: false, orbitTimer: 0, damageDealt: 0 },
     enemies: [], projectiles: [], pickups: [], numbers: [], elapsed: 0, kills: 0, bossDefeated: false, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.3, levelChoices: 0, options: [], chosen: [], attacks: [BLUE_PINWHEEL.attackName], messages: [], specialTimer: 0,
   };
 }
@@ -32,6 +33,8 @@ export function random(state: SimState): number {
 export function movePlayer(player: Player, dx: number, dy: number, dt: number, config: RunConfig): void {
   const dir = normalize(dx, dy);
   if (dir.x || dir.y) player.facing = dir;
+  if (dir.x > 0.08) player.horizontalFacing = 'right';
+  else if (dir.x < -0.08) player.horizontalFacing = 'left';
   player.x = clamp(player.x + dir.x * player.speed * dt, 28, config.arenaWidth - 28);
   player.y = clamp(player.y + dir.y * player.speed * dt, 288, Math.min(config.arenaHeight - 28, 752));
 }
@@ -62,7 +65,13 @@ export function spawnEnemy(state: SimState, kind: EnemyKind, config: RunConfig =
     const spawn = chosen ?? farthest ?? { x: (bounds.left + bounds.right) / 2, y: bounds.top };
     x = spawn.x; y = spawn.y;
   }
-  return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackState: 'idle', attackDirection: { x: 0, y: 0 }, chargeReady: false, chargeConnected: false, dead: false, phase: 0 };
+  return { id: state.nextId++, x, y, kind, health: def.health, maxHealth: def.health, speed: def.speed, damage: def.damage, radius: def.radius, xp: def.xp, knockback: { x: 0, y: 0 }, hitFlash: 0, attackState: 'idle', attackDirection: { x: 0, y: 0 }, horizontalFacing: 'right', animationTime: 0, chargeReady: false, chargeConnected: false, dead: false, phase: 0 };
+}
+
+function updateFacingFromHorizontal(enemy: Enemy, directionX: number): void {
+  // Dead zone prevents tiny target changes or near-vertical movement from flickering the sprite.
+  if (directionX > 0.08) enemy.horizontalFacing = 'right';
+  else if (directionX < -0.08) enemy.horizontalFacing = 'left';
 }
 
 export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
@@ -158,6 +167,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   for (const enemy of state.enemies) {
     if (enemy.dead) continue;
     const toward = normalize(p.x - enemy.x, p.y - enemy.y);
+    enemy.animationTime += step;
     const dx = enemy.x - p.x; const dy = enemy.y - p.y; const d = Math.hypot(dx, dy);
     if (enemy.kind === 'boss') {
       const previousPhase = enemy.phase % GANG_LEADER.phaseLength;
@@ -179,12 +189,14 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
         else enemy.attackState = 'idle';
       } else if (phase >= GANG_LEADER.rangedTelegraphEnd && phase < GANG_LEADER.recoveryEnd) enemy.attackState = 'recovering';
       else enemy.attackState = 'idle';
+      if (enemy.attackState === 'ranged-telegraph' || enemy.attackState === 'charge-telegraph' || enemy.attackState === 'charging' || enemy.attackState === 'recovering') updateFacingFromHorizontal(enemy, enemy.attackDirection.x);
+      else updateFacingFromHorizontal(enemy, toward.x);
       if (enemy.attackState === 'idle' && d > 125) { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
       if (enemy.attackState === 'charging' && !enemy.chargeConnected && Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.radius + 18) {
         enemy.chargeConnected = true;
         damagePlayer(state, GANG_LEADER.contactDamage);
       }
-    } else { enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
+    } else { updateFacingFromHorizontal(enemy, toward.x); enemy.x += toward.x * enemy.speed * step; enemy.y += toward.y * enemy.speed * step; }
     enemy.x += enemy.knockback.x * step; enemy.y += enemy.knockback.y * step; enemy.knockback.x *= Math.exp(-9 * step); enemy.knockback.y *= Math.exp(-9 * step); enemy.hitFlash = Math.max(0, enemy.hitFlash - step);
     enemy.x = clamp(enemy.x, enemy.radius, config.arenaWidth - enemy.radius); enemy.y = clamp(enemy.y, 288, Math.min(752, config.arenaHeight - enemy.radius));
     if (Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.radius + 18 && enemy.kind !== 'boss') damagePlayer(state, enemy.damage);

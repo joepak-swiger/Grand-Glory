@@ -5,19 +5,51 @@ const evidence = 'artifacts/evidence';
 test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
+  const failedAssets: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
+  page.on('requestfailed', request => { if (request.url().includes('/assets/')) failedAssets.push(request.url()); });
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
+  const portrait = page.locator('.hero-portrait');
+  await expect(portrait).toBeVisible();
+  await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth === 1254)).toBe(true);
   await page.screenshot({ path: `${evidence}/01-title.png` });
 
   await page.getByRole('button', { name: 'Start Game' }).click();
   await expect(page.getByText('BLUE PINWHEEL')).toBeVisible();
   await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); if (state) window.__GG_TEST__?.spawn('fastThug', state.player.x + 36, state.player.y); });
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemySprites ?? 0)).toBeGreaterThan(0);
+  await page.screenshot({ path: `${evidence}/blue-pinwheel-standing.png` });
   const startX = await page.evaluate(() => window.__GG_TEST__?.getState()?.player.x);
-  await page.keyboard.down('d'); await page.waitForTimeout(450); await page.keyboard.up('d');
+  await page.keyboard.down('d'); await page.waitForTimeout(50);
+  const firstMovingFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFrame ?? -1);
+  await page.waitForTimeout(240);
+  const secondMovingFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFrame ?? -1);
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().moving)).toBe(true);
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFacing)).toBe('right');
+  expect(secondMovingFrame).not.toBe(firstMovingFrame);
+  await page.screenshot({ path: `${evidence}/blue-pinwheel-moving.png` });
+  await page.waitForTimeout(160); await page.keyboard.up('d');
+  await page.keyboard.down('a'); await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerFacing)).toBe('left');
+  await page.screenshot({ path: `${evidence}/blue-pinwheel-facing-left.png` }); await page.keyboard.up('a');
   const movedX = await page.evaluate(() => window.__GG_TEST__?.getState()?.player.x);
   expect(movedX).toBeGreaterThan(startX ?? 0);
+  const facing = await page.evaluate(() => {
+    const state = window.__GG_TEST__?.getState();
+    if (!state) return null;
+    const left = state.player.x - 170; const right = state.player.x + 170; const y = state.player.y + 150;
+    window.__GG_TEST__?.spawn('thug', left, y); window.__GG_TEST__?.spawn('fastThug', right, y);
+    return { left, right, y };
+  });
+  expect(facing).not.toBeNull();
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.filter(enemy => enemy.scaleX !== 0).length ?? 0)).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => page.evaluate(() => {
+    const items = window.__GG_TEST__?.getRendererState().enemies ?? [];
+    return items.some(enemy => enemy.facing === 'left' && enemy.scaleX < 0) && items.some(enemy => enemy.facing === 'right' && enemy.scaleX > 0);
+  })).toBe(true);
+  await page.screenshot({ path: `${evidence}/blue-pinwheel-and-enemies-facing.png` });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.damageDealt ?? 0)).toBeGreaterThan(0);
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.health ?? 100)).toBeLessThan(100);
   await page.screenshot({ path: `${evidence}/02-active-combat.png` });
@@ -43,6 +75,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.getByRole('button', { name: 'Resume' }).click();
   await page.evaluate(() => window.__GG_TEST__?.startBoss());
   await expect(page.getByText('GANG LEADER · PROTOTYPE')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => enemy.id > 0) ?? false)).toBe(true);
   await page.screenshot({ path: `${evidence}/06-boss-encounter.png` });
   await page.evaluate(() => window.__GG_TEST__?.prepareBossForAttack());
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.bossDefeated ?? false), { timeout: 6000 }).toBe(true);
@@ -60,4 +93,5 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await expect(page.locator('.debug-panel')).toContainText('frame');
   await expect(page.locator('.debug-panel')).toContainText('enemies');
   expect(errors).toEqual([]);
+  expect(failedAssets).toEqual([]);
 });
