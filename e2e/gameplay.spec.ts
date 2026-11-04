@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence/city-reconstruction/gameplay';
+const evidence = 'artifacts/evidence/heroic-makeover/gameplay';
 test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
@@ -11,6 +11,12 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
+  await page.getByLabel('Difficulty').selectOption('heroic');
+  await page.getByLabel('Difficulty').selectOption('normal');
+  await page.getByLabel('Camera scale').selectOption('close');
+  await page.getByRole('button', { name: 'SOUND ON' }).click();
+  await expect(page.getByRole('button', { name: 'SOUND OFF' })).toBeVisible();
+  await page.getByRole('button', { name: 'SOUND OFF' }).click();
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapLoaded ?? false)).toBe(true);
   expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapSize)).toEqual({ width: 1800, height: 1200 });
   const portrait = page.locator('.hero-portrait');
@@ -25,8 +31,12 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 900 });
 
   await page.getByRole('button', { name: /PLAY NOW/i }).click();
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cameraZoom)).toBe(1.2);
   await expect(page.getByText('BLUE PINWHEEL')).toBeVisible();
   await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); if (state) window.__GG_TEST__?.spawn('fastThug', state.player.x + 36, state.player.y); });
+  // Keep this short facing/animation scenario independent from slow CI frame pacing,
+  // early XP level-ups, and incidental enemy contact. Combat assertions follow below.
+  await page.evaluate(() => window.__GG_TEST__?.prepareFacingCheck());
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemySprites ?? 0)).toBeGreaterThan(0);
   await page.screenshot({ path: `${evidence}/blue-pinwheel-standing.png` });
@@ -42,6 +52,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.screenshot({ path: `${evidence}/blue-pinwheel-facing-left.png` }); await page.keyboard.up('a');
   const movedX = await page.evaluate(() => window.__GG_TEST__?.getState()?.player.x);
   expect(movedX).toBeGreaterThan(startX ?? 0);
+  await page.evaluate(() => window.__GG_TEST__?.finishFacingCheck());
   const facing = await page.evaluate(() => {
     const state = window.__GG_TEST__?.getState();
     if (!state) return null;
@@ -82,8 +93,10 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.getByRole('button', { name: 'Resume' }).click();
   await page.evaluate(() => window.__GG_TEST__?.startBoss());
   await expect(page.getByText('GANG LEADER · PROTOTYPE')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => !enemy.hasSprite) ?? false)).toBe(true);
-  const bossFacing = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => !enemy.hasSprite)?.facing);
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => enemy.kind === 'boss' && enemy.hasSprite) ?? false)).toBe(true);
+  const bossFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1);
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1)).not.toBe(bossFrame);
+  const bossFacing = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.facing);
   expect(['left', 'right']).toContain(bossFacing);
   await page.screenshot({ path: `${evidence}/06-boss-encounter.png` });
   await page.evaluate(() => window.__GG_TEST__?.prepareBossForAttack());

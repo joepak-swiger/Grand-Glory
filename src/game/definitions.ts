@@ -1,6 +1,12 @@
 export type GameStatus = 'title' | 'playing' | 'upgrade' | 'paused' | 'victory' | 'defeat';
 export type EnemyKind = 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'boss';
 export type UpgradeId = 'damage' | 'tempo' | 'extra' | 'speed' | 'vitality' | 'recovery' | 'magnet' | 'orbit' | 'pinwheel' | 'piercingThrow' | 'power' | 'evolvePinwheel';
+export type DifficultyId = 'normal' | 'heroic';
+export interface DifficultyDefinition { readonly id: DifficultyId; readonly label: string; readonly enemyDamageMultiplier: number; readonly enemyProjectileSpeedMultiplier: number; readonly rangedAttackIntervalMultiplier: number; readonly playerInvulnerabilitySeconds: number; readonly dashCooldownSeconds: number }
+export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDefinition>> = {
+  normal: { id: 'normal', label: 'NORMAL', enemyDamageMultiplier: 0.72, enemyProjectileSpeedMultiplier: 0.88, rangedAttackIntervalMultiplier: 1.12, playerInvulnerabilitySeconds: 1.05, dashCooldownSeconds: 2.7 },
+  heroic: { id: 'heroic', label: 'HEROIC', enemyDamageMultiplier: 1, enemyProjectileSpeedMultiplier: 1, rangedAttackIntervalMultiplier: 1, playerInvulnerabilitySeconds: 0.8, dashCooldownSeconds: 3 },
+};
 
 export interface HeroDefinition {
   readonly id: string;
@@ -51,7 +57,7 @@ export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', h
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
   thug: { kind: 'thug', health: 34, speed: 55, damage: 5, radius: 15, xp: 12, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
   fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 4, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
-  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, ranged: true, preferredRange: 270, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 165 } },
+  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, ranged: true, preferredRange: 270 },
   bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30 },
   boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp },
 };
@@ -73,9 +79,9 @@ export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: str
 
 export type HordeEntrySide = 'left' | 'right' | 'top' | 'bottom';
 export interface HordeConfig { readonly targetCounts: readonly { readonly at: number; readonly count: number }[]; readonly batchMin: number; readonly batchMax: number; readonly baseBatchInterval: number; readonly maxSpawnPerSecond: number; readonly maxSpawnPerUpdate: number; readonly surgeEvery: number; readonly surgeDuration: number; readonly surgeBonus: number; readonly maxActive: number; readonly spawnMarginX: number; readonly spawnMarginY: number; readonly recycleAfter: number }
-export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean; readonly horde: HordeConfig }
+export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean; readonly difficulty: DifficultyId; readonly horde: HordeConfig }
 export interface StageDefinition { readonly id: string; readonly name: string; readonly run: RunConfig; readonly visualStyle: 'kenney-city-grid' }
 const standardHorde: HordeConfig = { targetCounts: [{ at: 0, count: 8 }, { at: 15, count: 24 }, { at: 30, count: 40 }, { at: 60, count: 64 }, { at: 90, count: 82 }, { at: 120, count: 104 }, { at: 150, count: 120 }], batchMin: 3, batchMax: 5, baseBatchInterval: 0.95, maxSpawnPerSecond: 14, maxSpawnPerUpdate: 4, surgeEvery: 35, surgeDuration: 10, surgeBonus: 12, maxActive: 128, spawnMarginX: 84, spawnMarginY: 74, recycleAfter: 4.5 };
-export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 128, testMode: false, horde: standardHorde };
+export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 128, testMode: false, difficulty: 'normal', horde: standardHorde };
 export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, overtimeLimit: 12, seed: 1741, maxEnemies: 56, testMode: true, horde: { ...standardHorde, targetCounts: [{ at: 0, count: 5 }, { at: 5, count: 12 }, { at: 15, count: 22 }, { at: 25, count: 32 }], batchMin: 2, batchMax: 3, baseBatchInterval: 0.65, surgeEvery: 10, surgeDuration: 4, surgeBonus: 8, maxActive: 56 } };
 export const CITY_STREET_STAGE: StageDefinition = { id: 'city-street', name: 'City Street (Prototype)', run: standardRun, visualStyle: 'kenney-city-grid' };
