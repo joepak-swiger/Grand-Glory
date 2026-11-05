@@ -1,24 +1,52 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence';
+const evidence = 'artifacts/evidence/living-city/run/gameplay';
 test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
   const failedAssets: string[] = [];
+  await page.addInitScript(() => {
+    localStorage.removeItem('grand-glory-sfx-volume');
+    const NativeAudioContext = window.AudioContext;
+    Object.defineProperty(window, '__GG_AUDIO_CREATED__', { value: false, writable: true });
+    window.AudioContext = class extends NativeAudioContext {
+      constructor() { super(); (window as Window & { __GG_AUDIO_CREATED__?: boolean }).__GG_AUDIO_CREATED__ = true; }
+    };
+  });
   page.on('pageerror', error => errors.push(error.message));
   page.on('requestfailed', request => { if (request.url().includes('/assets/')) failedAssets.push(request.url()); });
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
+  await expect(page.getByLabel('Sound effects volume')).toHaveValue('0.55');
+  await page.getByLabel('Difficulty').selectOption('heroic');
+  await page.getByLabel('Difficulty').selectOption('normal');
+  await page.getByLabel('Camera scale').selectOption('close');
+  await page.getByRole('button', { name: 'SOUND ON' }).click();
+  await expect(page.getByRole('button', { name: 'SOUND OFF' })).toBeVisible();
+  await page.getByRole('button', { name: 'SOUND OFF' }).click();
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapLoaded ?? false)).toBe(true);
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapSize)).toEqual({ width: 1800, height: 1200 });
   const portrait = page.locator('.hero-portrait');
   await expect(portrait).toBeVisible();
   await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth === 1254)).toBe(true);
   await page.screenshot({ path: `${evidence}/01-title.png` });
+  for (const [width, height] of [[1920, 1080], [1366, 768], [1280, 720], [900, 600]] as const) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByRole('button', { name: /PLAY NOW/i })).toBeVisible();
+    await page.screenshot({ path: `${evidence}/title-${width}x${height}.png` });
+  }
+  await page.setViewportSize({ width: 1365, height: 900 });
 
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
+  expect(await page.evaluate(() => (window as Window & { __GG_AUDIO_CREATED__?: boolean }).__GG_AUDIO_CREATED__)).toBe(true);
+  expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cameraZoom)).toBe(1.2);
   await expect(page.getByText('BLUE PINWHEEL')).toBeVisible();
   await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); if (state) window.__GG_TEST__?.spawn('fastThug', state.player.x + 36, state.player.y); });
+  // Keep this short facing/animation scenario independent from slow CI frame pacing,
+  // early XP level-ups, and incidental enemy contact. Combat assertions follow below.
+  await page.evaluate(() => window.__GG_TEST__?.prepareFacingCheck());
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemySprites ?? 0)).toBeGreaterThan(0);
   await page.screenshot({ path: `${evidence}/blue-pinwheel-standing.png` });
@@ -34,6 +62,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.screenshot({ path: `${evidence}/blue-pinwheel-facing-left.png` }); await page.keyboard.up('a');
   const movedX = await page.evaluate(() => window.__GG_TEST__?.getState()?.player.x);
   expect(movedX).toBeGreaterThan(startX ?? 0);
+  await page.evaluate(() => window.__GG_TEST__?.finishFacingCheck());
   const facing = await page.evaluate(() => {
     const state = window.__GG_TEST__?.getState();
     if (!state) return null;
@@ -54,7 +83,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.screenshot({ path: `${evidence}/02-active-combat.png` });
 
   await page.evaluate(() => window.__GG_TEST__?.injectPickup(30));
-  await expect(page.getByRole('heading', { name: 'Choose an upgrade' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose your next move' })).toBeVisible();
   await page.screenshot({ path: `${evidence}/03-level-up-choices.png` });
   const chosenId = await page.evaluate(() => window.__GG_TEST__?.getState()?.options[0]);
   const beforeUpgrade = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { speed: state.player.speed, damage: state.player.damageBonus, shots: state.player.extraShots, health: state.player.maxHealth, pickup: state.player.pickupRadius, orbit: state.player.orbit, weaponRanks: state.player.weaponRanks, powerRank: state.player.powerRank, evolved: state.player.evolvedPinwheel } : null; });
@@ -74,8 +103,11 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.getByRole('button', { name: 'Resume' }).click();
   await page.evaluate(() => window.__GG_TEST__?.startBoss());
   await expect(page.getByText('GANG LEADER · PROTOTYPE')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => !enemy.hasSprite) ?? false)).toBe(true);
-  const bossFacing = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => !enemy.hasSprite)?.facing);
+  await expect(page.getByText('MAJOR THREAT')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => enemy.kind === 'boss' && enemy.hasSprite) ?? false)).toBe(true);
+  const bossFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1);
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1)).not.toBe(bossFrame);
+  const bossFacing = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.facing);
   expect(['left', 'right']).toContain(bossFacing);
   await page.screenshot({ path: `${evidence}/06-boss-encounter.png` });
   await page.evaluate(() => window.__GG_TEST__?.prepareBossForAttack());
@@ -94,6 +126,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.keyboard.press('F3');
   await expect(page.locator('.debug-panel')).toContainText('frame');
   await expect(page.locator('.debug-panel')).toContainText('enemies');
+  await page.getByRole('button', { name: 'Copy run diagnostics' }).click();
   expect(errors).toEqual([]);
   expect(failedAssets).toEqual([]);
 });
@@ -104,8 +137,9 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
   await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000));
+  let evolutionCardCaptured = false;
   for (let choice = 0; choice < 40; choice++) {
     const state = await page.evaluate(() => {
       const current = window.__GG_TEST__?.getState();
@@ -114,6 +148,11 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
     if (!state || state.evolved) break;
     if (state.status === 'playing') { await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000)); continue; }
     if (state.status !== 'upgrade') throw new Error(`Expected pending level-up choice, received ${state.status}`);
+    if (!evolutionCardCaptured && state.options.includes('evolvePinwheel')) {
+      await expect(page.locator('.evolution-card')).toBeVisible();
+      await page.screenshot({ path: `${evidence}/evolution-card.png` });
+      evolutionCardCaptured = true;
+    }
     const desired = state.pinwheel < 5 && state.options.includes('pinwheel') ? 'pinwheel'
       : state.power < 2 && state.options.includes('power') ? 'power'
         : state.options[0];
@@ -121,8 +160,9 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
     await page.locator(`[data-upgrade="${desired}"]`).click();
   }
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.evolvedPinwheel ?? false)).toBe(true);
+  expect(evolutionCardCaptured).toBe(true);
   await expect(page.locator('.combat-hud')).toContainText('PINWHEEL EVOLVED');
-  await page.screenshot({ path: `${evidence}/synthetic-pinwheel-evolution.png` });
+  await page.screenshot({ path: `${evidence}/post-evolution-combat.png` });
   expect(errors).toEqual([]);
 });
 
@@ -133,12 +173,14 @@ test('standard configuration naturally builds an early horde in the browser', as
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=normal');
-  await page.getByRole('button', { name: 'Start Game' }).click();
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
   let sawUpgrade = false;
   let capturedHorde = false;
   let liveRenderMetrics: { enemies: number; fps: number; frameMs: number } | null = null;
   let lateHordeMetrics: { enemies: number; kinds: string[]; fps: number; frameMs: number } | null = null;
   let naturalBossMetrics: { elapsed: number; health: number; bossHealth: number; enemies: number } | null = null;
+  let capturedSurge = false;
+  let capturedBossCombat = false;
   let capturedMultiWeapon = false;
   let capturedEvolution = false;
   const naturalProgression: Array<Record<string, unknown>> = [];
@@ -159,6 +201,10 @@ test('standard configuration naturally builds an early horde in the browser', as
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
     }
     const moment = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { elapsed: state.elapsed, status: state.status } : null; });
+    if (!capturedSurge && moment?.status === 'playing') {
+      const surge = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state?.surgeRemaining ? { side: state.surgeDirection, remaining: state.surgeRemaining } : null; });
+      if (surge) { await expect(page.locator('.surge-alert')).toContainText(`FROM THE ${surge.side.toUpperCase()}`); await page.screenshot({ path: `${evidence}/natural-horde-surge.png` }); console.info(`NATURAL_SURGE_EVIDENCE ${JSON.stringify(surge)}`); capturedSurge = true; }
+    }
     const weaponEvidence = await page.evaluate(() => {
       const state = window.__GG_TEST__?.getState();
       return state ? { piercing: state.player.weaponRanks.piercingThrow > 0, orbit: state.player.weaponRanks.orbitGuard > 0, evolved: state.player.evolvedPinwheel } : null;
@@ -173,7 +219,7 @@ test('standard configuration naturally builds an early horde in the browser', as
       });
       if (sample) {
         naturalProgression.push({ time: mark, ...sample });
-        await page.screenshot({ path: `artifacts/evidence/natural-${String(mark).padStart(3, '0')}s-population.png` });
+        await page.screenshot({ path: `${evidence}/natural-${String(mark).padStart(3, '0')}s-population.png` });
       }
     }
     if (!capturedHorde && moment && moment.elapsed >= 15 && moment.status === 'playing') {
@@ -198,12 +244,20 @@ test('standard configuration naturally builds an early horde in the browser', as
       });
       if (encounter) { await page.screenshot({ path: `${evidence}/12-standard-boss-arrival.png` }); naturalBossMetrics = encounter; }
     }
+    if (!capturedBossCombat && moment && moment.elapsed >= 154 && moment.status === 'playing') {
+      const bossHealth = await page.evaluate(() => window.__GG_TEST__?.getState()?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead)?.health ?? 0);
+      if (bossHealth > 0) {
+        // Boss-combat capture is supplementary evidence; slow SwiftShader readback must not consume the normal-run timeout.
+        try { await page.screenshot({ path: `${evidence}/natural-boss-combat.png`, timeout: 20_000 }); capturedBossCombat = true; }
+        catch (error) { console.warn(`OPTIONAL_BOSS_SCREENSHOT_SKIPPED ${error instanceof Error ? error.message : String(error)}`); }
+      }
+    }
     if (status === 'defeat' || status === 'victory') break;
   }
   const result = await page.evaluate(() => {
     const state = window.__GG_TEST__?.getState();
     const boss = state?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
-    return state ? { elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank } : null;
+    return state ? { elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank, spawned: state.enemiesSpawned, peak: state.peakEnemies, belowTargetSeconds: state.timeBelowHordeTarget, placementFallbacks: state.spawnPlacementFallbacks, recycled: state.recycledEnemies, spawnRate: state.spawnRate, killRate: state.killRate, chosen: state.chosen } : null;
   });
   console.info(`STANDARD_NATURAL_BROWSER ${JSON.stringify({ ...result, liveRenderMetrics, lateHordeMetrics, naturalBossMetrics, naturalProgression })}`);
   expect(result).not.toBeNull();
@@ -212,6 +266,7 @@ test('standard configuration naturally builds an early horde in the browser', as
   expect(naturalBossMetrics).not.toBeNull();
   expect(['victory', 'defeat']).toContain(result?.status);
   expect(result?.elapsed).toBeGreaterThan(150);
+  expect(capturedSurge).toBe(true);
   if (result?.status === 'victory') await page.screenshot({ path: `${evidence}/13-standard-victory.png` });
   else await page.screenshot({ path: `${evidence}/13-standard-defeat.png` });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
 import { acquireTarget, chooseUpgrade, createGame, damagePlayer, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { isWalkable } from '../src/game/stage';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
 function steps(state: ReturnType<typeof createGame>, count: number, input = idle, cfg = testRun): void { for (let i = 0; i < count; i++) updateGame(state, 1 / 60, input, cfg); }
@@ -84,9 +85,9 @@ describe('deterministic gameplay simulation', () => {
   });
 
   it('keeps movement within arena and walkable street bounds', () => {
-    const s = createGame(1, testRun); movePlayer(s.player, -1, -1, 200, testRun);
-    expect(s.player.x).toBeGreaterThanOrEqual(28); expect(s.player.y).toBe(288);
-    movePlayer(s.player, 1, 1, 200, testRun); expect(s.player.x).toBeLessThanOrEqual(testRun.arenaWidth - 28); expect(s.player.y).toBeLessThanOrEqual(752);
+    const s = createGame(1, testRun); movePlayer(s.player, -1, -1, 200, testRun, s.stage);
+    expect(s.player.x).toBeGreaterThanOrEqual(18); expect(s.player.y).toBeGreaterThanOrEqual(18); expect(isWalkable(s.stage, s.player.x, s.player.y, 18)).toBe(true);
+    movePlayer(s.player, 1, 1, 200, testRun, s.stage); expect(s.player.x).toBeLessThanOrEqual(testRun.arenaWidth - 18); expect(s.player.y).toBeLessThanOrEqual(testRun.arenaHeight - 18); expect(isWalkable(s.stage, s.player.x, s.player.y, 18)).toBe(true);
   });
 
   it('acquires the nearest living target and ignores dead enemies', () => {
@@ -117,18 +118,34 @@ describe('deterministic gameplay simulation', () => {
     s.player.invulnerable = 0; damagePlayer(s, 1000); expect(s.player.health).toBe(0); expect(s.status).toBe('defeat');
   });
 
+  it('uses Normal and Heroic data profiles and records clipped damage under its source', () => {
+    const normal = { ...testRun, difficulty: 'normal' as const };
+    const heroic = { ...testRun, difficulty: 'heroic' as const };
+    const normalState = createGame(1201, normal); const heroicState = createGame(1201, heroic);
+    expect(spawnEnemy(normalState, 'thug', normal, { x: normalState.player.x + 100, y: normalState.player.y }).damage).toBeCloseTo(ENEMIES.thug.damage * 0.72);
+    expect(spawnEnemy(heroicState, 'thug', heroic, { x: heroicState.player.x + 100, y: heroicState.player.y }).damage).toBe(ENEMIES.thug.damage);
+    expect(damagePlayer(normalState, 19, 'fast-contact', normal)).toBe(true);
+    expect(normalState.damageTaken['fast-contact']).toBe(19);
+    expect(normalState.damageTaken['thug-contact']).toBe(0);
+    expect(normalState.player.invulnerable).toBe(1.05);
+    normalState.player.invulnerable = 0; normalState.player.health = 5;
+    expect(damagePlayer(normalState, 40, 'boss-projectile', normal)).toBe(true);
+    expect(normalState.damageTaken['boss-projectile']).toBe(5);
+    expect(normalState.player.health).toBe(0);
+  });
+
   it('applies full per-hit thug contact damage and respects the invulnerability window', () => {
     const s = createGame(121, testRun); s.player.attackTimer = 10;
     const thug = spawnEnemy(s, 'thug', testRun, { x: s.player.x, y: s.player.y }); thug.health = 1000; thug.maxHealth = 1000; s.enemies.push(thug);
     steps(s, 1); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - thug.damage);
-    steps(s, 47); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - thug.damage);
+    steps(s, 62); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - thug.damage);
     steps(s, 1); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - thug.damage * 2);
   });
 
   it('lets only one of multiple simultaneous contacts damage the player during invulnerability', () => {
     const s = createGame(122, testRun); s.player.attackTimer = 10;
     for (let i = 0; i < 4; i++) { const thug = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun, { x: s.player.x, y: s.player.y }); thug.health = 1000; thug.maxHealth = 1000; s.enemies.push(thug); }
-    steps(s, 1); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - ENEMIES.thug.damage);
+    steps(s, 1); expect(s.player.health).toBeCloseTo(BLUE_PINWHEEL.maxHealth - ENEMIES.thug.damage * 0.72);
   });
 
   it('knocks ordinary enemies away after a hit', () => {
@@ -138,7 +155,7 @@ describe('deterministic gameplay simulation', () => {
 
   it('spawns enemies away from the player and within arena bounds', () => {
     const s = createGame(14, testRun);
-    for (let i = 0; i < 100; i++) { const e = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun); expect(Math.hypot(e.x - s.player.x, e.y - s.player.y)).toBeGreaterThanOrEqual(180); expect(e.x).toBeGreaterThanOrEqual(28); expect(e.x).toBeLessThanOrEqual(testRun.arenaWidth - 28); expect(e.y).toBeGreaterThanOrEqual(288); expect(e.y).toBeLessThanOrEqual(752); }
+    for (let i = 0; i < 100; i++) { const e = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun); expect(Math.hypot(e.x - s.player.x, e.y - s.player.y)).toBeGreaterThanOrEqual(180); expect(e.x).toBeGreaterThanOrEqual(e.radius); expect(e.x).toBeLessThanOrEqual(testRun.arenaWidth - e.radius); expect(e.y).toBeGreaterThanOrEqual(e.radius); expect(e.y).toBeLessThanOrEqual(testRun.arenaHeight - e.radius); expect(isWalkable(s.stage, e.x, e.y, e.radius)).toBe(true); }
   });
 
   it('distributes generated enemies across camera-adjacent street regions for multiple seeds', () => {
@@ -147,15 +164,15 @@ describe('deterministic gameplay simulation', () => {
       const s = createGame(seed, testRun);
       for (let i = 0; i < 200; i++) {
         const e = spawnEnemy(s, 'thug', testRun);
-        if (e.y <= 290) edges.top++;
-        else if (e.x >= s.player.x + 500) edges.right++;
-        else if (e.y >= 750) edges.bottom++;
-        else if (e.x <= s.player.x - 500) edges.left++;
+        if (e.y <= 220) edges.top++;
+        else if (e.x >= s.player.x + 400) edges.right++;
+        else if (e.y >= 980) edges.bottom++;
+        else if (e.x <= s.player.x - 400) edges.left++;
         else throw new Error(`spawn was not on a camera-adjacent valid street region: ${e.x}, ${e.y}`);
       }
     }
-    expect(edges.top).toBeGreaterThan(80); expect(edges.right).toBeGreaterThan(40);
-    expect(edges.bottom).toBeGreaterThan(80); expect(edges.left).toBeGreaterThan(40);
+    expect(edges.top).toBeGreaterThan(40); expect(edges.right).toBeGreaterThan(40);
+    expect(edges.bottom).toBeGreaterThan(40); expect(edges.left).toBeGreaterThan(40);
   });
 
   it('reproduces spawn coordinates independently for multiple seeds', () => {
@@ -205,6 +222,44 @@ describe('deterministic gameplay simulation', () => {
     s.elapsed = run.duration; s.spawnTimer = 0; for (const enemy of s.enemies) enemy.health = enemy.maxHealth = 1_000_000;
     steps(s, 400, idle, run); expect(s.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeLessThanOrEqual(run.horde.maxActive);
     expect(s.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeGreaterThan(0);
+  });
+
+  it('adapts safe spawn throughput to deficits and kill rate within configured per-tick limits', () => {
+    const run = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 44 }], surgeEvery: 10_000, maxSpawnPerSecond: 20, maxSpawnPerUpdate: 3, batchMin: 2, batchMax: 3, baseBatchInterval: 0.4 } };
+    const a = createGame(4001, run); const b = createGame(4001, run);
+    a.spawnTimer = 10; b.spawnTimer = 10; b.killRate = 8;
+    updateGame(a, 1 / 60, idle, run); updateGame(b, 1 / 60, idle, run);
+    expect(b.spawnBudget).toBeGreaterThan(a.spawnBudget);
+    const crowded = createGame(4002, run); crowded.player.health = 100_000; crowded.player.invulnerable = 100_000; crowded.spawnBudget = run.horde.maxSpawnPerUpdate; crowded.spawnTimer = 0;
+    for (let i = 0; i < 120; i++) { const previous = crowded.enemiesSpawned; updateGame(crowded, 1 / 60, idle, run); expect(crowded.enemiesSpawned - previous).toBeLessThanOrEqual(run.horde.maxSpawnPerUpdate); }
+    expect(crowded.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeLessThanOrEqual(44);
+    expect(crowded.peakEnemies).toBeGreaterThanOrEqual(20);
+  });
+
+  it('fills most of a stationary natural target without deaths, using reproducible mixed enemies', () => {
+    const run = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 44 }], surgeEvery: 10_000 } };
+    const a = createGame(4003, run); const b = createGame(4003, run);
+    for (const state of [a, b]) { state.player.health = 100_000; state.player.invulnerable = 100_000; state.player.attackTimer = 100_000; }
+    steps(a, 720, idle, run); steps(b, 720, idle, run);
+    expect(a.enemies.length).toBeGreaterThanOrEqual(38);
+    expect(a.enemies.length).toBeLessThanOrEqual(44);
+    expect(a.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)])).toEqual(b.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)]));
+    const composition = new Set(a.enemies.map(enemy => enemy.kind));
+    expect(composition.has('thug')).toBe(true);
+    expect(a.spawnPlacementFallbacks).toBeLessThan(12);
+  }, 10_000);
+
+  it('announces a reproducible surge direction and safely forms its group on that side', () => {
+    const run = { ...testRun, horde: { ...testRun.horde, surgeEvery: 2, targetCounts: [{ at: 0, count: 20 }], maxSpawnPerUpdate: 4 } };
+    const a = createGame(4004, run); const b = createGame(4004, run);
+    for (const state of [a, b]) { state.elapsed = 2 - 1 / 60; state.spawnTimer = 0; state.spawnBudget = 4; state.player.attackTimer = 100_000; }
+    updateGame(a, 1 / 60, idle, run); updateGame(b, 1 / 60, idle, run);
+    expect(a.surgeDirection).toBe(b.surgeDirection);
+    const cardinalName = { left: 'WEST', right: 'EAST', top: 'NORTH', bottom: 'SOUTH' }[a.surgeDirection];
+    expect(a.messages.at(-1)).toContain(`FROM THE ${cardinalName}`);
+    expect(a.enemies.length).toBeGreaterThan(0);
+    for (const enemy of a.enemies) expect(Math.hypot(enemy.x - a.player.x, enemy.y - a.player.y)).toBeGreaterThan(170);
+    expect(a.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)])).toEqual(b.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)]));
   });
 
   it('drops XP on death, collects it, and removes the dead enemy', () => {
@@ -281,7 +336,7 @@ describe('deterministic gameplay simulation', () => {
   it('dashes with a cooldown and temporary invulnerability', () => {
     const s = createGame(24, testRun); const x = s.player.x;
     updateGame(s, 1 / 60, { x: 1, y: 0, dash: true, special: false }, testRun);
-    expect(s.player.x - x).toBeGreaterThan(s.player.speed / 60); expect(s.player.dashCooldown).toBeGreaterThan(2.9); expect(s.player.invulnerable).toBeGreaterThan(0);
+    expect(s.player.x - x).toBeGreaterThan(s.player.speed / 60); expect(s.player.dashCooldown).toBeGreaterThan(2.6); expect(s.player.invulnerable).toBeGreaterThan(0);
   });
 
   it('activates the charged area special and spends its gauge', () => {
@@ -307,8 +362,9 @@ describe('deterministic gameplay simulation', () => {
     const s = createGame(271, testRun); s.player.attackTimer = 100;
     const boss = spawnEnemy(s, 'boss', testRun, { x: s.player.x + 70, y: s.player.y }); boss.phase = GANG_LEADER.chargeStart - 0.01; s.enemies.push(boss);
     steps(s, 1); expect(boss.attackState).toBe('charge-telegraph'); expect(boss.attackDirection.x).toBeLessThan(0); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth);
-    steps(s, 51); expect(boss.attackState).toBe('charging'); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - GANG_LEADER.contactDamage);
-    steps(s, 10); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - GANG_LEADER.contactDamage);
+    const expectedDamage = GANG_LEADER.contactDamage * 0.72;
+    steps(s, 51); expect(boss.attackState).toBe('charging'); expect(s.player.health).toBeCloseTo(BLUE_PINWHEEL.maxHealth - expectedDamage);
+    steps(s, 10); expect(s.player.health).toBeCloseTo(BLUE_PINWHEEL.maxHealth - expectedDamage); expect(s.damageTaken['boss-charge']).toBeCloseTo(expectedDamage);
   });
 
   it('applies hostile projectile damage using the rendered collision radius', () => {
@@ -331,15 +387,18 @@ describe('deterministic gameplay simulation', () => {
     expect(s.projectiles.some(projectile => projectile.id === 999)).toBe(false); expect(s.enemies.includes(e)).toBe(false); expect(s.player.xp).toBeGreaterThan(0);
   });
 
-  it('simulates the standard horde economy across multiple reproducible seeds', () => {
+  it('compares Normal and Heroic horde outcomes across reproducible seeds', () => {
     const observations: Array<Record<string, unknown>> = [];
-    const scenarios: Array<{ seed: number; strategy: UpgradeId[] }> = [
+    const strategies: Array<{ seed: number; strategy: UpgradeId[] }> = [
       { seed: 1741, strategy: ['piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'vitality', 'recovery', 'speed', 'extra', 'magnet'] },
       { seed: 42, strategy: ['vitality', 'recovery', 'speed', 'orbit', 'piercingThrow', 'power', 'damage', 'tempo', 'pinwheel', 'extra', 'magnet'] },
       { seed: 2026, strategy: ['orbit', 'piercingThrow', 'vitality', 'recovery', 'power', 'pinwheel', 'damage', 'tempo', 'speed', 'extra', 'magnet'] },
     ];
-    for (const { seed, strategy } of scenarios) {
-      const s = createGame(seed, standardRun);
+    const scenarios = strategies.flatMap(scenario => (['normal', 'heroic'] as const).map(difficulty => ({ ...scenario, difficulty })));
+    for (const { seed, strategy, difficulty } of scenarios) {
+      const run = { ...standardRun, difficulty };
+      const s = createGame(seed, run);
+      const hordeSamples: Array<Record<string, unknown>> = []; const sampleTimes = [15, 30, 60, 90, 120, 150]; let nextSample = 0;
       let guard = 0;
       while (s.status === 'playing' || s.status === 'upgrade') {
         if (s.status === 'upgrade') {
@@ -347,16 +406,20 @@ describe('deterministic gameplay simulation', () => {
           if (!selected || !chooseUpgrade(s, selected)) throw new Error('A generated level-up had no valid selection');
         } else {
           const angle = s.elapsed * 0.5;
-          updateGame(s, 1 / 60, { x: Math.cos(angle), y: Math.sin(angle), dash: true, special: true }, standardRun);
+          updateGame(s, 1 / 60, { x: Math.cos(angle), y: Math.sin(angle), dash: true, special: true }, run);
+          if (nextSample < sampleTimes.length && s.elapsed >= (sampleTimes[nextSample] ?? Number.POSITIVE_INFINITY)) {
+            const composition = s.enemies.reduce<Record<string, number>>((counts, enemy) => { counts[enemy.kind] = (counts[enemy.kind] ?? 0) + 1; return counts; }, {});
+            hordeSamples.push({ time: s.elapsed, active: s.enemies.filter(enemy => enemy.kind !== 'boss').length, target: s.hordeTarget, deficit: s.hordeDeficit, spawnRate: s.spawnRate, killRate: s.killRate, composition, fallbacks: s.spawnPlacementFallbacks, recycled: s.recycledEnemies }); nextSample++;
+          }
         }
         if (++guard > 24_000) throw new Error(`Seed ${seed} exceeded the four-minute simulation bound`);
       }
-      observations.push({ seed, strategy: strategy.slice(0, 3), elapsed: Math.round(s.elapsed * 100) / 100, status: s.status, level: s.player.level, hp: Math.ceil(s.player.health), maxHp: s.player.maxHealth, kills: s.kills, enemies: s.enemies.length, peakEnemies: s.peakEnemies, spawned: s.enemiesSpawned, belowTargetSeconds: Math.round(s.timeBelowHordeTarget), weapons: s.player.weaponRanks, evolved: s.player.evolvedPinwheel });
+      observations.push({ seed, difficulty, strategy: strategy.slice(0, 3), elapsed: Math.round(s.elapsed * 100) / 100, status: s.status, level: s.player.level, hp: Math.ceil(s.player.health), maxHp: s.player.maxHealth, kills: s.kills, enemies: s.enemies.length, peakEnemies: s.peakEnemies, spawned: s.enemiesSpawned, belowTargetSeconds: Math.round(s.timeBelowHordeTarget), bossFightSeconds: s.bossFightDuration === null ? null : Math.round(s.bossFightDuration * 100) / 100, damageTaken: s.damageTaken, placementFallbacks: s.spawnPlacementFallbacks, recycled: s.recycledEnemies, weapons: s.player.weaponRanks, evolved: s.player.evolvedPinwheel, hordeSamples });
       expect(Number.isFinite(s.player.health)).toBe(true); expect(s.player.health).toBeGreaterThanOrEqual(0);
-      expect(s.enemies.length).toBeLessThanOrEqual(standardRun.horde.maxActive + 1);
+      expect(s.enemies.length).toBeLessThanOrEqual(run.horde.maxActive + 1);
     }
     console.info(`STANDARD_SEED_SIM ${JSON.stringify(observations)}`);
-  }, 30_000);
+  }, 60_000);
 
   it('measures 25/50/100/150/200 active-enemy loads and keeps entity totals bounded', () => {
     const measurements: Array<{ enemies: number; frames: number; medianMs: number }> = [];
