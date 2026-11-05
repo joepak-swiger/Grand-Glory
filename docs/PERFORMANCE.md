@@ -169,3 +169,23 @@ No simulation algorithm changed, so the lower medians should be treated as sampl
 The final Playwright crowd sweep used HeadlessChrome 156, Windows x64, 1365×900, WebGL via ANGLE/Vulkan SwiftShader, and 16 reported hardware threads. All entities and projectiles were visible in a paused synthetic scene. At 25/50/100/150/200 enemies, whole-frame average was 22.69/22.66/23.69/25.14/27.22 ms; frame p95 was 33.4 ms at each count; worst was 99.94/99.94/99.94/99.94/50.1 ms. Sampled FPS was 60/30/30/30/30. Renderer update current/p95/worst was 0.3/0.6/2.1, 0.2/0.5/2.1, 0.3/0.6/2.1, 0.5/0.6/2.1, and 0.6/0.7/2.0 ms respectively. JS heap was 22.03 MiB; browser-reported heap does not include GPU memory. Simulation and dropped updates are zero in this paused synthetic test and are not running-game measurements.
 
 The previous SwiftShader sweep in Assignment 007 measured average frame times 27.78/26.19/27.32/28.81/30.22 ms and renderer p95 0.6/0.6/0.6/0.6/0.7 ms. This is a similar software-rendered environment, but not a controlled same-process A/B comparison; the lower whole-frame averages here do not establish desktop GPU performance. The accelerated standard browser run during this pass sampled 60 FPS at 15/30 seconds, then 30/60 at several later checkpoints, and reached 127 active/73 visible (including boss) at 150.9 simulated seconds. It won at 161.57 seconds, level 22, with 881 kills. It is automated fast-forwarded gameplay, not a normal wall-clock run or owner human playtest. No desktop GPU session was available.
+
+## Assignment 010 — simulation measurement
+
+The seeded Node 24.22.1 Windows x64 mixed-scene benchmark was run with 120 warm-up updates and 600 measured simulation updates at each population. It includes enemies, projectiles, XP piles, damage labels, animation/AI, and collision paths; the reported distribution is per fixed update in milliseconds. This compares simulation CPU cost only. No renderer or browser A/B was possible in the local session because Chromium navigation to the local Vite URL returned `net::ERR_NETWORK_ACCESS_DENIED`.
+
+| Active enemies | Median ms/update | p95 ms/update | Worst ms/update |
+|---:|---:|---:|---:|
+| 25 | 0.0462 | 0.1626 | 0.7986 |
+| 50 | 0.0650 | 0.1208 | 0.2376 |
+| 100 | 0.1389 | 0.2462 | 1.6620 |
+| 150 | 0.2428 | 0.3938 | 0.7533 |
+| 200 | 0.3685 | 0.5906 | 0.8501 |
+
+At 200 enemies, the p95 is under 0.6ms, far below the 16.7ms fixed-step budget on this Node host. This does not establish GPU rendering performance or real-world framerate. The branch adds reusable character textures and effects to the existing cached renderer; no measured before/after browser frame claim is made.
+
+## Assignment 010 — hosted gameplay and renderer sample
+
+GitHub Actions run [42063274127](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127) passed all 8 Chromium scenarios and uploaded its actual screenshots/traces in the [browser evidence artifact](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127/artifacts/13434440109). The standard-config accelerated run advanced to 228.9 simulated seconds, remained in Endless play after one Gang Boss defeat, introduced both Smiler and Molar, and recorded 112 active enemies at that checkpoint with a 128 active peak. Natural samples were: 15s 25 active / 14 visible; 30s 41/28; 60s 63/33; 90s 81/44; 120s 104/61; 150s 115/67 including the boss. It reached level 24 and 1,451 kills. This is deterministic automated accelerated gameplay, not wall-clock timing or human playtesting.
+
+The CI crowd sweep ran headless Chromium 156 at 1365×900 using WebGL through ANGLE/Vulkan SwiftShader on a four-core advertised runner. Synthetic crowd sizes were 25/50/100/150/200 visible enemies; measured whole-frame averages were approximately 98.6/99.2/99.4/99.5/99.6ms, with frame p95 around 100ms and sampled FPS 9/7/6/5/5. Renderer scene-update p95 stayed around 1.4/1.8/1.7/1.8/1.8ms (worst 3.6ms). This clearly shows software-rendered headless frame pacing is unsuitable as a desktop-GPU proxy; the scene-update sample remains small, while browser/compositor/software rasterization dominates the measured frame time. It is not a controlled before/after comparison and does not establish owner hardware performance. No normal Windows GPU play session occurred.

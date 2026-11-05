@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
+import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, HEROES, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
 import { acquireTarget, applyEnemyDamage, chooseUpgrade, createGame, damagePlayer, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
 import { isWalkable } from '../src/game/stage';
 import { getUpgradeRankProgress } from '../src/game/upgrade-ranks';
@@ -9,6 +9,77 @@ function steps(state: ReturnType<typeof createGame>, count: number, input = idle
 function choice(state: ReturnType<typeof createGame>): UpgradeId { const first = state.options[0]; if (!first) throw new Error('Missing upgrade choice'); return first; }
 
 describe('deterministic gameplay simulation', () => {
+  it('initializes each selected hero with its own health, movement speed, and starter weapon', () => {
+    const blue = createGame(10, testRun, 'blue-pinwheel');
+    const bok = createGame(10, testRun, 'bok-goo');
+    const dari = createGame(10, testRun, 'da-ri');
+    expect([blue.player.maxHealth, blue.player.speed, blue.player.weaponRanks.pinwheel]).toEqual([HEROES['blue-pinwheel'].maxHealth, HEROES['blue-pinwheel'].moveSpeed, 1]);
+    expect([bok.player.maxHealth, bok.player.speed, bok.player.weaponRanks.clubSweep]).toEqual([225, 180, 1]);
+    expect([dari.player.maxHealth, dari.player.speed, dari.player.weaponRanks.spearThrust]).toEqual([145, 225, 1]);
+    expect([bok.player.weaponRanks.pinwheel, dari.player.weaponRanks.clubSweep]).toEqual([0, 0]);
+    expect(blue.attacks[0]).toContain('Ring'); expect(bok.attacks[0]).toContain('Club'); expect(dari.attacks[0]).toContain('Spear');
+  });
+
+  it('keeps endless mode playing after the Gang Boss and schedules Dr. Smile next', () => {
+    const cfg = { ...testRun, gameMode: 'endless' as const, bossAt: 0, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(1010, cfg);
+    s.spawnTimer = 10_000;
+    steps(s, 1, idle, cfg);
+    const first = s.enemies.find(enemy => enemy.kind === 'boss');
+    expect(first?.bossId).toBe('gang-boss');
+    expect(first).toBeDefined();
+    applyEnemyDamage(s, first!, first!.health, { x: -1, y: 0 }, cfg);
+    expect(s.status).toBe('playing');
+    expect(s.bossesDefeated).toBe(1);
+    expect(s.completedWaves).toBe(1);
+    expect(s.pickups.some(pickup => pickup.value === GANG_LEADER.xp)).toBe(true);
+    s.elapsed = s.nextBossAt;
+    steps(s, 1, idle, cfg);
+    expect(s.enemies.find(enemy => enemy.kind === 'boss')?.bossId).toBe('dr-smile');
+  });
+
+  it('uses a telegraphed Yo-Yo line hazard with damage limited to its active window and cooldown', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(1012, cfg); s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    const punk = spawnEnemy(s, 'yoYoPunk', cfg, { x: s.player.x - 100, y: s.player.y }); punk.speed = 0;
+    punk.attackState = 'yoyo-telegraph'; punk.phase = 0.02; punk.attackDirection = { x: 1, y: 0 }; punk.attackTarget = { x: s.player.x + 120, y: s.player.y };
+    s.enemies.push(punk);
+    steps(s, 3, idle, cfg);
+    expect(s.damageTaken['yoyo-line']).toBe(0);
+    expect(punk.attackState).toBe('yoyo-extension');
+    punk.attackState = 'yoyo-hold'; punk.phase = 1.2; punk.attackCooldown = 0;
+    const before = s.player.health;
+    steps(s, 1, idle, cfg);
+    expect(s.damageTaken['yoyo-line']).toBeGreaterThan(0);
+    expect(before - s.player.health).toBeCloseTo(s.damageTaken['yoyo-line']);
+    const hitCount = s.damageTaken['yoyo-line'];
+    steps(s, 20, idle, cfg);
+    expect(s.damageTaken['yoyo-line']).toBe(hitCount);
+  });
+
+  it('offers bounded repeatable mastery when endless builds exhaust normal upgrade ranks', () => {
+    const s = createGame(1013, { ...testRun, gameMode: 'endless' });
+    s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    s.player.weaponRanks = { pinwheel: 5, orbitGuard: 5, piercingThrow: 5, clubSweep: 5, boulderToss: 5, spearThrust: 5, spearToss: 5 };
+    s.player.powerRank = 5; s.player.evolvedPinwheel = true;
+    s.chosen = [...Array(5).fill('damage'), ...Array(5).fill('tempo'), ...Array(4).fill('extra'), ...Array(5).fill('speed'), ...Array(5).fill('vitality'), ...Array(5).fill('recovery'), ...Array(5).fill('magnet'), ...Array(19).fill('mastery')] as UpgradeId[];
+    s.player.xp = s.player.xpNext;
+    steps(s, 1, idle, { ...testRun, gameMode: 'endless' });
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('mastery');
+    expect(s.options).not.toContain('pinwheel');
+  });
+
+  it('does not let melee-only ordinary enemies launch enemy projectiles', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 12 } };
+    const s = createGame(1011, cfg); s.spawnTimer = 10_000; s.player.attackTimer = 10_000;
+    for (const [index, kind] of (['thug', 'fastThug', 'bruiser', 'smiler', 'molar'] as const).entries()) {
+      s.enemies.push(spawnEnemy(s, kind, cfg, { x: s.player.x + 300 + index * 30, y: s.player.y }));
+    }
+    steps(s, 180, idle, cfg);
+    expect(s.projectiles.filter(projectile => projectile.owner === 'enemy')).toHaveLength(0);
+  });
+
   it('normalizes diagonal movement and preserves facing', () => {
     const a = createGame(1, testRun); const b = createGame(1, testRun);
     movePlayer(a.player, 1, 1, 1, testRun); movePlayer(b.player, 1, 0, 1, testRun);
@@ -461,7 +532,7 @@ describe('deterministic gameplay simulation', () => {
     ];
     const scenarios = strategies.flatMap(scenario => (['normal', 'heroic'] as const).map(difficulty => ({ ...scenario, difficulty })));
     for (const { seed, strategy, difficulty } of scenarios) {
-      const run = { ...standardRun, difficulty };
+      const run = { ...standardRun, difficulty, gameMode: 'finite' as const };
       const s = createGame(seed, run);
       const hordeSamples: Array<Record<string, unknown>> = []; const sampleTimes = [15, 30, 60, 90, 120, 150]; let nextSample = 0;
       let guard = 0;
