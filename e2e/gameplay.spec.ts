@@ -173,6 +173,7 @@ test('standard configuration naturally builds an early horde in the browser', as
   let capturedBossCombat = false;
   let capturedMultiWeapon = false;
   let capturedEvolution = false;
+  let postBossContinuation: { elapsed: number; bossesDefeated: number; factions: string[] } | null = null;
   const naturalProgression: Array<Record<string, unknown>> = [];
   for (let segment = 0; segment < 70; segment++) {
     const movement = await page.evaluate(() => {
@@ -226,6 +227,18 @@ test('standard configuration naturally builds an early horde in the browser', as
         return [...choices].sort((a, b) => rank(a) - rank(b))[0];
       });
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
+    }
+    if (!postBossContinuation) {
+      const continuation = await page.evaluate(() => {
+        const state = window.__GG_TEST__?.getState();
+        return state && state.status === 'playing' && state.bossesDefeated > 0
+          ? { elapsed: state.elapsed, bossesDefeated: state.bossesDefeated, factions: [...state.factionsEncountered] }
+          : null;
+      });
+      if (continuation) {
+        postBossContinuation = continuation;
+        await page.screenshot({ path: `${evidence}/13-endless-continues-after-boss.png` });
+      }
     }
     const moment = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { elapsed: state.elapsed, status: state.status } : null; });
     if (!capturedSurge && moment?.status === 'playing') {
@@ -292,13 +305,15 @@ test('standard configuration naturally builds an early horde in the browser', as
   expect(result?.enemies ?? 0).toBeGreaterThan(0);
   expect(naturalBossMetrics).not.toBeNull();
   expect(result?.endless).toBe(true);
-  expect(result?.status).toBe('playing');
   expect(result?.bossesDefeated).toBeGreaterThan(0);
+  expect(postBossContinuation).not.toBeNull();
+  expect(result?.elapsed ?? 0).toBeGreaterThan((postBossContinuation?.elapsed ?? 0) + 1);
+  expect(result?.status).not.toBe('victory');
   expect(result?.factionsEncountered).toContain('dr-smile');
   expect(result?.kinds).toEqual(expect.arrayContaining(['smiler', 'molar']));
   expect(result?.elapsed).toBeGreaterThan(150);
   expect(capturedSurge).toBe(true);
-  await page.screenshot({ path: `${evidence}/13-endless-continues-after-boss.png` });
+  await page.screenshot({ path: `${evidence}/14-endless-run-result.png` });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
   if (!capturedHorde) await page.screenshot({ path: `${evidence}/09-standard-natural-horde.png` });
   expect(errors).toEqual([]);
