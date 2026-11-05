@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence/heroic-makeover/city';
+const evidence = 'artifacts/evidence/living-city/run/city';
 
 test('shared city geometry supports street travel, wall slides, dashes and enemy routing', async ({ page }) => {
   test.setTimeout(90_000);
@@ -19,6 +19,13 @@ test('shared city geometry supports street travel, wall slides, dashes and enemy
   });
   await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(600, 600));
   await page.screenshot({ path: `${evidence}/city-intersection.png` });
+
+  await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(500, 220));
+  await page.screenshot({ path: `${evidence}/brick-commercial-block.png` });
+  await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(700, 220));
+  await page.screenshot({ path: `${evidence}/modern-glass-block.png` });
+  await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(1435, 220));
+  await page.screenshot({ path: `${evidence}/industrial-block.png` });
 
   await page.keyboard.press('F4');
   await page.screenshot({ path: `${evidence}/collision-overlay.png` });

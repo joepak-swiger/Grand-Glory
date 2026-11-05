@@ -168,3 +168,10 @@ button { font: inherit; color: inherit; pointer-events: auto; cursor: pointer; b
   .upgrade-card { min-height: 124px; }
   .upgrade-icon { float: left; margin: 9px 13px 5px 4px; }
 }
+
+.boss-arrival { position: absolute; z-index: 4; top: 23%; left: 50%; transform: translate(-50%, -50%); min-width: min(340px, 80vw); padding: 9px 22px 8px; border: 2px solid #e9b65e; background: linear-gradient(110deg, #111c2af2, #3b1e37f2, #111c2af2); box-shadow: 0 0 0 4px #111c2a88, 0 9px 32px #05080dbb; color: #fff1d6; text-align: center; animation: boss-arrival-in .28s ease-out both; }
+.boss-arrival span, .boss-arrival small { display: block; color: #f2bd69; font-size: 9px; font-weight: 900; letter-spacing: 2.2px; }
+.boss-arrival strong { display: block; margin: 2px 0; font-family: Impact, "Arial Narrow", sans-serif; font-size: clamp(24px, 5vw, 36px); letter-spacing: 1.4px; text-shadow: 2px 3px #111; }
+.boss-arrival small { color: #bed3de; letter-spacing: 1.5px; }
+@keyframes boss-arrival-in { from { opacity: 0; transform: translate(-50%, -43%) scale(.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.reduced-motion .boss-arrival { animation: none; }

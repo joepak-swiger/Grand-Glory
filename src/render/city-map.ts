@@ -129,34 +129,41 @@ function drawBuilding(context: CanvasRenderingContext2D, building: StageBuilding
   const material = MATERIALS[building.style];
   const x = building.x * cellSize; const y = building.y * cellSize;
   const width = building.width * cellSize; const height = building.height * cellSize;
-  // Cast shadow and lower facade establish height; the real collision footprint remains the authored rectangle.
-  context.fillStyle = material.shadow; context.fillRect(x + 7, y + 9, Math.max(1, width - 2), Math.max(1, height - 2));
-  context.fillStyle = '#17232c'; context.fillRect(x, y, width, height);
-  context.fillStyle = material.wall; context.fillRect(x + 3, y + 3, width - 6, height - 6);
-  context.fillStyle = material.roofDark; context.fillRect(x + 5, y + height - 13, width - 10, 7);
-  context.fillStyle = material.roofLight; context.fillRect(x + 6, y + height - 14, width - 12, 2);
-  context.fillStyle = material.trim; context.fillRect(x + 5, y + 5, width - 10, 4); context.fillRect(x + 5, y + height - 9, width - 10, 4);
-  context.fillRect(x + 5, y + 5, 4, height - 10); context.fillRect(x + width - 9, y + 5, 4, height - 10);
-  context.fillStyle = material.roof; context.fillRect(x + 10, y + 10, width - 20, height - 20);
-  context.fillStyle = material.roofLight;
-  context.fillRect(x + 14, y + 14, width - 28, 3);
-  context.fillStyle = material.roofDark;
-  // Consistent parapet inner edge and corner caps make the roof read as one architectural object.
-  context.fillRect(x + 10, y + 10, width - 20, 2); context.fillRect(x + 10, y + 10, 2, height - 20);
-  context.fillRect(x + width - 12, y + 10, 2, height - 20);
+  // A consistent upper-left light source and lower/right extrusion communicate height.
+  // Shadow is cosmetic only; the collision footprint remains the authored building rectangle.
+  context.fillStyle = 'rgba(9, 16, 24, 0.5)'; context.fillRect(x + 9, y + 11, width - 1, height - 1);
+  context.fillStyle = material.shadow; context.fillRect(x + 5, y + 7, width - 5, height - 7);
+  context.fillStyle = material.wall; context.fillRect(x + 2, y + 3, width - 7, height - 9);
+  // The south and east faces sit below the roofline, with a hard pixel edge rather than blur.
+  context.fillStyle = material.roofDark; context.fillRect(x + 3, y + height - 15, width - 8, 7);
+  context.fillStyle = material.trim; context.fillRect(x + 3, y + 3, width - 8, 3); context.fillRect(x + width - 7, y + 5, 3, height - 13);
+  context.fillStyle = '#17232c'; context.fillRect(x, y, width - 7, height - 14);
+  context.fillStyle = material.roofDark; context.fillRect(x + 3, y + 3, width - 13, height - 20);
+  context.fillStyle = material.roof; context.fillRect(x + 6, y + 6, width - 19, height - 27);
+  // Parapet is one continuous frame with bright north/west and shaded south/east edges.
+  context.fillStyle = material.roofLight; context.fillRect(x + 4, y + 3, width - 15, 3); context.fillRect(x + 4, y + 3, 3, height - 20);
+  context.fillStyle = material.roofDark; context.fillRect(x + 6, y + height - 21, width - 19, 2); context.fillRect(x + width - 16, y + 6, 2, height - 27);
   if (building.style === 'brick') {
-    for (let row = 0; row < Math.floor((height - 28) / 14); row++) {
-      const py = y + 24 + row * 14;
-      context.fillRect(x + 14, py, width - 28, 1);
-      const offset = row % 2 ? 22 : 8;
-      for (let px = x + offset; px < x + width - 16; px += 38) context.fillRect(px, py - 7, 1, 7);
+    // Short, staggered brick courses are restricted to the exposed south facade band.
+    context.fillStyle = '#704440'; context.fillRect(x + 5, y + height - 18, width - 13, 4);
+    for (let row = 0; row < 2; row++) {
+      const py = y + height - 17 + row * 5;
+      context.fillStyle = row ? '#9a5c50' : '#bd715e'; context.fillRect(x + 7, py, width - 17, 1);
+      for (let px = x + (row ? 17 : 29); px < x + width - 14; px += 26) context.fillRect(px, py - 2, 1, 2);
     }
+    // Two paired storefront windows, aligned on the same street-facing wall.
+    context.fillStyle = '#293b49'; context.fillRect(x + width * 0.2, y + height - 14, width * 0.16, 8); context.fillRect(x + width * 0.64, y + height - 14, width * 0.16, 8);
+    context.fillStyle = '#94c4c5'; context.fillRect(x + width * 0.2 + 2, y + height - 12, width * 0.16 - 4, 4); context.fillRect(x + width * 0.64 + 2, y + height - 12, width * 0.16 - 4, 4);
+    context.fillStyle = material.roofDark; context.fillRect(x + width / 2 - 7, y + height - 15, 14, 9);
     context.fillStyle = material.accent;
-    context.fillRect(x + width * 0.44, y + height - 12, width * 0.12, 8);
-    context.fillStyle = '#f0d8a3'; context.fillRect(x + width * 0.46, y + height - 10, width * 0.08, 3);
+    context.fillRect(x + width / 2 - 4, y + height - 13, 8, 6);
+    context.fillStyle = '#f0d8a3'; context.fillRect(x + width / 2 - 2, y + height - 12, 4, 3);
+    drawRoofUnit(context, x + width * 0.28, y + height * 0.31, 36, 25, material);
+    drawRoofUnit(context, x + width * 0.62, y + height * 0.56, 30, 21, material);
   } else if (building.style === 'glass') {
-    const innerX = x + 18; const innerY = y + 22; const innerWidth = width - 36; const innerHeight = height - 44;
+    const innerX = x + 14; const innerY = y + 14; const innerWidth = width - 29; const innerHeight = height - 37;
     context.fillStyle = '#263e50'; context.fillRect(innerX, innerY, innerWidth, innerHeight);
+    context.fillStyle = '#7eaeb5'; context.fillRect(innerX + 2, innerY + 2, innerWidth - 4, 2);
     const columns = Math.max(2, Math.floor(innerWidth / 54)); const rows = Math.max(2, Math.floor(innerHeight / 42));
     for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
       const panelWidth = (innerWidth - (columns + 1) * 5) / columns;
@@ -168,13 +175,15 @@ function drawBuilding(context: CanvasRenderingContext2D, building: StageBuilding
     // Street-facing glass entry, aligned to the lower facade rather than scattered over the roof.
     context.fillStyle = '#203744'; context.fillRect(x + width / 2 - 10, y + height - 13, 20, 8);
     context.fillStyle = '#86c8d0'; context.fillRect(x + width / 2 - 7, y + height - 11, 6, 5); context.fillRect(x + width / 2 + 1, y + height - 11, 6, 5);
+    drawRoofUnit(context, x + width * 0.23, y + height * 0.22, 40, 28, material);
+    drawRoofUnit(context, x + width * 0.61, y + height * 0.55, 34, 25, material);
   } else {
-    // A restrained industrial roof with repeated parallel seams and a few aligned service units.
-    for (let py = y + 23; py < y + height - 12; py += 18) {
+    // Industrial roofing uses broad, aligned seams and service equipment in two tidy rows.
+    for (let py = y + 13; py < y + height - 20; py += 17) {
       context.fillStyle = material.roofDark; context.fillRect(x + 14, py, width - 28, 2);
       context.fillStyle = material.roofLight; context.fillRect(x + 14, py + 3, width - 28, 1);
     }
-    const units: ReadonlyArray<readonly [number, number]> = [[0.22, 0.28], [0.55, 0.28], [0.22, 0.62], [0.55, 0.62]];
+    const units: ReadonlyArray<readonly [number, number]> = [[0.2, 0.26], [0.58, 0.26], [0.2, 0.57], [0.58, 0.57]];
     for (const [unitX, unitY] of units) {
       const unitW = Math.min(34, width * 0.22); const unitH = Math.min(22, height * 0.19);
       const ux = x + width * unitX; const uy = y + height * unitY;
@@ -183,14 +192,19 @@ function drawBuilding(context: CanvasRenderingContext2D, building: StageBuilding
       context.fillStyle = material.accent; context.fillRect(ux + 3, uy + unitH - 5, unitW - 6, 2);
     }
   }
-  if (building.style !== 'glass') {
-    // A single centered service entrance reads as a wall feature and keeps roof details coherent.
-    context.fillStyle = material.roofDark; context.fillRect(x + width / 2 - 8, y + height - 13, 16, 8);
-    context.fillStyle = material.accent; context.fillRect(x + width / 2 - 5, y + height - 11, 10, 5);
-  }
-  // Raised roof access box; no open door or traversable roof is implied.
-  context.fillStyle = material.roofDark; context.fillRect(x + width / 2 - 12, y + 11, 24, 14);
-  context.fillStyle = material.roofLight; context.fillRect(x + width / 2 - 8, y + 13, 16, 2);
+  // Rooftop hatch and low parapet shadows complete the raised-roof read.
+  context.fillStyle = material.roofDark; context.fillRect(x + width * 0.44, y + 9, 25, 17);
+  context.fillStyle = material.roofLight; context.fillRect(x + width * 0.44 + 3, y + 11, 19, 2);
+  context.fillStyle = material.accent; context.fillRect(x + width * 0.44 + 4, y + 14, 2, 8);
+}
+
+function drawRoofUnit(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, material: typeof MATERIALS.brick): void {
+  const unitWidth = Math.min(width, 42); const unitHeight = Math.min(height, 28);
+  context.fillStyle = '#1d2931'; context.fillRect(x + 2, y + 3, unitWidth, unitHeight);
+  context.fillStyle = material.wall; context.fillRect(x, y, unitWidth, unitHeight);
+  context.fillStyle = material.roofLight; context.fillRect(x + 2, y + 2, unitWidth - 4, 3);
+  context.fillStyle = material.roofDark; context.fillRect(x + 4, y + 7, unitWidth - 8, 2);
+  context.fillStyle = material.accent; context.fillRect(x + 5, y + unitHeight - 5, unitWidth - 10, 2);
 }
 
 function drawStreetDetails(context: CanvasRenderingContext2D, map: CityStage): void {
@@ -229,5 +243,26 @@ function drawStreetDetails(context: CanvasRenderingContext2D, map: CityStage): v
     context.fillStyle = '#ba4b45'; context.fillRect(x + 5, y + 4, 5, 10);
     context.fillStyle = '#df7160'; context.fillRect(x + 4, y + 6, 7, 3); context.fillRect(x + 6, y + 2, 3, 3);
     context.fillStyle = '#8d3939'; context.fillRect(x + 4, y + 13, 7, 2);
+  }
+
+  // Five authored curbside pieces establish neighborhood scale; all remain visual-only.
+  const props: ReadonlyArray<readonly [number, number, 'planter' | 'bin']> = [
+    [9, 12, 'planter'], [29, 12, 'bin'], [45, 12, 'planter'], [21, 33, 'bin'], [45, 35, 'planter'],
+  ];
+  for (const [cx, cy, kind] of props) {
+    if (getTerrain(map, cx, cy) !== 'sidewalk') continue;
+    const x = cx * cell + 5; const y = cy * cell + 8;
+    if (kind === 'planter') {
+      context.fillStyle = '#25343b'; context.fillRect(x, y + 15, 25, 4);
+      context.fillStyle = '#7a6252'; context.fillRect(x + 1, y + 7, 22, 9);
+      context.fillStyle = '#b18a5d'; context.fillRect(x + 1, y + 7, 22, 2);
+      context.fillStyle = '#476d58'; context.fillRect(x + 4, y + 3, 16, 7);
+      context.fillStyle = '#6f9a6d'; context.fillRect(x + 8, y + 1, 8, 5);
+    } else {
+      context.fillStyle = '#26323a'; context.fillRect(x + 3, y + 5, 18, 17);
+      context.fillStyle = '#54636a'; context.fillRect(x + 2, y + 3, 20, 4);
+      context.fillStyle = '#819094'; context.fillRect(x + 5, y + 9, 14, 2);
+      context.fillStyle = '#17232c'; context.fillRect(x + 6, y + 18, 3, 3); context.fillRect(x + 16, y + 18, 3, 3);
+    }
   }
 }

@@ -143,3 +143,23 @@ The final local crowd sweep used HeadlessChrome 156 on Windows, 1365×900, WebGL
 This synthetic scenario pauses simulation, so its reported simulation update cost and dropped-update count are not representative of a running horde. Frame samples are quantized by SwiftShader and show software-rendered browser limits; do not infer the owner's Windows GPU performance. The CPU-side view update stays below 1ms p95 in this sample. On the actual accelerated natural run, sampled headless FPS varied from 12 to 60, reaching 12 FPS / 83.3ms at 150.9 simulated seconds with 127 active enemies and the boss. This is not a normal wall-clock responsiveness measurement. No desktop-GPU performance session was available.
 
 The standard-config browser run retained the horde target curve and used normal enemy health, XP, player HP, and boss parameters. It recorded 27/12 active/visible at 15s (target 28), 41/22 at 30s (41), 60/24 at 60s (66), 71/29 at 90s (84), 85/22 at 120s (105), and 127/73 at 150s including the boss (ordinary target 87). It spawned 963 enemies, defeated 881, peaked at 128 active, and won at 161.57 simulated seconds at level 22; the Gang Leader lived about 10.6 simulated seconds after arrival. The visible-count dip despite near-target active counts shows offscreen population remains a tuning concern. This was an accelerated automated browser driver, not human playtesting or a wall-clock run.
+
+## Assignment 008 — art-pass performance check
+
+The new work adds cached artwork at renderer initialization, bounded per-visible-enemy impact marks, dashed telegraph strokes, a small idle bob, and pickup glints. It does not change simulation, horde, collision, or difficulty rules. The redundant unconditional character sort at the end of every render was removed; depth sorting still runs when a sprite is created or its depth bucket changes.
+
+The same Windows x64 Node 24.22.1 seeded mixed-crowd benchmark was run with 120 warm-up updates and 900 measured updates. Entries are median / p95 / worst milliseconds per fixed simulation update. The previous recorded Assignment 007 run used the same sample counts and benchmark fixture.
+
+| Enemies | Assignment 007 baseline | Assignment 008 current |
+|---:|---:|---:|
+| 25 | 0.0355 / 0.1289 / 0.5172 ms | 0.0296 / 0.1093 / 0.3298 ms |
+| 50 | 0.0648 / 0.1493 / 0.7158 ms | 0.0593 / 0.1326 / 0.5114 ms |
+| 100 | 0.1510 / 0.2712 / 0.6903 ms | 0.1377 / 0.2432 / 0.5075 ms |
+| 150 | 0.2510 / 0.4292 / 1.0812 ms | 0.2254 / 0.3470 / 0.5488 ms |
+| 200 | 0.3778 / 0.6063 / 0.9359 ms | 0.3252 / 0.5223 / 1.0182 ms |
+
+No simulation algorithm changed, so the lower medians should be treated as sample/runtime variation rather than a milestone optimization claim. The 200-enemy worst sample remains around 1 ms, well below the 16.7 ms fixed-step budget on this Node host.
+
+The final Playwright crowd sweep used HeadlessChrome 156, Windows x64, 1365×900, WebGL via ANGLE/Vulkan SwiftShader, and 16 reported hardware threads. All entities and projectiles were visible in a paused synthetic scene. At 25/50/100/150/200 enemies, whole-frame average was 22.69/22.66/23.69/25.14/27.22 ms; frame p95 was 33.4 ms at each count; worst was 99.94/99.94/99.94/99.94/50.1 ms. Sampled FPS was 60/30/30/30/30. Renderer update current/p95/worst was 0.3/0.6/2.1, 0.2/0.5/2.1, 0.3/0.6/2.1, 0.5/0.6/2.1, and 0.6/0.7/2.0 ms respectively. JS heap was 22.03 MiB; browser-reported heap does not include GPU memory. Simulation and dropped updates are zero in this paused synthetic test and are not running-game measurements.
+
+The previous SwiftShader sweep in Assignment 007 measured average frame times 27.78/26.19/27.32/28.81/30.22 ms and renderer p95 0.6/0.6/0.6/0.6/0.7 ms. This is a similar software-rendered environment, but not a controlled same-process A/B comparison; the lower whole-frame averages here do not establish desktop GPU performance. The accelerated standard browser run during this pass sampled 60 FPS at 15/30 seconds, then 30/60 at several later checkpoints, and reached 127 active/73 visible (including boss) at 150.9 simulated seconds. It won at 161.57 seconds, level 22, with 881 kills. It is automated fast-forwarded gameplay, not a normal wall-clock run or owner human playtest. No desktop GPU session was available.

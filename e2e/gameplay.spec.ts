@@ -1,16 +1,25 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const evidence = 'artifacts/evidence/heroic-makeover/gameplay';
+const evidence = 'artifacts/evidence/living-city/run/gameplay';
 test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
   const failedAssets: string[] = [];
+  await page.addInitScript(() => {
+    localStorage.removeItem('grand-glory-sfx-volume');
+    const NativeAudioContext = window.AudioContext;
+    Object.defineProperty(window, '__GG_AUDIO_CREATED__', { value: false, writable: true });
+    window.AudioContext = class extends NativeAudioContext {
+      constructor() { super(); (window as Window & { __GG_AUDIO_CREATED__?: boolean }).__GG_AUDIO_CREATED__ = true; }
+    };
+  });
   page.on('pageerror', error => errors.push(error.message));
   page.on('requestfailed', request => { if (request.url().includes('/assets/')) failedAssets.push(request.url()); });
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
+  await expect(page.getByLabel('Sound effects volume')).toHaveValue('0.55');
   await page.getByLabel('Difficulty').selectOption('heroic');
   await page.getByLabel('Difficulty').selectOption('normal');
   await page.getByLabel('Camera scale').selectOption('close');
@@ -31,6 +40,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 900 });
 
   await page.getByRole('button', { name: /PLAY NOW/i }).click();
+  expect(await page.evaluate(() => (window as Window & { __GG_AUDIO_CREATED__?: boolean }).__GG_AUDIO_CREATED__)).toBe(true);
   expect(await page.evaluate(() => window.__GG_TEST__?.getRendererState().cameraZoom)).toBe(1.2);
   await expect(page.getByText('BLUE PINWHEEL')).toBeVisible();
   await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); if (state) window.__GG_TEST__?.spawn('fastThug', state.player.x + 36, state.player.y); });
@@ -93,6 +103,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.getByRole('button', { name: 'Resume' }).click();
   await page.evaluate(() => window.__GG_TEST__?.startBoss());
   await expect(page.getByText('GANG LEADER · PROTOTYPE')).toBeVisible();
+  await expect(page.getByText('MAJOR THREAT')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => enemy.kind === 'boss' && enemy.hasSprite) ?? false)).toBe(true);
   const bossFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1);
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1)).not.toBe(bossFrame);
