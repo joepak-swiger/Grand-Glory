@@ -185,7 +185,7 @@ test('standard configuration naturally builds an early horde in the browser', as
         const hpRatio = state ? state.player.health / state.player.maxHealth : 1;
         const speedRank = state?.player.passiveRanks.speed ?? 0;
         const priority = hpRatio < 0.82
-          ? ['piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'vitality', 'recovery', 'speed', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
+          ? ['vitality', 'recovery', 'armorPlating', 'speed', 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
           : speedRank < 1
             ? ['speed', 'piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'vitality', 'recovery', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
             : ['piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'speed', 'vitality', 'recovery', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery'];
