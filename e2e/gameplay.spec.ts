@@ -188,11 +188,12 @@ test('standard configuration naturally builds an early horde in the browser', as
           ? (['vitality', 'recovery', 'armorPlating'] as const).filter(id => state.player.passiveRanks[id] === 0)
           : [];
         const priority = hpRatio < 0.82
-          ? [...defensiveChoices, 'speed', 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
+          ? [...defensiveChoices, 'speed', 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery', 'vitality', 'recovery', 'armorPlating']
           : speedRank < 1
             ? ['speed', 'piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'vitality', 'recovery', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
             : ['piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'speed', 'vitality', 'recovery', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery'];
-        return [...choices].sort((a, b) => priority.indexOf(a) - priority.indexOf(b))[0];
+        const rank = (id: string) => { const index = priority.indexOf(id); return index < 0 ? priority.length : index; };
+        return [...choices].sort((a, b) => rank(a) - rank(b))[0];
       });
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
     }
