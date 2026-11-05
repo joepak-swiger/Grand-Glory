@@ -671,6 +671,16 @@ describe('deterministic gameplay simulation', () => {
     expect(s.options.some(id => ['damage', 'tempo', 'extra', 'speed', 'vitality', 'recovery'].includes(id))).toBe(true);
   });
 
+  it('offers a recovery passive when a level-up happens at critical health', () => {
+    const s = createGame(22191, testRun); s.player.health = 40; s.player.xp = s.player.xpNext;
+    steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('vitality');
+    expect(chooseUpgrade(s, 'vitality')).toBe(true);
+    expect(s.player.maxHealth).toBe(185);
+    expect(s.player.health).toBe(65);
+  });
+
   it('registers only the selected hero’s eligible boss-cache evolutions', () => {
     const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
     const blue = createGame(2219, cfg);

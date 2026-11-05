@@ -327,7 +327,10 @@ function populateOptions(state: SimState): void {
     const group = groupedIds.filter(id => pool.some(upgrade => upgrade.id === id));
     if (state.options.length >= 3 || !group.length) continue;
     const freshWeapon = group.find(id => (id === 'orbit' && p.weaponRanks.orbitGuard === 0) || (id === 'piercingThrow' && p.weaponRanks.piercingThrow === 0) || (id === 'ricochetRing' && p.weaponRanks.ricochetRing === 0) || (id === 'boulderToss' && p.weaponRanks.boulderToss === 0) || (id === 'groundSlam' && p.weaponRanks.groundSlam === 0) || (id === 'spearToss' && p.weaponRanks.spearToss === 0) || (id === 'spearSweep' && p.weaponRanks.spearSweep === 0));
-    const corePassive = group.find(id => ['vitality', 'recovery', 'speed', 'magnet'].includes(id));
+    const passivePriority: PassiveId[] = p.health / p.maxHealth < 0.65
+      ? ['vitality', 'recovery', 'armorPlating', 'speed', 'magnet', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'damage', 'tempo', 'extra']
+      : ['speed', 'magnet', 'vitality', 'recovery', 'wideImpact', 'velocityCore', 'extendedCharge', 'armorPlating', 'experienceTraining', 'damage', 'tempo', 'extra'];
+    const corePassive = passivePriority.find(id => group.includes(id));
     const picked = freshWeapon ?? corePassive ?? group[Math.floor(random(state) * group.length)];
     if (picked) { state.options.push(picked); const removeIndex = pool.findIndex(upgrade => upgrade.id === picked); if (removeIndex >= 0) pool.splice(removeIndex, 1); }
   }

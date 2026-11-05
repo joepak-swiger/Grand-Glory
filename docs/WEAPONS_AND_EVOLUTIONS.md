@@ -23,6 +23,8 @@ Rapid Rhythm affects subsequent cooldowns for all these player attacks. Velocity
 
 There are twelve passive identities, with no more than six distinct passive slots owned at once. Existing passives can still gain ranks after all six slots are occupied.
 
+The passive slot in an upgrade selection adapts to current health: critically injured heroes are offered Vitality, Recovery, or Armor before utility passives; healthier heroes see mobility/pickup utility first. It remains one of the three choices, not a forced pick.
+
 | Passive | Per-rank effect | Limit |
 |---|---|---|
 | Might Training | +30% total player attack damage | 5 ranks |
