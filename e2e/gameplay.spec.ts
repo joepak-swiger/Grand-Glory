@@ -180,7 +180,7 @@ test('standard configuration naturally builds an early horde in the browser', as
       if (!state) return { x: 0, y: 0 };
       const player = state.player;
       const healthRatio = player.health / player.maxHealth;
-      if (healthRatio < 0.65) {
+      if (state.elapsed >= 145 && healthRatio < 0.55) {
         let closestThreat = null as { x: number; y: number; distance: number } | null;
         for (const enemy of state.enemies) {
           if (enemy.dead) continue;
@@ -196,7 +196,7 @@ test('standard configuration naturally builds an early horde in the browser', as
         const distance = Math.hypot(pickup.x - player.x, pickup.y - player.y);
         if (!nearest || distance < nearest.distance) nearest = { x: pickup.x, y: pickup.y, distance };
       }
-      if (healthRatio > 0.7 && nearest && nearest.distance > 24 && nearest.distance < 420) {
+      if (nearest && nearest.distance > 24 && nearest.distance < 420) {
         return { x: (nearest.x - player.x) / nearest.distance, y: (nearest.y - player.y) / nearest.distance };
       }
       const angle = state.elapsed * 0.5;

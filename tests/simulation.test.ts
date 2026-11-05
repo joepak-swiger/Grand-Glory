@@ -683,6 +683,12 @@ describe('deterministic gameplay simulation', () => {
     steps(s, 1);
     expect(s.status).toBe('upgrade');
     expect(s.options).toContain('recovery');
+    expect(chooseUpgrade(s, 'recovery')).toBe(true);
+    s.player.passiveRanks.armorPlating = 1;
+    s.player.health = 30; s.player.xp = s.player.xpNext;
+    steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('recovery');
   });
 
   it('registers only the selected hero’s eligible boss-cache evolutions', () => {
