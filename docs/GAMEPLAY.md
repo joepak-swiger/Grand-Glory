@@ -16,7 +16,7 @@ Buildings are solid rectangular footprints. Players, enemies, and dashes stop at
 
 Blue Pinwheel and both thug sprite strips use supplied right-facing source art. While the player or an enemy deliberately moves left/right, its sprite turns horizontally to match. Vertical movement and idle retain the last horizontal facing (right at run start). Knockback never determines enemy facing. Boss facing follows pursuit or its locked attack aim. This uses mirroring only; no authentic front/back animation frames are currently available.
 
-The Gang Leader has no supplied character art. It now uses a small original two-frame pixel silhouette as a temporary prototype, not an owner character design; it enters from a safe visible horizontal position and its facing follows pursuit and locked attack aim. Gangsters and Bruisers also use temporary generated two-frame silhouettes. Supplied right-facing thug sprites and the hero's right-facing profile mirror only the individual character sprite when facing left.
+The Gang Leader has no supplied character art. It uses a larger original four-pose pixel silhouette as a temporary prototype, not an owner character design; it enters from a safe visible horizontal position and its facing follows pursuit and locked attack aim. Gangsters and Bruisers also use temporary generated four-pose silhouettes, with a raised ranged weapon, a broad armored frame, and boss coat/sash silhouette to distinguish their roles. Supplied right-facing thug sprites and the hero's right-facing profile mirror only the individual character sprite when facing left.
 
 ## Run and prototype balance
 
@@ -34,4 +34,6 @@ The Gang Leader alternates an aimed projectile, a wind-up charge, and recovery. 
 
 ## Camera and sound
 
-Choose Wide (0.94×), Standard (1.08×, default), or Close (1.2×) on the title screen. This scales only the world layer; screen-space UI and all collision radii remain unchanged. The camera setting is saved locally. Synthesized sound effects begin after the first user interaction; mute and SFX volume persist locally. Cues cover menus, attacks, hits, defeats, pickups, dash, special, boss arrival, and run outcomes, with repeated hit/pickup/defeat sounds throttled. Reduced Motion suppresses rapid hit flashing, most special-ring movement, and UI transitions.
+Choose Wide (0.94×), Standard (1.08×, default), or Close (1.2×) on the title screen. This scales only the world layer; screen-space UI and all collision radii remain unchanged. The camera setting is saved locally. Synthesized sound effects begin after the first user interaction; mute and SFX volume persist locally. First launch defaults to 55% volume; a saved zero remains silent. Cues cover menus, attacks, hits, defeats, pickups, dash, special, boss arrival, and run outcomes, with repeated hit/pickup/defeat sounds throttled. Reduced Motion suppresses rapid hit flashing, most special-ring movement, and UI transitions.
+
+Pinwheel projectile size and color strengthen modestly with rank and evolution; Piercing Throw keeps a separate gold arrow profile. Aim warnings are dashed and boss arrival receives a brief title cue without freezing the run. These are presentation changes only; damage values and difficulty are unchanged in this milestone.

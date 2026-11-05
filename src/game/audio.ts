@@ -1,32 +1,51 @@
 export type SoundCue = 'menu' | 'upgrade' | 'attack' | 'hit' | 'defeat' | 'pickup' | 'dash' | 'special' | 'boss' | 'victory' | 'loss';
 const STORAGE_KEY = 'grand-glory-sound-enabled';
+const VOLUME_KEY = 'grand-glory-sfx-volume';
+export interface AudioPreferenceStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+function browserStorage(): AudioPreferenceStorage | undefined {
+  try { return globalThis.localStorage; } catch { return undefined; }
+}
 
 /** Small synthesized SFX layer. AudioContext is created only after an explicit user gesture. */
 export class GameAudio {
   private context?: AudioContext;
-  private enabled = this.readEnabled();
-  private volume = this.readVolume();
+  private enabled: boolean;
+  private volume: number;
   private lastCueAt = new Map<SoundCue, number>();
+
+  constructor(private readonly storage: AudioPreferenceStorage | undefined = browserStorage()) {
+    this.enabled = this.readEnabled();
+    this.volume = this.readVolume();
+  }
 
   isEnabled(): boolean { return this.enabled; }
   getVolume(): number { return this.volume; }
 
   private readEnabled(): boolean {
-    try { return localStorage.getItem(STORAGE_KEY) !== 'false'; } catch { return true; }
+    try { return this.storage?.getItem(STORAGE_KEY) !== 'false'; } catch { return true; }
   }
 
   private readVolume(): number {
-    try { const value = Number(localStorage.getItem('grand-glory-sfx-volume')); return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.55; } catch { return 0.55; }
+    try {
+      const stored = this.storage?.getItem(VOLUME_KEY);
+      if (stored === null || stored === undefined || stored.trim() === '') return 0.55;
+      const value = Number(stored);
+      return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.55;
+    } catch { return 0.55; }
   }
 
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
-    try { localStorage.setItem('grand-glory-sfx-volume', String(this.volume)); } catch { /* Optional preference. */ }
+    try { this.storage?.setItem(VOLUME_KEY, String(this.volume)); } catch { /* Optional preference. */ }
   }
 
   toggle(): boolean {
     this.enabled = !this.enabled;
-    try { localStorage.setItem(STORAGE_KEY, String(this.enabled)); } catch { /* Optional preference. */ }
+    try { this.storage?.setItem(STORAGE_KEY, String(this.enabled)); } catch { /* Optional preference. */ }
     return this.enabled;
   }
 

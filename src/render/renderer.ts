@@ -1,6 +1,6 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { Enemy, SimState, Vec } from '../game/simulation';
-import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, type AnimationClipDefinition, type EnemyKind, type RunConfig } from '../game/definitions';
+import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, type AnimationClipDefinition, type EnemyAnimationState, type EnemyKind, type RunConfig } from '../game/definitions';
 import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-map';
 import { getTerrain } from '../game/stage';
 
@@ -10,6 +10,15 @@ const CAMERA_ZOOM: Record<CameraPreset, number> = { wide: 0.94, standard: 1.08, 
 const COLORS = { ink: 0x101923, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
 const DAMAGE_STYLE = new TextStyle({ fontFamily: 'Arial, sans-serif', fontSize: 13, fill: '#fff2c6', fontWeight: '700' });
 interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number }
+
+function drawDashedRay(graphics: Graphics, x1: number, y1: number, x2: number, y2: number, dashLength: number, gap: number, width: number, color: number, alpha: number): void {
+  const dx = x2 - x1; const dy = y2 - y1; const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length; const uy = dy / length;
+  for (let start = 0; start < length; start += dashLength + gap) {
+    const end = Math.min(length, start + dashLength);
+    graphics.moveTo(x1 + ux * start, y1 + uy * start).lineTo(x1 + ux * end, y1 + uy * end).stroke({ color, width, alpha });
+  }
+}
 
 export class GameRenderer {
   readonly app = new Application();
@@ -123,28 +132,34 @@ export class GameRenderer {
   }
 
   private createPrototypeEnemyTexture(kind: 'gangster' | 'bruiser' | 'boss', frame: number): Texture {
-    const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 40;
+    const canvas = document.createElement('canvas'); canvas.width = 48; canvas.height = 56;
     const context = canvas.getContext('2d'); if (!context) throw new Error('Prototype enemy art canvas is unavailable.');
     const px = (x: number, y: number, w: number, h: number, color: string): void => { context.fillStyle = color; context.fillRect(x, y, w, h); };
-    const outline = '#171d27'; const skin = '#ddb28e';
-    const wide = kind !== 'gangster';
-    // Compact authored pixel silhouettes, generated once and reused. All are explicitly temporary enemy art.
-    const bodyLeft = wide ? 5 : 8; const bodyWidth = wide ? 22 : 16; const torso = kind === 'boss' ? '#813e79' : kind === 'bruiser' ? '#72505c' : '#354357';
-    px(bodyLeft + 3, 3, bodyWidth - 6, 9, outline); px(bodyLeft + 5, 4, bodyWidth - 10, 7, skin); px(bodyLeft + 5, 4, bodyWidth - 10, 2, kind === 'gangster' ? '#282a32' : '#2f2630');
-    px(bodyLeft + 4, 10, bodyWidth - 7, 2, outline); px(bodyLeft + 2, 12, bodyWidth - 4, 15, outline); px(bodyLeft + 3, 13, bodyWidth - 6, 13, torso);
-    px(bodyLeft, 14, 4, 11, outline); px(bodyLeft + 1, 15, 3, 9, kind === 'boss' ? '#b1764e' : torso);
-    px(bodyLeft + bodyWidth - 4, 14, 4, 11, outline); px(bodyLeft + bodyWidth - 3, 15, 3, 9, kind === 'gangster' ? '#6e4a38' : torso);
-    const step = frame ? 2 : 0; px(11, 26, 5, 8 + step, outline); px(19, 26, 5, 8 + (2 - step), outline);
-    px(12, 27, 3, 6 + step, kind === 'boss' ? '#3c2c48' : '#303641'); px(20, 27, 3, 8 - step, kind === 'boss' ? '#3c2c48' : '#303641');
-    px(9, 34 + step, 8, 4, outline); px(18, 34 + (2 - step), 8, 4, outline); px(10, 34 + step, 6, 2, '#d5d7d4'); px(19, 34 + (2 - step), 6, 2, '#d5d7d4');
+    const outline = '#171d27'; const skin = '#ddb28e'; const step = [0, 2, 0, -2][frame % 4] ?? 0;
+    // Cached, original prototype sprites. Silhouettes, equipment and palette identify the role at a glance.
     if (kind === 'gangster') {
-      px(8, 8, 16, 3, '#242833'); px(13, 14, 3, 10, '#d4bd79'); px(24, 17, 5, 2, outline); px(27, 16, 3, 4, '#b4bbc3');
+      px(12, 4, 23, 16, outline); px(15, 6, 17, 11, '#d6ad87'); px(15, 6, 18, 5, '#272c37');
+      px(11, 13, 27, 3, '#222a35'); px(17, 18, 20, 20, outline); px(19, 20, 16, 17, '#344653');
+      px(20, 22, 4, 8, '#536b72'); px(29, 20, 6, 5, '#b9c5c0'); px(34, 19, 9, 3, outline); px(41, 18, 3, 4, '#d1d4ca');
+      px(13, 20, 6, 13, outline); px(14, 22, 4, 9, '#344653'); px(20, 36 + Math.max(0, -step), 7, 13 + step, outline); px(31, 36 + Math.max(0, step), 7, 13 - step, outline);
+      px(18, 49 + step, 11, 4, outline); px(30, 49 - step, 11, 4, outline); px(20, 50 + step, 8, 2, '#c7d0cc'); px(32, 50 - step, 8, 2, '#c7d0cc');
+      px(27, 12, 3, 2, '#e2c36c'); px(13, 7, 17, 2, '#68747b');
     } else if (kind === 'bruiser') {
-      px(4, 13, 5, 5, '#a75b55'); px(23, 13, 5, 5, '#a75b55'); px(8, 19, 16, 3, '#c4a776'); px(13, 15, 6, 6, '#986e78');
+      px(10, 5, 29, 16, outline); px(15, 7, 19, 11, skin); px(15, 7, 20, 5, '#332b31');
+      px(6, 17, 38, 7, outline); px(9, 19, 32, 4, '#9b6c72'); px(10, 22, 28, 18, outline); px(13, 24, 22, 14, '#66545d');
+      px(6, 20, 9, 17, '#493d47'); px(35, 20, 9, 17, '#493d47'); px(5, 29, 10, 8, '#a95550'); px(35, 29, 10, 8, '#a95550');
+      px(13, 38 + Math.max(0, -step), 10, 12 + step, outline); px(28, 38 + Math.max(0, step), 10, 12 - step, outline); px(10, 49 + step, 14, 5, outline); px(27, 49 - step, 14, 5, outline);
+      px(15, 28, 18, 3, '#d0ad68'); px(19, 25, 10, 8, '#88737a'); px(18, 10, 4, 3, '#b77862');
     } else {
-      px(6, 11, 20, 4, '#d3a052'); px(4, 14, 4, 9, '#b04e55'); px(24, 14, 4, 9, '#b04e55'); px(12, 18, 8, 5, '#d3a052');
+      // Boss prototype has a broad coat, raised collar and warm sash, but no named character identity.
+      px(12, 2, 25, 18, outline); px(16, 4, 17, 12, skin); px(16, 4, 20, 6, '#252832'); px(11, 12, 29, 4, '#1e2631');
+      px(8, 17, 34, 25, outline); px(11, 19, 28, 21, '#713d66'); px(5, 19, 10, 19, outline); px(35, 19, 10, 19, outline);
+      px(7, 22, 7, 14, '#a14750'); px(36, 22, 7, 14, '#a14750'); px(16, 21, 18, 4, '#d6a657'); px(25, 24, 5, 15, '#d6a657');
+      px(15, 40 + Math.max(0, -step), 10, 10 + step, outline); px(29, 40 + Math.max(0, step), 10, 10 - step, outline); px(12, 49 + step, 15, 5, outline); px(28, 49 - step, 15, 5, outline);
+      px(17, 9, 3, 2, outline); px(28, 9, 3, 2, outline); px(19, 27, 11, 4, '#f1d789');
     }
-    px(13, 8, 2, 2, outline); px(20, 8, 2, 2, outline);
+    // Shared bright edge pixels keep these temporary figures legible against city asphalt.
+    px(3, 44, 5, 2, '#d7e0dc'); px(40, 44, 5, 2, '#d7e0dc');
     const texture = Texture.from(canvas); texture.source.scaleMode = 'nearest'; this.generatedFrames.push(texture); return texture;
   }
 
@@ -158,7 +173,7 @@ export class GameRenderer {
     }));
     this.primitiveTextures.set('piercing', this.textureFromGraphics(g => g.poly([0, 10, 17, 10, 17, 5, 28, 14, 17, 23, 17, 18, 0, 18]).fill(0xffffff)));
     this.primitiveTextures.set('enemy-shot', this.textureFromGraphics(g => { g.circle(16, 16, 7).fill(0xffffff); g.circle(16, 16, 12).stroke({ color: 0xffffff, width: 2, alpha: 0.65 }); }));
-    for (const kind of ['gangster', 'bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, [this.createPrototypeEnemyTexture(kind, 0), this.createPrototypeEnemyTexture(kind, 1)]);
+    for (const kind of ['gangster', 'bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
     this.primitiveTextures.set('bruiser', this.proceduralEnemyFrames.get('bruiser')![0]!);
     this.primitiveTextures.set('boss', this.proceduralEnemyFrames.get('boss')![0]!);
   }
@@ -227,13 +242,11 @@ export class GameRenderer {
       if (enemy.dead || !this.isVisible(enemy.x, enemy.y, 80)) continue;
       if (enemy.kind === 'gangster' && enemy.attackState === 'ranged-telegraph') {
         const tx = enemy.x + enemy.attackDirection.x * 380; const ty = enemy.y + enemy.attackDirection.y * 380;
-        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffe764, width: 10, alpha: 0.12 });
-        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffee87, width: 2, alpha: 0.78 });
+        drawDashedRay(g, enemy.x, enemy.y, tx, ty, 13, 10, 3, 0xffcf67, 0.78);
       }
       if (enemy.kind === 'boss' && enemy.attackState === 'ranged-telegraph') {
         const tx = enemy.x + enemy.attackDirection.x * 620; const ty = enemy.y + enemy.attackDirection.y * 620;
-        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffd56a, width: 12, alpha: 0.14 });
-        g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: 0xffdf82, width: 3, alpha: 0.78 });
+        drawDashedRay(g, enemy.x, enemy.y, tx, ty, 18, 14, 5, 0xffdd79, 0.88);
       }
       if (enemy.kind === 'boss' && (enemy.attackState === 'charge-telegraph' || enemy.attackState === 'charging')) {
         const length = GANG_LEADER.chargeSpeed * (GANG_LEADER.chargeActiveEnd - GANG_LEADER.chargeEnd);
@@ -241,6 +254,10 @@ export class GameRenderer {
         g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: enemy.attackState === 'charging' ? 0xff6a5e : 0xffa260, width: 28, alpha: enemy.attackState === 'charging' ? 0.2 : 0.15 });
         g.moveTo(enemy.x, enemy.y).lineTo(tx, ty).stroke({ color: enemy.attackState === 'charging' ? 0xff6a5e : 0xffd16d, width: 3, alpha: 0.9 });
         g.circle(tx, ty, 13).stroke({ color: 0xffd16d, width: 3, alpha: 0.85 });
+      }
+      if (enemy.hitFlash > 0) {
+        const alpha = Math.min(0.9, enemy.hitFlash * 5);
+        g.poly([enemy.x, enemy.y - enemy.radius - 3, enemy.x + 4, enemy.y - 4, enemy.x + enemy.radius + 3, enemy.y, enemy.x + 4, enemy.y + 4, enemy.x, enemy.y + enemy.radius + 3, enemy.x - 4, enemy.y + 4, enemy.x - enemy.radius - 3, enemy.y, enemy.x - 4, enemy.y - 4]).fill({ color: enemy.kind === 'boss' ? 0xffd47b : 0xe9fbff, alpha });
       }
     }
     const p = state.player; const flash = p.invulnerable > 0 && Math.floor(state.elapsed * 18) % 2 === 0;
@@ -261,7 +278,6 @@ export class GameRenderer {
     }
     if (p.invulnerable > 0) g.circle(p.x, p.y + 4, 35).stroke({ color: flash ? 0xffffff : 0x7ee5ff, width: 2, alpha: flash ? 0.7 : 0.38 });
     if (state.specialTimer > 0) { const radius = this.reducedMotion ? 205 : 220 * (1 - state.specialTimer / 0.7); g.circle(p.x, p.y, radius).stroke({ color: COLORS.cyan, width: this.reducedMotion ? 2 : 4, alpha: this.reducedMotion ? 0.4 : 0.75 }); if (!this.reducedMotion) g.circle(p.x, p.y, radius * 0.82).stroke({ color: 0xffffff, width: 1, alpha: 0.34 }); }
-    this.characters.sortChildren();
     this.updateCollisionDebug(state);
     this.lastSceneUpdateMs = performance.now() - drawStarted;
     this.sceneUpdateSamples[this.sceneSampleIndex] = this.lastSceneUpdateMs;
@@ -299,9 +315,10 @@ export class GameRenderer {
       const texture = this.primitiveTextures.get(textureKey)!;
       if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.projectileViews.push(sprite); }
       sprite.texture = texture; sprite.renderable = true; sprite.position.set(shot.x, shot.y); sprite.rotation = shot.owner === 'enemy' ? 0 : shot.spin;
-      const size = shot.owner === 'enemy' ? 23 : shot.weaponId === 'piercingThrow' ? 28 : 24;
+      const rank = shot.weaponId === 'piercingThrow' ? state.player.weaponRanks.piercingThrow : state.player.weaponRanks.pinwheel;
+      const size = shot.owner === 'enemy' ? 23 : shot.weaponId === 'piercingThrow' ? 27 + Math.min(5, rank) : 22 + Math.min(8, rank * 1.5) + (state.player.evolvedPinwheel ? 3 : 0);
       sprite.width = size; sprite.height = size;
-      sprite.tint = shot.owner === 'enemy' ? (shot.weaponId === 'enemy' ? 0xff715f : 0xffc65f) : shot.weaponId === 'piercingThrow' ? 0xffdc70 : COLORS.cyan;
+      sprite.tint = shot.owner === 'enemy' ? (shot.weaponId === 'enemy' ? 0xff715f : 0xffc65f) : shot.weaponId === 'piercingThrow' ? 0xffdc70 : state.player.evolvedPinwheel ? 0xf8e391 : COLORS.cyan;
       used++;
     }
     this.projectileViewCount = used;
@@ -312,7 +329,8 @@ export class GameRenderer {
       if (!this.isVisible(pickup.x, pickup.y, 20)) continue;
       let sprite = this.pickupViews[used];
       if (!sprite) { sprite = new Sprite(this.primitiveTextures.get('xp')!); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
-      sprite.renderable = true; sprite.position.set(pickup.x, pickup.y); sprite.rotation = Math.PI / 4; sprite.width = 12; sprite.height = 12; sprite.tint = COLORS.xp;
+      const glint = this.reducedMotion ? 0 : 1 + Math.sin(state.elapsed * 8 + pickup.id) * 0.12;
+      sprite.renderable = true; sprite.position.set(pickup.x, pickup.y); sprite.rotation = Math.PI / 4; sprite.width = 12 * glint; sprite.height = 12 * glint; sprite.tint = COLORS.xp;
       used++;
     }
     this.pickupViewCount = used;
@@ -341,7 +359,11 @@ export class GameRenderer {
     } else { this.playerIsMoving = false; this.lastPlayerPosition = { x: p.x, y: p.y }; }
 
     let needsSort = false;
-    if (this.playerShadow) this.playerShadow.position.set(p.x, p.y + 28);
+    if (this.playerShadow) {
+      this.playerShadow.position.set(p.x, p.y + 28);
+      const idlePulse = !this.reducedMotion && !this.playerIsMoving ? Math.sin(state.elapsed * 3) * 1.2 : 0;
+      this.playerShadow.width = 54 + idlePulse; this.playerShadow.height = 18;
+    }
 
     if (this.playerSprite) {
       const anim = BLUE_PINWHEEL.animation;
@@ -350,9 +372,10 @@ export class GameRenderer {
       if (frames.length) {
         this.playerFrame = state.status === 'defeat' ? 0 : Math.floor(state.elapsed * 1000 / clip.frameDurationMs) % frames.length;
         this.playerSprite.texture = frames[this.playerFrame] ?? frames[0]!;
-        if (this.playerSprite.width !== 62) this.playerSprite.width = 62;
-        if (this.playerSprite.height !== 83) this.playerSprite.height = 83;
-        this.playerSprite.position.set(p.x, p.y + 28);
+        if (this.playerSprite.width !== 68) this.playerSprite.width = 68;
+        if (this.playerSprite.height !== 91) this.playerSprite.height = 91;
+        const bob = this.reducedMotion ? 0 : Math.sin(state.elapsed * (this.playerIsMoving ? 18 : 3)) * (this.playerIsMoving ? 1.25 : 0.6);
+        this.playerSprite.position.set(p.x, p.y + 28 + bob);
         const flip = anim.mirrorLeft && p.horizontalFacing === 'left';
         this.playerSprite.scale.x = Math.abs(this.playerSprite.scale.x) * (flip ? -1 : 1);
         this.playerSprite.tint = !this.reducedMotion && p.invulnerable > 0 && Math.floor(state.elapsed * 18) % 2 === 0 ? 0xffffff : p.invulnerable > 0.45 ? 0xffb5b5 : 0xffffff;
@@ -385,7 +408,14 @@ export class GameRenderer {
         if (frames[frame] && frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; }
       } else {
         const frames = this.proceduralEnemyFrames.get(enemy.kind);
-        if (frames?.length) { const frame = Math.floor(enemy.animationTime * 5) % frames.length; if (frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; } }
+        if (frames?.length) {
+          const metadata = ENEMIES[enemy.kind].prototypeAnimation;
+          const animationState: EnemyAnimationState = enemy.hitFlash > 0 ? 'damage' : enemy.attackState === 'ranged-telegraph' || enemy.attackState === 'charge-telegraph' ? 'telegraph' : enemy.attackState === 'charging' ? 'attacking' : enemy.attackState === 'recovering' ? 'recovery' : 'walking';
+          const stateFrames = metadata?.states[animationState] ?? [0];
+          const frameInState = animationState === 'walking' ? Math.floor(enemy.animationTime * 1000 / (metadata?.frameDurationMs ?? 200)) % stateFrames.length : 0;
+          const frame = stateFrames[frameInState] ?? 0;
+          if (frames[frame] && frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; }
+        }
       }
       view.sprite.position.set(enemy.x, enemy.y + enemy.radius + 9);
       view.sprite.scale.x = Math.abs(view.sprite.scale.x) * (enemy.horizontalFacing === 'left' ? -1 : 1);

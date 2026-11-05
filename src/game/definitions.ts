@@ -42,7 +42,20 @@ export const BLUE_PINWHEEL: HeroDefinition = {
   },
 };
 
-export interface EnemyDefinition { readonly kind: EnemyKind; readonly health: number; readonly speed: number; readonly damage: number; readonly radius: number; readonly xp: number; readonly animation?: AnimationClipDefinition; readonly ranged?: boolean; readonly preferredRange?: number }
+export type EnemyAnimationState = 'idle' | 'walking' | 'attacking' | 'damage' | 'dying' | 'telegraph' | 'recovery';
+export interface EnemyPrototypeAnimationDefinition {
+  readonly frameWidth: number;
+  readonly frameHeight: number;
+  readonly frameCount: number;
+  readonly frameDurationMs: number;
+  readonly sourceFacing: 'right';
+  readonly states: Readonly<Record<EnemyAnimationState, readonly number[]>>;
+}
+const prototypeAnimation: EnemyPrototypeAnimationDefinition = {
+  frameWidth: 48, frameHeight: 56, frameCount: 4, frameDurationMs: 200, sourceFacing: 'right',
+  states: { idle: [0], walking: [0, 1, 2, 3], attacking: [3], damage: [1], dying: [3], telegraph: [1], recovery: [2] },
+};
+export interface EnemyDefinition { readonly kind: EnemyKind; readonly health: number; readonly speed: number; readonly damage: number; readonly radius: number; readonly xp: number; readonly animation?: AnimationClipDefinition; readonly prototypeAnimation?: EnemyPrototypeAnimationDefinition; readonly ranged?: boolean; readonly preferredRange?: number }
 export interface AttackDefinition { readonly id: string; readonly name: string; readonly damage: number; readonly cooldown: number; readonly projectileSpeed: number; readonly lifetime: number; readonly targetRange: number; readonly pierce?: number; readonly rankDamage?: readonly number[]; readonly rankCooldown?: readonly number[]; readonly rankPierce?: readonly number[] }
 export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'piercingThrow' | 'special', AttackDefinition>> = {
   pinwheel: { id: 'pinwheel-prototype', name: 'Pinwheel (Prototype)', damage: 18, cooldown: 0.76, projectileSpeed: 410, lifetime: 1.5, targetRange: 520, rankDamage: [1, 1.18, 1.36, 1.55, 1.8], rankCooldown: [1, 1, 0.84, 0.84, 0.78], rankPierce: [0, 0, 0, 1, 1] },
@@ -57,9 +70,9 @@ export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', h
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
   thug: { kind: 'thug', health: 34, speed: 55, damage: 5, radius: 15, xp: 12, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
   fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 4, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
-  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, ranged: true, preferredRange: 270 },
-  bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30 },
-  boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp },
+  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, prototypeAnimation, ranged: true, preferredRange: 270 },
+  bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30, prototypeAnimation },
+  boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp, prototypeAnimation },
 };
 
 export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: string }> = [

@@ -5,6 +5,7 @@ coverage/
 playwright-report/
 test-results/
 artifacts/recordings/
+artifacts/evidence/living-city/run/
 artifacts/playwright-browsers/
 .vite/
 .cache/
