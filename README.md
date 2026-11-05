@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, and the mouse or Enter to choose menu options. Attacks target automatically. The short prototype run ends at its gang leader encounter.
+Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, **1/2/3** to choose upgrades, and the mouse to choose menu options. Weapons target automatically. The three-minute prototype run introduces an overtime Gang Leader if not defeated by the target time.
 
 ## Development commands
 
@@ -27,8 +27,8 @@ npm run build
 npm run test:e2e
 ```
 
-The `?test=1` URL uses a shorter development encounter with deterministic test hooks enabled in dev mode. It is for browser verification, not normal play.
+The `?test=1` URL uses a shorter development encounter with deterministic test hooks enabled in dev mode. It is for browser verification, not normal play. `?test=normal` uses the standard run with those development-only test hooks for natural-spawn browser diagnostics.
 
 ## Project state
 
-See [docs/STATUS.md](docs/STATUS.md), [docs/GAMEPLAY.md](docs/GAMEPLAY.md), [docs/CANON.md](docs/CANON.md), [docs/ASSETS.md](docs/ASSETS.md), and [docs/TESTING.md](docs/TESTING.md). This local checkout is not yet connected to GitHub.
+See [docs/STATUS.md](docs/STATUS.md), [docs/GAMEPLAY.md](docs/GAMEPLAY.md), [docs/CANON.md](docs/CANON.md), [docs/ASSETS.md](docs/ASSETS.md), and [docs/TESTING.md](docs/TESTING.md). The official repository is [joepak-swiger/Grand-Glory](https://github.com/joepak-swiger/Grand-Glory).
