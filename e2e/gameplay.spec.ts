@@ -175,7 +175,22 @@ test('standard configuration naturally builds an early horde in the browser', as
   let capturedEvolution = false;
   const naturalProgression: Array<Record<string, unknown>> = [];
   for (let segment = 0; segment < 70; segment++) {
-    await page.evaluate(() => window.__GG_TEST__?.advance(4, 0, 0, true, true, true));
+    const movement = await page.evaluate(() => {
+      const state = window.__GG_TEST__?.getState();
+      if (!state) return { x: 0, y: 0 };
+      const player = state.player;
+      let nearest = null as { x: number; y: number; distance: number } | null;
+      for (const pickup of state.pickups) {
+        const distance = Math.hypot(pickup.x - player.x, pickup.y - player.y);
+        if (!nearest || distance < nearest.distance) nearest = { x: pickup.x, y: pickup.y, distance };
+      }
+      if (nearest && nearest.distance > 24 && nearest.distance < 420) {
+        return { x: (nearest.x - player.x) / nearest.distance, y: (nearest.y - player.y) / nearest.distance };
+      }
+      const angle = state.elapsed * 0.5;
+      return { x: Math.cos(angle), y: Math.sin(angle) };
+    });
+    await page.evaluate(({ x, y }) => window.__GG_TEST__?.advance(4, x, y, true, true, false), movement);
     const status = await page.evaluate(() => window.__GG_TEST__?.getState()?.status);
     if (status === 'upgrade') {
       if (!sawUpgrade) { await page.screenshot({ path: `${evidence}/10-standard-level-up.png` }); sawUpgrade = true; }
@@ -183,9 +198,10 @@ test('standard configuration naturally builds an early horde in the browser', as
         const state = window.__GG_TEST__?.getState();
         const choices = state?.options ?? [];
         const hpRatio = state ? state.player.health / state.player.maxHealth : 1;
-        const speedRank = state?.player.passiveRanks.speed ?? 0;
+        const upgradeRank = (id: string) => state ? Math.max(state.player.passiveRanks[id as keyof typeof state.player.passiveRanks] ?? 0, state.chosen.filter(chosen => chosen === id).length) : 0;
+        const speedRank = upgradeRank('speed');
         const defensiveChoices = state
-          ? (['vitality', 'recovery', 'armorPlating'] as const).filter(id => state.player.passiveRanks[id] === 0)
+          ? (['vitality', 'recovery', 'armorPlating'] as const).filter(id => upgradeRank(id) === 0)
           : [];
         const priority = hpRatio < 0.82
           ? [...defensiveChoices, 'speed', 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery', 'vitality', 'recovery', 'armorPlating']
