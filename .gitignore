@@ -6,6 +6,7 @@ playwright-report/
 test-results/
 artifacts/recordings/
 artifacts/evidence/living-city/run/
+artifacts/evidence/rings-xp-and-melee/run/
 artifacts/playwright-browsers/
 .vite/
 .cache/

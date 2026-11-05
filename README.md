@@ -9,7 +9,7 @@ An independent, original superhero bullet-heaven prototype. **Blue Pinwheel** is
 
 Pinned stack: PixiJS 8.22.0, Vite 8.3.5, TypeScript 7.0.2, Vitest 5.1.0, and Playwright 1.64.1. `package-lock.json` is the npm lockfile.
 
-The city stage uses a cached pixel-art map built from the Kenney Roguelike Modern City CC0 atlas, with authored brick/glass/industrial roof treatments and a restrained upper-left lighting direction. Blue Pinwheel's owner-approved appearance is preserved; generated Gangster, Bruiser, and unnamed boss silhouettes are temporary prototype art. The first-launch SFX volume defaults to 55%, while a saved mute/zero volume is respected. See [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md) and [docs/ASSETS.md](docs/ASSETS.md) for the Assignment 008 visual specification and provenance.
+The city stage uses a cached pixel-art map built from the Kenney Roguelike Modern City CC0 atlas, with authored brick/glass/industrial roof treatments and a restrained upper-left lighting direction. Blue Pinwheel's owner-approved appearance is preserved; generated Bruiser and unnamed boss silhouettes are temporary prototype art. His provisional attacks are blue ring weapons. Defeated enemies leave persistent XP gems that collect only when approached, and the supplied Street Pitcher is the current opt-in baseball-throwing enemy; other ordinary enemies are melee-only. The first-launch SFX volume defaults to 55%, while a saved mute/zero volume is respected. See [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md) and [docs/ASSETS.md](docs/ASSETS.md) for visual specifications and provenance.
 
 ## Run
 

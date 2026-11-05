@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
-import { acquireTarget, chooseUpgrade, createGame, damagePlayer, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { acquireTarget, applyEnemyDamage, chooseUpgrade, createGame, damagePlayer, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
 import { isWalkable } from '../src/game/stage';
+import { getUpgradeRankProgress } from '../src/game/upgrade-ranks';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
 function steps(state: ReturnType<typeof createGame>, count: number, input = idle, cfg = testRun): void { for (let i = 0; i < count; i++) updateGame(state, 1 / 60, input, cfg); }
@@ -142,6 +143,20 @@ describe('deterministic gameplay simulation', () => {
     steps(s, 1); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - thug.damage * 2);
   });
 
+  it('gives the bat-wielding fast thug a short warned melee swing instead of contact damage', () => {
+    const s = createGame(130, testRun); s.player.attackTimer = 10;
+    const batThug = spawnEnemy(s, 'fastThug', testRun, { x: s.player.x + 42, y: s.player.y }); batThug.speed = 0; s.enemies.push(batThug);
+    steps(s, 1);
+    expect(batThug.attackState).toBe('melee-telegraph');
+    expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth);
+    expect(s.projectiles.filter(projectile => projectile.owner === 'enemy')).toHaveLength(0);
+    steps(s, 20);
+    expect(batThug.attackState).toBe('melee-swing');
+    expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - batThug.damage);
+    steps(s, 8);
+    expect(batThug.attackState).toBe('recovering');
+  });
+
   it('lets only one of multiple simultaneous contacts damage the player during invulnerability', () => {
     const s = createGame(122, testRun); s.player.attackTimer = 10;
     for (let i = 0; i < 4; i++) { const thug = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun, { x: s.player.x, y: s.player.y }); thug.health = 1000; thug.maxHealth = 1000; s.enemies.push(thug); }
@@ -194,11 +209,19 @@ describe('deterministic gameplay simulation', () => {
     expect(a.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeLessThanOrEqual(run.horde.maxActive);
   });
 
-  it('introduces ranged Gangsters with a visible aimed windup and real projectile volley', () => {
+  it('introduces the Street Pitcher with a visible windup and one baseball projectile', () => {
     const s = createGame(331, testRun); s.player.attackTimer = 100;
     const gangster = spawnEnemy(s, 'gangster', testRun, { x: s.player.x - 240, y: s.player.y }); gangster.rangedTimer = 0.05; s.enemies.push(gangster);
     steps(s, 1); expect(gangster.attackState).toBe('ranged-telegraph');
-    steps(s, 4); expect(s.projectiles.filter(projectile => projectile.owner === 'enemy')).toHaveLength(3);
+    steps(s, 40); const balls = s.projectiles.filter(projectile => projectile.weaponId === 'baseball');
+    expect(balls).toHaveLength(1); expect(balls[0]?.owner).toBe('enemy');
+  });
+
+  it('keeps all current non-pitcher ordinary enemies melee-only', () => {
+    expect(ENEMIES.thug.ranged).toBeUndefined(); expect(ENEMIES.fastThug.ranged).toBeUndefined(); expect(ENEMIES.bruiser.ranged).toBeUndefined();
+    const s = createGame(3311, testRun); s.player.attackTimer = 100; s.spawnTimer = 1000;
+    for (const kind of ['thug', 'fastThug', 'bruiser'] as const) { const enemy = spawnEnemy(s, kind, testRun, { x: s.player.x - 210, y: s.player.y }); enemy.rangedTimer = 0; s.enemies.push(enemy); }
+    steps(s, 240); expect(s.projectiles.filter(projectile => projectile.owner === 'enemy' && projectile.damageSource !== 'boss-projectile')).toHaveLength(0);
   });
 
   it('uses the bruiser as a slower, more durable enemy archetype', () => {
@@ -262,17 +285,43 @@ describe('deterministic gameplay simulation', () => {
     expect(a.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)])).toEqual(b.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)]));
   });
 
-  it('drops XP on death, collects it, and removes the dead enemy', () => {
-    const s = createGame(15, testRun); const e = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 35, y: s.player.y }); e.health = 1; s.enemies.push(e);
-    steps(s, 70); expect(e.dead).toBe(true); expect(s.kills).toBe(1); expect(s.pickups.length).toBe(0); expect(s.player.xp).toBeGreaterThan(0);
+  it('drops persistent XP at a defeat location and awards it only after close collection', () => {
+    const s = createGame(15, testRun); s.spawnTimer = 1000; s.player.attackTimer = 1000;
+    const e = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 220, y: s.player.y }); e.health = 1; s.enemies.push(e);
+    applyEnemyDamage(s, e, 1, { x: 1, y: 0 }, testRun); const drop = s.pickups[0]!;
+    expect(e.dead).toBe(true); expect(s.kills).toBe(1); expect(s.player.xp).toBe(0); expect(drop.value).toBe(e.xp); expect(s.xpSpawned).toBe(e.xp);
+    const droppedAt = { x: drop.x, y: drop.y }; steps(s, 1); expect(drop.x).toBe(droppedAt.x); expect(drop.y).toBe(droppedAt.y); expect(s.xpCollected).toBe(0);
+    s.player.x = drop.x - 28; s.player.y = drop.y; steps(s, 30);
+    expect(s.pickups).toHaveLength(0); expect(s.player.xp).toBe(e.xp); expect(s.xpCollected).toBe(e.xp);
   });
 
   it('merges nearby XP pickups while preserving their total value', () => {
     const s = createGame(151, testRun); s.pickupMergeTimer = 0;
     s.pickups.push({ id: 800, x: s.player.x + 190, y: s.player.y, value: 12 }, { id: 801, x: s.player.x + 205, y: s.player.y + 4, value: 16 });
-    steps(s, 1);
-    expect(s.pickups).toHaveLength(1); expect(s.pickups[0]?.value).toBe(28);
+    mergeNearbyPickups(s);
+    expect(s.pickups).toHaveLength(1); expect(s.pickups[0]?.value).toBe(28); expect(s.xpPilesMerged).toBe(1); expect(s.xpLost).toBe(0);
   });
+
+  it('keeps distant XP stationary and blocks attraction across buildings', () => {
+    const s = createGame(152, testRun); s.spawnTimer = 1000; s.player.attackTimer = 1000;
+    const pickup = { id: 802, x: s.player.x + 140, y: s.player.y, value: 20, pullSpeed: 0 }; s.pickups.push(pickup);
+    steps(s, 1); expect(pickup.x).toBe(s.player.x + 140); expect(s.player.xp).toBe(0);
+    expect(s.player.pickupRadius).toBe(72);
+  });
+
+  it('conserves XP through a pickup-heavy run while distant piles remain on the map', () => {
+    const s = createGame(153, testRun); s.spawnTimer = 10_000; s.player.attackTimer = 10_000;
+    for (let i = 0; i < 300; i++) {
+      const enemy = spawnEnemy(s, i % 3 === 0 ? 'bruiser' : 'thug', testRun, { x: 120 + (i % 20) * 78, y: 100 + Math.floor(i / 20) * 58 });
+      applyEnemyDamage(s, enemy, enemy.health, { x: 1, y: 0 }, testRun);
+    }
+    const spawned = s.xpSpawned;
+    expect(s.pickups.length).toBeGreaterThan(100);
+    steps(s, 360);
+    const remaining = s.pickups.reduce((sum, pile) => sum + pile.value, 0);
+    expect(s.xpCollected + remaining + s.xpLost).toBe(spawned);
+    expect(s.pickups.length).toBeGreaterThan(100);
+  }, 10_000);
 
   it('levels up and pauses until a valid upgrade is selected', () => {
     const s = createGame(16, testRun); s.pickups.push({ id: 90, x: s.player.x, y: s.player.y, value: 30 }); steps(s, 1);
@@ -303,6 +352,22 @@ describe('deterministic gameplay simulation', () => {
     s.levelChoices = 1; s.options = ['orbit', 'damage', 'magnet']; s.status = 'upgrade'; chooseUpgrade(s, 'orbit');
     expect(s.player.orbit).toBe(true); expect(s.attacks).toContain('Orbit Guard (Prototype)');
     s.levelChoices = 1; s.options = ['recovery', 'damage', 'magnet']; s.status = 'upgrade'; chooseUpgrade(s, 'recovery'); expect(s.player.healthRegen).toBe(0.45);
+  });
+
+  it('raises the short XP attraction range by a capped 20 units per Magnet rank', () => {
+    const s = createGame(181, testRun); expect(s.player.pickupRadius).toBe(72);
+    s.status = 'upgrade'; s.levelChoices = 1; s.options = ['magnet', 'speed', 'vitality'];
+    expect(chooseUpgrade(s, 'magnet')).toBe(true); expect(s.player.pickupRadius).toBe(92);
+    s.player.pickupRadius = 155; s.status = 'upgrade'; s.levelChoices = 1; s.options = ['magnet', 'speed', 'vitality'];
+    chooseUpgrade(s, 'magnet'); expect(s.player.pickupRadius).toBe(160);
+  });
+
+  it('calculates explicit current and next skill ranks for weapons and passives', () => {
+    const s = createGame(182, testRun); s.chosen.push('magnet', 'magnet', 'damage');
+    expect(getUpgradeRankProgress('pinwheel', s.player, s.chosen).label).toBe('LEVEL 1 → LEVEL 2');
+    expect(getUpgradeRankProgress('magnet', s.player, s.chosen).label).toBe('LEVEL 2 → LEVEL 3');
+    expect(getUpgradeRankProgress('piercingThrow', s.player, s.chosen).label).toBe('NEW · LEVEL 1');
+    expect(getUpgradeRankProgress('extra', s.player, ['extra', 'extra', 'extra', 'extra']).label).toBe('MAX LEVEL');
   });
 
   it('damages and defeats the boss through actual attacks', () => {

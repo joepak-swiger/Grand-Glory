@@ -9,7 +9,7 @@ export type CameraPreset = 'wide' | 'standard' | 'close';
 const CAMERA_ZOOM: Record<CameraPreset, number> = { wide: 0.94, standard: 1.08, close: 1.2 };
 const COLORS = { ink: 0x101923, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
 const DAMAGE_STYLE = new TextStyle({ fontFamily: 'Arial, sans-serif', fontSize: 13, fill: '#fff2c6', fontWeight: '700' });
-interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number }
+interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number; displayedClip: string }
 
 function drawDashedRay(graphics: Graphics, x1: number, y1: number, x2: number, y2: number, dashLength: number, gap: number, width: number, color: number, alpha: number): void {
   const dx = x2 - x1; const dy = y2 - y1; const length = Math.hypot(dx, dy) || 1;
@@ -166,14 +166,41 @@ export class GameRenderer {
   private createPrimitiveTextures(): void {
     this.primitiveTextures.set('pixel', this.textureFromGraphics(g => g.rect(0, 0, 1, 1).fill(0xffffff)));
     this.primitiveTextures.set('shadow', this.textureFromGraphics(g => g.ellipse(24, 10, 22, 8).fill(0xffffff)));
-    this.primitiveTextures.set('xp', this.textureFromGraphics(g => g.poly([8, 0, 16, 8, 8, 16, 0, 8]).fill(0xffffff)));
-    this.primitiveTextures.set('pinwheel', this.textureFromGraphics(g => {
-      for (let blade = 0; blade < 4; blade++) { const a = blade * Math.PI / 2; g.poly([12 + Math.cos(a) * 11, 12 + Math.sin(a) * 11, 12 + Math.cos(a + 0.65) * 3, 12 + Math.sin(a + 0.65) * 3, 12 + Math.cos(a + 1.4) * 8, 12 + Math.sin(a + 1.4) * 8]).fill(0xffffff); }
-      g.circle(12, 12, 3).fill(0xffffff);
+    const ring = (double: boolean) => this.textureFromGraphics(g => {
+      const centers = double ? [[13, 16], [25, 16]] : [[20, 20]];
+      for (const [x, y] of centers) {
+        g.circle(x!, y!, 11).stroke({ color: 0x122d5c, width: 9 });
+        g.circle(x!, y!, 11).stroke({ color: 0x1269d1, width: 6 });
+        g.arc(x!, y!, 10, Math.PI * 1.08, Math.PI * 1.8).stroke({ color: 0x9decff, width: 2.5 });
+        g.arc(x!, y!, 10, Math.PI * 0.08, Math.PI * 0.8).stroke({ color: 0x244f90, width: 2 });
+        for (let blade = 0; blade < 4; blade++) {
+          const a = blade * Math.PI / 2 + Math.PI / 4;
+          const ox = Math.cos(a) * 11; const oy = Math.sin(a) * 11;
+          g.poly([x! + ox * 0.55, y! + oy * 0.55, x! + ox * 1.55 - Math.sin(a) * 2, y! + oy * 1.55 + Math.cos(a) * 2, x! + ox * 1.3 + Math.sin(a) * 2, y! + oy * 1.3 - Math.cos(a) * 2]).fill(0xd9f7ff);
+        }
+      }
+      if (double) g.circle(19, 16, 2.5).fill(0x9ceaff);
+      else g.circle(20, 20, 2).fill(0x9ceaff);
+    });
+    this.primitiveTextures.set('pinwheel', ring(false));
+    this.primitiveTextures.set('piercing', ring(true));
+    this.primitiveTextures.set('baseball', this.textureFromGraphics(g => {
+      g.circle(16, 16, 11).fill(0x101923); g.circle(16, 16, 9).fill(0xfff5e8);
+      g.arc(11, 16, 5, -Math.PI / 2, Math.PI / 2).stroke({ color: 0xd84443, width: 1.6 });
+      g.arc(21, 16, 5, Math.PI / 2, Math.PI * 1.5).stroke({ color: 0xd84443, width: 1.6 });
+      for (let i = 0; i < 3; i++) { const y = 12 + i * 4; g.rect(10, y, 2, 1).fill(0xd84443); g.rect(20, y, 2, 1).fill(0xd84443); }
     }));
-    this.primitiveTextures.set('piercing', this.textureFromGraphics(g => g.poly([0, 10, 17, 10, 17, 5, 28, 14, 17, 23, 17, 18, 0, 18]).fill(0xffffff)));
+    for (const [key, color, size] of [['xp-small', 0x63efd1, 8], ['xp-medium', 0x48a9ff, 10], ['xp-large', 0xd889ff, 12]] as const) {
+      this.primitiveTextures.set(key, this.textureFromGraphics(g => {
+        g.poly([16, 2, 26, 11, 22, 27, 16, 31, 8, 26, 5, 12]).fill(color);
+        g.poly([16, 2, 16, 23, 8, 26, 5, 12]).fill(0xc6fff2);
+        g.poly([16, 2, 26, 11, 16, 23]).fill(0xffffff);
+        g.poly([16, 23, 22, 27, 16, 31]).fill(0x244a8e);
+        g.circle(16, 16, size / 5).fill(0xffffff);
+      }));
+    }
     this.primitiveTextures.set('enemy-shot', this.textureFromGraphics(g => { g.circle(16, 16, 7).fill(0xffffff); g.circle(16, 16, 12).stroke({ color: 0xffffff, width: 2, alpha: 0.65 }); }));
-    for (const kind of ['gangster', 'bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
+    for (const kind of ['bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
     this.primitiveTextures.set('bruiser', this.proceduralEnemyFrames.get('bruiser')![0]!);
     this.primitiveTextures.set('boss', this.proceduralEnemyFrames.get('boss')![0]!);
   }
@@ -193,7 +220,7 @@ export class GameRenderer {
   }
 
   private async loadCharacterAssets(): Promise<void> {
-    const clips = [BLUE_PINWHEEL.animation.idle, BLUE_PINWHEEL.animation.move, BLUE_PINWHEEL.animation.damage, BLUE_PINWHEEL.animation.defeat, BLUE_PINWHEEL.animation.ability, ENEMIES.thug.animation, ENEMIES.fastThug.animation].filter((clip): clip is AnimationClipDefinition => clip !== undefined);
+    const clips = [BLUE_PINWHEEL.animation.idle, BLUE_PINWHEEL.animation.move, BLUE_PINWHEEL.animation.damage, BLUE_PINWHEEL.animation.defeat, BLUE_PINWHEEL.animation.ability, ...Object.values(ENEMIES).flatMap(enemy => [enemy.animation, enemy.attackAnimation])].filter((clip): clip is AnimationClipDefinition => clip !== undefined);
     await Promise.all(clips.map(clip => this.loadClip(clip)));
   }
 
@@ -233,16 +260,29 @@ export class GameRenderer {
     const g = this.entities; g.clear();
     for (const shot of state.projectiles) {
       if (shot.owner !== 'player' || !this.isVisible(shot.x, shot.y, 36)) continue;
-      const speed = Math.hypot(shot.vx, shot.vy) || 1; const piercing = shot.weaponId === 'piercingThrow'; const length = piercing ? 38 : 23;
+      const speed = Math.hypot(shot.vx, shot.vy) || 1; const piercing = shot.weaponId === 'piercingThrow'; const length = piercing ? 35 : 25;
       const tailX = shot.x - shot.vx / speed * length; const tailY = shot.y - shot.vy / speed * length;
-      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xffd56f : 0x4bbdff, width: piercing ? 5 : 4, alpha: 0.28 });
-      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xfff0a5 : 0xd4faff, width: 1.5, alpha: 0.78 });
+      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0x318fff : 0x4bbdff, width: piercing ? 6 : 4, alpha: 0.28 });
+      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xbdeaff : 0xd4faff, width: 1.5, alpha: 0.78 });
     }
     for (const enemy of state.enemies) {
       if (enemy.dead || !this.isVisible(enemy.x, enemy.y, 80)) continue;
       if (enemy.kind === 'gangster' && enemy.attackState === 'ranged-telegraph') {
-        const tx = enemy.x + enemy.attackDirection.x * 380; const ty = enemy.y + enemy.attackDirection.y * 380;
-        drawDashedRay(g, enemy.x, enemy.y, tx, ty, 13, 10, 3, 0xffcf67, 0.78);
+        const tx = enemy.x + enemy.attackDirection.x * 210; const ty = enemy.y + enemy.attackDirection.y * 210;
+        drawDashedRay(g, enemy.x, enemy.y, tx, ty, 9, 13, 2.5, 0xff8b76, 0.68);
+        g.circle(tx, ty, 7).stroke({ color: 0xffd9ab, width: 2, alpha: 0.8 });
+      }
+      if (enemy.kind === 'fastThug' && (enemy.attackState === 'melee-telegraph' || enemy.attackState === 'melee-swing')) {
+        const center = Math.atan2(enemy.attackDirection.y, enemy.attackDirection.x);
+        const reach = enemy.radius + 32;
+        const points = [enemy.x, enemy.y];
+        const slices = 8;
+        for (let index = 0; index <= slices; index++) {
+          const angle = center - 0.52 + index / slices * 1.04;
+          points.push(enemy.x + Math.cos(angle) * reach, enemy.y + Math.sin(angle) * reach);
+        }
+        g.poly(points).fill({ color: enemy.attackState === 'melee-swing' ? 0xff8d59 : 0xffcc66, alpha: enemy.attackState === 'melee-swing' ? 0.34 : 0.16 });
+        g.poly(points).stroke({ color: enemy.attackState === 'melee-swing' ? 0xffd6a0 : 0xffd982, width: enemy.attackState === 'melee-swing' ? 2.5 : 1.4, alpha: 0.85 });
       }
       if (enemy.kind === 'boss' && enemy.attackState === 'ranged-telegraph') {
         const tx = enemy.x + enemy.attackDirection.x * 620; const ty = enemy.y + enemy.attackDirection.y * 620;
@@ -311,14 +351,14 @@ export class GameRenderer {
     for (const shot of state.projectiles) {
       if (!this.isVisible(shot.x, shot.y, 28)) continue;
       let sprite = this.projectileViews[used];
-      const textureKey = shot.owner === 'enemy' ? 'enemy-shot' : shot.weaponId === 'piercingThrow' ? 'piercing' : 'pinwheel';
+      const textureKey = shot.weaponId === 'baseball' ? 'baseball' : shot.owner === 'enemy' ? 'enemy-shot' : shot.weaponId === 'piercingThrow' ? 'piercing' : 'pinwheel';
       const texture = this.primitiveTextures.get(textureKey)!;
       if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.projectileViews.push(sprite); }
       sprite.texture = texture; sprite.renderable = true; sprite.position.set(shot.x, shot.y); sprite.rotation = shot.owner === 'enemy' ? 0 : shot.spin;
       const rank = shot.weaponId === 'piercingThrow' ? state.player.weaponRanks.piercingThrow : state.player.weaponRanks.pinwheel;
-      const size = shot.owner === 'enemy' ? 23 : shot.weaponId === 'piercingThrow' ? 27 + Math.min(5, rank) : 22 + Math.min(8, rank * 1.5) + (state.player.evolvedPinwheel ? 3 : 0);
+      const size = shot.weaponId === 'baseball' ? 17 : shot.owner === 'enemy' ? 23 : shot.weaponId === 'piercingThrow' ? 30 + Math.min(5, rank) : 27 + Math.min(8, rank * 1.5) + (state.player.evolvedPinwheel ? 3 : 0);
       sprite.width = size; sprite.height = size;
-      sprite.tint = shot.owner === 'enemy' ? (shot.weaponId === 'enemy' ? 0xff715f : 0xffc65f) : shot.weaponId === 'piercingThrow' ? 0xffdc70 : state.player.evolvedPinwheel ? 0xf8e391 : COLORS.cyan;
+      sprite.tint = shot.weaponId === 'baseball' ? 0xffffff : shot.owner === 'enemy' ? 0xff715f : state.player.evolvedPinwheel ? 0xf8e391 : COLORS.cyan;
       used++;
     }
     this.projectileViewCount = used;
@@ -328,9 +368,10 @@ export class GameRenderer {
     for (const pickup of state.pickups) {
       if (!this.isVisible(pickup.x, pickup.y, 20)) continue;
       let sprite = this.pickupViews[used];
-      if (!sprite) { sprite = new Sprite(this.primitiveTextures.get('xp')!); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
+      const texture = this.primitiveTextures.get(pickup.value >= 80 ? 'xp-large' : pickup.value >= 32 ? 'xp-medium' : 'xp-small')!;
+      if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
       const glint = this.reducedMotion ? 0 : 1 + Math.sin(state.elapsed * 8 + pickup.id) * 0.12;
-      sprite.renderable = true; sprite.position.set(pickup.x, pickup.y); sprite.rotation = Math.PI / 4; sprite.width = 12 * glint; sprite.height = 12 * glint; sprite.tint = COLORS.xp;
+      sprite.renderable = true; sprite.texture = texture; sprite.position.set(pickup.x, pickup.y); sprite.rotation = this.reducedMotion ? 0 : Math.sin(state.elapsed * 2.5 + pickup.id) * 0.12; const size = pickup.value >= 80 ? 21 : pickup.value >= 32 ? 16 : 12; sprite.width = size * glint; sprite.height = size * glint; sprite.tint = 0xffffff;
       used++;
     }
     this.pickupViewCount = used;
@@ -392,7 +433,7 @@ export class GameRenderer {
       if (enemy.dead) continue;
       if (!view && this.isVisible(enemy.x, enemy.y, 72)) {
         view = this.freeEnemyViews.pop() ?? this.createEnemyView(enemy);
-        if (view.kind !== enemy.kind) { view.kind = enemy.kind; view.sprite.texture = this.enemyTexture(enemy); this.setEnemySpriteSize(view.sprite, enemy); view.displayedFrame = -1; }
+        if (view.kind !== enemy.kind) { view.kind = enemy.kind; view.sprite.texture = this.enemyTexture(enemy); this.setEnemySpriteSize(view.sprite, enemy); view.displayedFrame = -1; view.displayedClip = ''; }
         this.enemyViews.set(enemy.id, view); needsSort = true;
       }
       if (!view) continue;
@@ -401,11 +442,15 @@ export class GameRenderer {
       const showHealth = enemy.kind === 'boss' || enemy.kind === 'bruiser' || enemy.hitFlash > 0;
       view.sprite.renderable = visible; view.shadow.renderable = visible; view.barBack.renderable = visible && showHealth; view.barFill.renderable = visible && showHealth;
       if (!visible) continue;
-      const clip = ENEMIES[enemy.kind].animation;
+      const baseClip = ENEMIES[enemy.kind].animation;
+      const throwing = enemy.attackState === 'ranged-telegraph' && Boolean(ENEMIES[enemy.kind].attackAnimation);
+      const clip = throwing ? ENEMIES[enemy.kind].attackAnimation : baseClip;
       if (clip) {
+        if (view.displayedClip !== clip.asset) { view.displayedClip = clip.asset; view.displayedFrame = -1; }
         const frames = this.framesFor(clip);
-        const frame = Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % Math.max(1, frames.length);
+        const frame = throwing ? 0 : Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % Math.max(1, frames.length);
         if (frames[frame] && frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; }
+        if (enemy.kind === 'gangster') { view.sprite.width = throwing ? 63 : 47; view.sprite.height = throwing ? 95 : 106; }
       } else {
         const frames = this.proceduralEnemyFrames.get(enemy.kind);
         if (frames?.length) {
@@ -446,7 +491,7 @@ export class GameRenderer {
   }
 
   private setEnemySpriteSize(sprite: Sprite, enemy: Enemy): void {
-    const size = enemy.kind === 'boss' ? [126, 142] : enemy.kind === 'bruiser' ? [60, 64] : enemy.kind === 'fastThug' ? [43, 58] : [41, 55];
+    const size = enemy.kind === 'boss' ? [126, 142] : enemy.kind === 'bruiser' ? [60, 64] : enemy.kind === 'gangster' ? [47, 106] : enemy.kind === 'fastThug' ? [43, 58] : [41, 55];
     sprite.width = size[0]!; sprite.height = size[1]!;
   }
 
@@ -455,7 +500,7 @@ export class GameRenderer {
     const shadow = new Sprite(this.primitiveTextures.get('shadow')!); shadow.anchor.set(0.5); shadow.alpha = 0.42; this.decals.addChild(shadow);
     const barBack = new Sprite(this.primitiveTextures.get('pixel')!); barBack.anchor.set(0, 0); barBack.tint = 0x161c24; this.bars.addChild(barBack);
     const barFill = new Sprite(this.primitiveTextures.get('pixel')!); barFill.anchor.set(0, 0); this.bars.addChild(barFill);
-    return { sprite, shadow, barBack, barFill, kind: enemy.kind, frameSeen: this.renderFrame, displayedFrame: -1 } as EnemyView;
+    return { sprite, shadow, barBack, barFill, kind: enemy.kind, frameSeen: this.renderFrame, displayedFrame: -1, displayedClip: '' };
   }
 
   getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; cityMapLoaded: boolean; cityMapSize: { width: number; height: number } | null; playerFrame: number; moving: boolean; playerFacing: string; cameraZoom: number; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; kind: EnemyKind; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {

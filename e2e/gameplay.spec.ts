@@ -161,7 +161,8 @@ test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page
   }
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.evolvedPinwheel ?? false)).toBe(true);
   expect(evolutionCardCaptured).toBe(true);
-  await expect(page.locator('.combat-hud')).toContainText('PINWHEEL EVOLVED');
+  await expect(page.locator('.combat-hud')).toContainText('RING EVOLVED');
+  await expect(page.locator('.upgrade-rank')).toHaveCount(0);
   await page.screenshot({ path: `${evidence}/post-evolution-combat.png` });
   expect(errors).toEqual([]);
 });

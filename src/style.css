@@ -102,6 +102,8 @@ button { font: inherit; color: inherit; pointer-events: auto; cursor: pointer; b
 .upgrade-icon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 10px; border: 1px solid #64c6e7; background: radial-gradient(circle, #277db366, #0c1b29); color: #a1ecff; font-size: 27px; text-shadow: 0 0 14px #5ddaff; box-shadow: 0 0 18px #2f95c733, inset 0 0 0 3px #091725; }
 .upgrade-category { display: block; color: #79d7ee; font-size: 8px; font-weight: 900; letter-spacing: 1.35px; text-align: center; }
 .upgrade-card strong { margin: 8px 0 7px; color: #fff2d7; font-family: Impact, "Arial Narrow", sans-serif; font-size: 18px; letter-spacing: .5px; text-align: center; }
+.upgrade-rank { display: block; margin: 0 auto 8px; width: fit-content; padding: 5px 8px; border: 1px solid #4e96b9; background: #102638; color: #a8edff; font-size: 11px; letter-spacing: .7px; text-align: center; }
+.evolution-card .upgrade-rank { color: #ffe7a0; border-color: #b8913d; background: #382d16; }
 .upgrade-card small { min-height: 36px; color: #aec1cc; font-size: 10px; line-height: 1.5; text-align: center; }
 .card-num { top: 8px; left: 9px; color: #8fe5ff; }
 .card-pick { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 9px; border-top: 1px solid #8295a533; color: #8299aa; font-size: 8px; font-weight: 900; letter-spacing: 1px; }
