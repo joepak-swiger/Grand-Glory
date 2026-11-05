@@ -179,12 +179,24 @@ test('standard configuration naturally builds an early horde in the browser', as
       const state = window.__GG_TEST__?.getState();
       if (!state) return { x: 0, y: 0 };
       const player = state.player;
+      const healthRatio = player.health / player.maxHealth;
+      if (healthRatio < 0.5) {
+        let closestThreat = null as { x: number; y: number; distance: number } | null;
+        for (const enemy of state.enemies) {
+          if (enemy.dead) continue;
+          const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+          if (!closestThreat || distance < closestThreat.distance) closestThreat = { x: enemy.x, y: enemy.y, distance };
+        }
+        if (closestThreat && closestThreat.distance < 360) {
+          return { x: (player.x - closestThreat.x) / closestThreat.distance, y: (player.y - closestThreat.y) / closestThreat.distance };
+        }
+      }
       let nearest = null as { x: number; y: number; distance: number } | null;
       for (const pickup of state.pickups) {
         const distance = Math.hypot(pickup.x - player.x, pickup.y - player.y);
         if (!nearest || distance < nearest.distance) nearest = { x: pickup.x, y: pickup.y, distance };
       }
-      if (nearest && nearest.distance > 24 && nearest.distance < 420) {
+      if (healthRatio > 0.55 && nearest && nearest.distance > 24 && nearest.distance < 420) {
         return { x: (nearest.x - player.x) / nearest.distance, y: (nearest.y - player.y) / nearest.distance };
       }
       const angle = state.elapsed * 0.5;
@@ -203,8 +215,9 @@ test('standard configuration naturally builds an early horde in the browser', as
         const defensiveChoices = state
           ? (['vitality', 'recovery', 'armorPlating'] as const).filter(id => upgradeRank(id) === 0)
           : [];
+        const speedChoice = speedRank === 0 ? ['speed'] : [];
         const priority = hpRatio < 0.82
-          ? [...defensiveChoices, 'speed', 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery', 'vitality', 'recovery', 'armorPlating']
+          ? [...defensiveChoices, ...speedChoice, 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery', 'speed', 'vitality', 'recovery', 'armorPlating']
           : speedRank < 1
             ? ['speed', 'piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'vitality', 'recovery', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
             : ['piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'speed', 'vitality', 'recovery', 'armorPlating', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery'];
