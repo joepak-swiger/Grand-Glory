@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ATTACKS, ENEMIES, type EnemyAnimationState } from '../src/game/definitions';
+import { ATTACKS, ENEMIES, PLANNED_VILLAINS, type EnemyAnimationState } from '../src/game/definitions';
 
 describe('temporary enemy animation metadata', () => {
   it('declares right-facing source frames and valid indices for every supported state', () => {
@@ -33,5 +33,10 @@ describe('temporary enemy animation metadata', () => {
     expect(ATTACKS.piercingThrow.projectileShape).toBe('ring');
     expect(ATTACKS.piercingThrow.name).toContain('Piercing Ring');
     expect(ATTACKS.piercingThrow.name).not.toMatch(/arrow/i);
+  });
+
+  it('keeps planned future villains registered but disabled', () => {
+    expect(PLANNED_VILLAINS.map(villain => villain.id)).toEqual(['tiger-mom', 'dr-eggplant', 'clownasaurus-rex']);
+    expect(PLANNED_VILLAINS.every(villain => !villain.enabled)).toBe(true);
   });
 });

@@ -8,6 +8,8 @@ artifacts/recordings/
 artifacts/evidence/living-city/run/
 artifacts/evidence/rings-xp-and-melee/run/
 artifacts/playwright-browsers/
+artifacts/milestone-010-work/
+artifacts/evidence/milestone-010/
 .vite/
 .cache/
 .env

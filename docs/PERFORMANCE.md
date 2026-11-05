@@ -169,3 +169,17 @@ No simulation algorithm changed, so the lower medians should be treated as sampl
 The final Playwright crowd sweep used HeadlessChrome 156, Windows x64, 1365×900, WebGL via ANGLE/Vulkan SwiftShader, and 16 reported hardware threads. All entities and projectiles were visible in a paused synthetic scene. At 25/50/100/150/200 enemies, whole-frame average was 22.69/22.66/23.69/25.14/27.22 ms; frame p95 was 33.4 ms at each count; worst was 99.94/99.94/99.94/99.94/50.1 ms. Sampled FPS was 60/30/30/30/30. Renderer update current/p95/worst was 0.3/0.6/2.1, 0.2/0.5/2.1, 0.3/0.6/2.1, 0.5/0.6/2.1, and 0.6/0.7/2.0 ms respectively. JS heap was 22.03 MiB; browser-reported heap does not include GPU memory. Simulation and dropped updates are zero in this paused synthetic test and are not running-game measurements.
 
 The previous SwiftShader sweep in Assignment 007 measured average frame times 27.78/26.19/27.32/28.81/30.22 ms and renderer p95 0.6/0.6/0.6/0.6/0.7 ms. This is a similar software-rendered environment, but not a controlled same-process A/B comparison; the lower whole-frame averages here do not establish desktop GPU performance. The accelerated standard browser run during this pass sampled 60 FPS at 15/30 seconds, then 30/60 at several later checkpoints, and reached 127 active/73 visible (including boss) at 150.9 simulated seconds. It won at 161.57 seconds, level 22, with 881 kills. It is automated fast-forwarded gameplay, not a normal wall-clock run or owner human playtest. No desktop GPU session was available.
+
+## Assignment 010 — simulation measurement
+
+The seeded Node 24.22.1 Windows x64 mixed-scene benchmark was run with 120 warm-up updates and 600 measured simulation updates at each population. It includes enemies, projectiles, XP piles, damage labels, animation/AI, and collision paths; the reported distribution is per fixed update in milliseconds. This compares simulation CPU cost only. No renderer or browser A/B was possible in the local session because Chromium navigation to the local Vite URL returned `net::ERR_NETWORK_ACCESS_DENIED`.
+
+| Active enemies | Median ms/update | p95 ms/update | Worst ms/update |
+|---:|---:|---:|---:|
+| 25 | 0.0462 | 0.1626 | 0.7986 |
+| 50 | 0.0650 | 0.1208 | 0.2376 |
+| 100 | 0.1389 | 0.2462 | 1.6620 |
+| 150 | 0.2428 | 0.3938 | 0.7533 |
+| 200 | 0.3685 | 0.5906 | 0.8501 |
+
+At 200 enemies, the p95 is under 0.6ms, far below the 16.7ms fixed-step budget on this Node host. This does not establish GPU rendering performance or real-world framerate. The branch adds reusable character textures and effects to the existing cached renderer; no measured before/after browser frame claim is made. The hosted Playwright workflow should report visual runtime and browser evidence after the branch is pushed.

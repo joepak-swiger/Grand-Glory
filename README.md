@@ -1,6 +1,6 @@
 # GRAND GLORY — Prototype
 
-An independent, original superhero bullet-heaven prototype. **Blue Pinwheel** is the only playable hero in this slice; the title, gameplay powers, enemies, and all art are provisional. Character canon remains owner-controlled.
+An independent, original superhero bullet-heaven prototype. Choose **Blue Pinwheel**, **Bok-Goo (The Boulder)**, or **Da-Ri (The Obsidian)** and survive escalating factions in Endless Mode. Combat move names and abilities are gameplay prototypes; character canon remains owner-controlled.
 
 ## Requirements
 
@@ -9,7 +9,7 @@ An independent, original superhero bullet-heaven prototype. **Blue Pinwheel** is
 
 Pinned stack: PixiJS 8.22.0, Vite 8.3.5, TypeScript 7.0.2, Vitest 5.1.0, and Playwright 1.64.1. `package-lock.json` is the npm lockfile.
 
-The city stage uses a cached pixel-art map built from the Kenney Roguelike Modern City CC0 atlas, with authored brick/glass/industrial roof treatments and a restrained upper-left lighting direction. Blue Pinwheel's owner-approved appearance is preserved; generated Bruiser and unnamed boss silhouettes are temporary prototype art. His provisional attacks are blue ring weapons. Defeated enemies leave persistent XP gems that collect only when approached, and the supplied Street Pitcher is the current opt-in baseball-throwing enemy; other ordinary enemies are melee-only. The first-launch SFX volume defaults to 55%, while a saved mute/zero volume is respected. See [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md) and [docs/ASSETS.md](docs/ASSETS.md) for visual specifications and provenance.
+The city stage uses a cached pixel-art map built from the Kenney Roguelike Modern City CC0 atlas, with authored brick/glass/industrial roof treatments and a restrained upper-left lighting direction. Owner-supplied character artwork for the three heroes, Street Pitcher, Yo-Yo Punk, Gang Boss, Dr. Smile, Smilers, and Molars is preserved in processed transparent runtime assets; publication of the Milestone 010 handoff art is explicitly owner-authorized. Blue Pinwheel throws provisional blue ring weapons, Bok-Goo starts with a broad club sweep, and Da-Ri starts with a piercing spear thrust. Defeated enemies leave persistent XP gems that collect only when approached. Street Pitcher throws baseballs; other ordinary gang/Smile-faction enemies use melee or the Yo-Yo Punk's telegraphed line hazard. Defeating bosses advances Endless Mode rather than ending the run. See [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md), [docs/ASSETS.md](docs/ASSETS.md), and [docs/GAMEPLAY.md](docs/GAMEPLAY.md) for visual specifications, provenance, and controls.
 
 ## Run
 
@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, **1/2/3** to choose upgrades, and the mouse to choose menu options. Weapons target automatically. The title screen lets you choose **Normal** (default) or **Heroic**, a **Wide/Standard/Close** camera, sound-effect volume/mute, and reduced motion. Normal reduces incoming damage and projectile speed and gives longer invulnerability/dash recovery while keeping the same Horde Director targets; Heroic keeps the previous pressure. The crowd builds toward configured population targets and receives direction-announced mixed surges. The three-minute prototype run introduces an overtime Gang Leader if not defeated by the target time. In the development build, press **F3** for the compact crowd/performance overlay and its copyable run summary.
+Open the local URL printed by Vite. Use **WASD** or **arrow keys** to move, **Shift/Space** to dash, **Q** for the prototype special, **Esc** to pause, **1/2/3** to choose upgrades, and the mouse or 1–3 keys to select a hero. Weapons target automatically; melee attacks follow hero-specific facing and reach. The title screen lets you choose a hero, **Normal** (default) or **Heroic**, a **Wide/Standard/Close** camera, sound-effect volume/mute, and reduced motion. Normal reduces incoming damage and projectile speed; Heroic keeps the higher pressure. The horde escalates through Street Gang enemies, then blends the Dr. Smile faction after the first boss. Boss defeats advance the endless run; pause to retire and see results. The development build offers **F3** diagnostics and **F4** collision overlay.
 
 ### Windows one-click launcher
 

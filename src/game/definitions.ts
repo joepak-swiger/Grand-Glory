@@ -1,6 +1,15 @@
-export type GameStatus = 'title' | 'playing' | 'upgrade' | 'paused' | 'victory' | 'defeat';
-export type EnemyKind = 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'boss';
-export type UpgradeId = 'damage' | 'tempo' | 'extra' | 'speed' | 'vitality' | 'recovery' | 'magnet' | 'orbit' | 'pinwheel' | 'piercingThrow' | 'power' | 'evolvePinwheel';
+export type GameStatus = 'title' | 'playing' | 'upgrade' | 'paused' | 'victory' | 'defeat' | 'retired';
+export type HeroId = 'blue-pinwheel' | 'bok-goo' | 'da-ri';
+export type ImplementedBossId = 'gang-boss' | 'dr-smile';
+export type FactionId = 'street-gang' | 'dr-smile';
+export interface PlannedVillainDefinition { readonly id: string; readonly name: string; readonly faction: string; readonly enabled: boolean }
+export const PLANNED_VILLAINS: readonly PlannedVillainDefinition[] = [
+  { id: 'tiger-mom', name: 'The Tiger Mom', faction: 'Tiger faction', enabled: false },
+  { id: 'dr-eggplant', name: 'Dr. Eggplant', faction: 'Eggplant faction', enabled: false },
+  { id: 'clownasaurus-rex', name: 'Clownasaurus Rex', faction: 'Clownasaurus faction', enabled: false },
+];
+export type EnemyKind = 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'yoYoPunk' | 'smiler' | 'molar' | 'boss';
+export type UpgradeId = 'damage' | 'tempo' | 'extra' | 'speed' | 'vitality' | 'recovery' | 'magnet' | 'orbit' | 'pinwheel' | 'piercingThrow' | 'power' | 'evolvePinwheel' | 'clubSweep' | 'boulderToss' | 'spearThrust' | 'spearToss' | 'mastery';
 export type DifficultyId = 'normal' | 'heroic';
 export interface DifficultyDefinition { readonly id: DifficultyId; readonly label: string; readonly enemyDamageMultiplier: number; readonly enemyProjectileSpeedMultiplier: number; readonly rangedAttackIntervalMultiplier: number; readonly playerInvulnerabilitySeconds: number; readonly dashCooldownSeconds: number }
 export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDefinition>> = {
@@ -11,6 +20,11 @@ export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDefinition>> 
 export interface HeroDefinition {
   readonly id: string;
   readonly name: string;
+  readonly title?: string;
+  readonly role?: string;
+  readonly startingWeapon?: string;
+  readonly specialty?: string;
+  readonly description?: string;
   readonly placeholder: boolean;
   readonly maxHealth: number;
   readonly moveSpeed: number;
@@ -30,7 +44,7 @@ export interface HeroDefinition {
 export interface AnimationClipDefinition { readonly asset: string; readonly frameWidth: number; readonly frameHeight: number; readonly frameCount: number; readonly frameDurationMs: number }
 
 export const BLUE_PINWHEEL: HeroDefinition = {
-  id: 'blue-pinwheel', name: 'Blue Pinwheel', placeholder: false, maxHealth: 160, moveSpeed: 210,
+  id: 'blue-pinwheel', name: 'Blue Pinwheel', title: 'The Mobile Specialist', role: 'MOBILE RANGED SPECIALIST', startingWeapon: 'Starter Ring Throw', specialty: 'Fast ranged targeting', description: 'Stay in motion and shape the crowd with spinning blue rings.', placeholder: false, maxHealth: 160, moveSpeed: 210,
   attackName: 'Starter Ring Throw (Prototype)',
   animation: {
     anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
@@ -39,6 +53,28 @@ export const BLUE_PINWHEEL: HeroDefinition = {
     damage: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
     defeat: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
     ability: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+  },
+};
+
+export const HEROES: Readonly<Record<HeroId, HeroDefinition>> = {
+  'blue-pinwheel': BLUE_PINWHEEL,
+  'bok-goo': {
+    id: 'bok-goo', name: 'Bok-Goo', title: '복구 · The Boulder', role: 'DURABLE MELEE FIGHTER', startingWeapon: 'Club Sweep', specialty: 'Broad close-range control', description: 'Hold your ground with sweeping club strikes and heavy crowd knockback.', placeholder: false, maxHealth: 225, moveSpeed: 180, attackName: 'Club Sweep (Prototype)',
+    animation: { anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
+      idle: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 360 },
+      move: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 145 },
+      damage: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 100 },
+      defeat: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 1, frameDurationMs: 120 },
+      ability: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 90 } },
+  },
+  'da-ri': {
+    id: 'da-ri', name: 'Da-Ri', title: '다리 · The Obsidian', role: 'AGILE SPEAR FIGHTER', startingWeapon: 'Spear Thrust', specialty: 'Long-reach precision', description: 'Align attacks through a lane, pierce the front rank, and reposition quickly.', placeholder: false, maxHealth: 145, moveSpeed: 225, attackName: 'Spear Thrust (Prototype)',
+    animation: { anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
+      idle: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 360 },
+      move: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 150 },
+      damage: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 100 },
+      defeat: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 1, frameDurationMs: 120 },
+      ability: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 90 } },
   },
 };
 
@@ -57,6 +93,7 @@ const prototypeAnimation: EnemyPrototypeAnimationDefinition = {
 };
 export interface RangedAttackDefinition { readonly projectile: 'baseball' | 'enemy'; readonly projectileSpeed: number; readonly attackInterval: number; readonly telegraphSeconds: number; readonly preferredRange: number }
 export interface EnemyDefinition { readonly kind: EnemyKind; readonly health: number; readonly speed: number; readonly damage: number; readonly radius: number; readonly xp: number; readonly animation?: AnimationClipDefinition; readonly attackAnimation?: AnimationClipDefinition; readonly prototypeAnimation?: EnemyPrototypeAnimationDefinition; readonly ranged?: RangedAttackDefinition }
+export const DR_SMILE_BOSS_ANIMATION: AnimationClipDefinition = { asset: '/assets/milestone010/dr-smile/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 };
 export interface AttackDefinition { readonly id: string; readonly name: string; readonly projectileShape?: 'ring'; readonly damage: number; readonly cooldown: number; readonly projectileSpeed: number; readonly lifetime: number; readonly targetRange: number; readonly pierce?: number; readonly rankDamage?: readonly number[]; readonly rankCooldown?: readonly number[]; readonly rankPierce?: readonly number[] }
 export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'piercingThrow' | 'special', AttackDefinition>> = {
   pinwheel: { id: 'pinwheel-prototype', name: 'Starter Ring Throw (Prototype)', projectileShape: 'ring', damage: 18, cooldown: 0.76, projectileSpeed: 410, lifetime: 1.5, targetRange: 520, rankDamage: [1, 1.18, 1.36, 1.55, 1.8], rankCooldown: [1, 1, 0.84, 0.84, 0.78], rankPierce: [0, 0, 0, 1, 1] },
@@ -73,7 +110,10 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
   fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 4, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
   gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, animation: { asset: '/assets/enemies/street-pitcher-walk-cycle.png', frameWidth: 418, frameHeight: 941, frameCount: 4, frameDurationMs: 150 }, attackAnimation: { asset: '/assets/enemies/street-pitcher-throw-pose.png', frameWidth: 1024, frameHeight: 1536, frameCount: 1, frameDurationMs: 140 }, ranged: { projectile: 'baseball', projectileSpeed: 260, attackInterval: 3.2, telegraphSeconds: 0.62, preferredRange: 265 } },
   bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30, prototypeAnimation },
-  boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp, prototypeAnimation },
+  yoYoPunk: { kind: 'yoYoPunk', health: 44, speed: 46, damage: 13, radius: 15, xp: 28, animation: { asset: '/assets/milestone010/yo-yo-punk/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
+  smiler: { kind: 'smiler', health: 47, speed: 48, damage: 6, radius: 15, xp: 18, animation: { asset: '/assets/milestone010/smiler/walk.png', frameWidth: 256, frameHeight: 170, frameCount: 4, frameDurationMs: 140 } },
+  molar: { kind: 'molar', health: 24, speed: 86, damage: 4, radius: 11, xp: 15, animation: { asset: '/assets/milestone010/molar/walk.png', frameWidth: 256, frameHeight: 170, frameCount: 4, frameDurationMs: 90 } },
+  boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp, prototypeAnimation, animation: { asset: '/assets/milestone010/gang-boss/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
 };
 
 export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: string }> = [
@@ -89,13 +129,18 @@ export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: str
   { id: 'piercingThrow', title: 'Piercing Ring (Prototype)', detail: 'Unlock / rank a long piercing ring' },
   { id: 'power', title: 'Prototype Power', detail: '+15% damage; required for an evolution' },
   { id: 'evolvePinwheel', title: 'PINWHEEL EVOLUTION', detail: 'Evolve at Pinwheel Rank 5 + Prototype Power Rank 2' },
+  { id: 'clubSweep', title: 'Club Sweep', detail: 'Increase sweep damage and impact reach' },
+  { id: 'boulderToss', title: 'Boulder Toss', detail: 'Unlock or strengthen an aimed heavy stone' },
+  { id: 'spearThrust', title: 'Spear Thrust', detail: 'Increase narrow-line reach and piercing' },
+  { id: 'spearToss', title: 'Spear Toss', detail: 'Unlock or strengthen a piercing thrown spear' },
+  { id: 'mastery', title: 'Limit Break Mastery', detail: '+5% attack damage (repeatable, capped at 20 ranks)' },
 ];
 
 export type HordeEntrySide = 'left' | 'right' | 'top' | 'bottom';
 export interface HordeConfig { readonly targetCounts: readonly { readonly at: number; readonly count: number }[]; readonly batchMin: number; readonly batchMax: number; readonly baseBatchInterval: number; readonly maxSpawnPerSecond: number; readonly maxSpawnPerUpdate: number; readonly surgeEvery: number; readonly surgeDuration: number; readonly surgeBonus: number; readonly maxActive: number; readonly spawnMarginX: number; readonly spawnMarginY: number; readonly recycleAfter: number }
-export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean; readonly difficulty: DifficultyId; readonly horde: HordeConfig }
+export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean; readonly difficulty: DifficultyId; readonly horde: HordeConfig; readonly gameMode?: 'endless' | 'finite' }
 export interface StageDefinition { readonly id: string; readonly name: string; readonly run: RunConfig; readonly visualStyle: 'kenney-city-grid' }
 const standardHorde: HordeConfig = { targetCounts: [{ at: 0, count: 8 }, { at: 15, count: 24 }, { at: 30, count: 40 }, { at: 60, count: 64 }, { at: 90, count: 82 }, { at: 120, count: 104 }, { at: 150, count: 120 }], batchMin: 3, batchMax: 5, baseBatchInterval: 0.95, maxSpawnPerSecond: 14, maxSpawnPerUpdate: 4, surgeEvery: 35, surgeDuration: 10, surgeBonus: 12, maxActive: 128, spawnMarginX: 84, spawnMarginY: 74, recycleAfter: 4.5 };
-export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 128, testMode: false, difficulty: 'normal', horde: standardHorde };
-export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, overtimeLimit: 12, seed: 1741, maxEnemies: 56, testMode: true, horde: { ...standardHorde, targetCounts: [{ at: 0, count: 5 }, { at: 5, count: 12 }, { at: 15, count: 22 }, { at: 25, count: 32 }], batchMin: 2, batchMax: 3, baseBatchInterval: 0.65, surgeEvery: 10, surgeDuration: 4, surgeBonus: 8, maxActive: 56 } };
+export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 128, testMode: false, difficulty: 'normal', gameMode: 'endless', horde: standardHorde };
+export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, overtimeLimit: 12, seed: 1741, maxEnemies: 56, testMode: true, gameMode: 'finite', horde: { ...standardHorde, targetCounts: [{ at: 0, count: 5 }, { at: 5, count: 12 }, { at: 15, count: 22 }, { at: 25, count: 32 }], batchMin: 2, batchMax: 3, baseBatchInterval: 0.65, surgeEvery: 10, surgeDuration: 4, surgeBonus: 8, maxActive: 56 } };
 export const CITY_STREET_STAGE: StageDefinition = { id: 'city-street', name: 'City Street (Prototype)', run: standardRun, visualStyle: 'kenney-city-grid' };
