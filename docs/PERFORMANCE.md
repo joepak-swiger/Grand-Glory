@@ -189,3 +189,17 @@ At 200 enemies, the p95 is under 0.6ms, far below the 16.7ms fixed-step budget o
 GitHub Actions run [42063274127](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127) passed all 8 Chromium scenarios and uploaded its actual screenshots/traces in the [browser evidence artifact](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127/artifacts/13434440109). The standard-config accelerated run advanced to 228.9 simulated seconds, remained in Endless play after one Gang Boss defeat, introduced both Smiler and Molar, and recorded 112 active enemies at that checkpoint with a 128 active peak. Natural samples were: 15s 25 active / 14 visible; 30s 41/28; 60s 63/33; 90s 81/44; 120s 104/61; 150s 115/67 including the boss. It reached level 24 and 1,451 kills. This is deterministic automated accelerated gameplay, not wall-clock timing or human playtesting.
 
 The CI crowd sweep ran headless Chromium 156 at 1365×900 using WebGL through ANGLE/Vulkan SwiftShader on a four-core advertised runner. Synthetic crowd sizes were 25/50/100/150/200 visible enemies; measured whole-frame averages were approximately 98.6/99.2/99.4/99.5/99.6ms, with frame p95 around 100ms and sampled FPS 9/7/6/5/5. Renderer scene-update p95 stayed around 1.4/1.8/1.7/1.8/1.8ms (worst 3.6ms). This clearly shows software-rendered headless frame pacing is unsuitable as a desktop-GPU proxy; the scene-update sample remains small, while browser/compositor/software rasterization dominates the measured frame time. It is not a controlled before/after comparison and does not establish owner hardware performance. No normal Windows GPU play session occurred.
+
+## Assignment 011 — weapon and passive buildcraft simulation sample
+
+The same seeded `scripts/benchmark-sim.mjs` fixture was run on Windows x64 with Node 24.22.1: 120 warm-up fixed updates and 600 measured updates at each target enemy count. It reports simulation update CPU time only. The benchmark includes the game's mixed enemy/projectile/XP/effect state; it does not start the browser renderer.
+
+| Active enemies | Assignment 010 median / p95 / worst ms | Assignment 011 median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0462 / 0.1626 / 0.7986 | 0.0644 / 0.2010 / 1.3069 |
+| 50 | 0.0650 / 0.1208 / 0.2376 | 0.1018 / 0.2011 / 1.0589 |
+| 100 | 0.1389 / 0.2462 / 1.6620 | 0.2514 / 0.3776 / 2.1431 |
+| 150 | 0.2428 / 0.3938 / 0.7533 | 0.4066 / 0.6014 / 1.1270 |
+| 200 | 0.3685 / 0.5906 / 0.8501 | 0.5708 / 0.8943 / 5.8687 |
+
+This sample is slower at every population, with a 0.57 ms median and 0.89 ms p95 at 200 enemies. That remains under the 16.7 ms fixed-update budget on this Node host, but the 5.87 ms worst update is a noisy outlier and deserves follow-up profiling if gameplay grows more expensive. These are short, separate benchmark processes rather than a paired profiler run; treat the increase as a warning signal, not a precise attribution to one feature. The new multi-weapon and per-orbit collision work adds real simulation paths. The new browser renderer/frame-time result is unavailable locally: the sandbox denied a localhost socket probe, so no FPS or renderer comparison is claimed. A hosted Playwright run is needed for updated visual/browser evidence.

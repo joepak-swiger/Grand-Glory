@@ -131,37 +131,26 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   expect(failedAssets).toEqual([]);
 });
 
-test('real upgrade UI can unlock and evolve the prototype weapon', async ({ page }) => {
+test('real boss-cache UI offers and applies a qualifying weapon evolution', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await page.getByRole('button', { name: /PLAY NOW/i }).click();
-  await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000));
-  let evolutionCardCaptured = false;
-  for (let choice = 0; choice < 40; choice++) {
-    const state = await page.evaluate(() => {
-      const current = window.__GG_TEST__?.getState();
-      return current ? { status: current.status, options: current.options, pinwheel: current.player.weaponRanks.pinwheel, power: current.player.powerRank, evolved: current.player.evolvedPinwheel } : null;
-    });
-    if (!state || state.evolved) break;
-    if (state.status === 'playing') { await page.evaluate(() => window.__GG_TEST__?.injectPickup(5_000)); continue; }
-    if (state.status !== 'upgrade') throw new Error(`Expected pending level-up choice, received ${state.status}`);
-    if (!evolutionCardCaptured && state.options.includes('evolvePinwheel')) {
-      await expect(page.locator('.evolution-card')).toBeVisible();
-      await page.screenshot({ path: `${evidence}/evolution-card.png` });
-      evolutionCardCaptured = true;
-    }
-    const desired = state.pinwheel < 5 && state.options.includes('pinwheel') ? 'pinwheel'
-      : state.power < 2 && state.options.includes('power') ? 'power'
-        : state.options[0];
-    if (!desired) throw new Error('Upgrade selection has no valid card');
-    await page.locator(`[data-upgrade="${desired}"]`).click();
-  }
+  await page.evaluate(() => {
+    const test = window.__GG_TEST__; const state = test?.getState(); if (!test || !state) return;
+    state.endless = true; state.enemies.length = 0; state.projectiles.length = 0; state.pickups.length = 0;
+    state.player.weaponRanks.pinwheel = 5; state.player.passiveRanks.damage = 1; state.player.attackTimer = 10_000;
+    state.pickups.push({ id: state.nextId++, x: state.player.x, y: state.player.y, value: 0, kind: 'boss-evolution' });
+    test.advance(0.05);
+  });
+  await expect(page.getByRole('heading', { name: 'Choose a weapon evolution' })).toBeVisible();
+  await expect(page.locator('.evolution-card')).toContainText('Typhoon Rings');
+  await page.screenshot({ path: `${evidence}/boss-cache-evolution-card.png` });
+  await page.locator('[data-reward="typhoon-rings"]').click();
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.player.evolvedPinwheel ?? false)).toBe(true);
-  expect(evolutionCardCaptured).toBe(true);
-  await expect(page.locator('.combat-hud')).toContainText('RING EVOLVED');
+  await expect(page.locator('.combat-hud')).toContainText('Typhoon Rings');
   await expect(page.locator('.upgrade-rank')).toHaveCount(0);
   await page.screenshot({ path: `${evidence}/post-evolution-combat.png` });
   expect(errors).toEqual([]);

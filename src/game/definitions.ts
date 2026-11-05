@@ -1,4 +1,4 @@
-export type GameStatus = 'title' | 'playing' | 'upgrade' | 'paused' | 'victory' | 'defeat' | 'retired';
+export type GameStatus = 'title' | 'playing' | 'upgrade' | 'boss-reward' | 'paused' | 'victory' | 'defeat' | 'retired';
 export type HeroId = 'blue-pinwheel' | 'bok-goo' | 'da-ri';
 export type ImplementedBossId = 'gang-boss' | 'dr-smile';
 export type FactionId = 'street-gang' | 'dr-smile';
@@ -9,7 +9,20 @@ export const PLANNED_VILLAINS: readonly PlannedVillainDefinition[] = [
   { id: 'clownasaurus-rex', name: 'Clownasaurus Rex', faction: 'Clownasaurus faction', enabled: false },
 ];
 export type EnemyKind = 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'yoYoPunk' | 'smiler' | 'molar' | 'boss';
-export type UpgradeId = 'damage' | 'tempo' | 'extra' | 'speed' | 'vitality' | 'recovery' | 'magnet' | 'orbit' | 'pinwheel' | 'piercingThrow' | 'power' | 'evolvePinwheel' | 'clubSweep' | 'boulderToss' | 'spearThrust' | 'spearToss' | 'mastery';
+export type PassiveId = 'damage' | 'tempo' | 'extra' | 'speed' | 'vitality' | 'recovery' | 'magnet' | 'wideImpact' | 'velocityCore' | 'extendedCharge' | 'armorPlating' | 'experienceTraining';
+export const PASSIVE_IDS: readonly PassiveId[] = ['damage', 'tempo', 'extra', 'speed', 'vitality', 'recovery', 'magnet', 'wideImpact', 'velocityCore', 'extendedCharge', 'armorPlating', 'experienceTraining'];
+export type UpgradeId = PassiveId | 'orbit' | 'pinwheel' | 'piercingThrow' | 'ricochetRing' | 'power' | 'clubSweep' | 'boulderToss' | 'groundSlam' | 'spearThrust' | 'spearToss' | 'spearSweep' | 'mastery';
+export type WeaponEvolutionId = 'typhoon-rings' | 'eternal-halo' | 'shatterstorm' | 'earthbreaker' | 'avalanche-toss' | 'obsidian-tempest' | 'returning-lance';
+export interface WeaponEvolutionDefinition { readonly id: WeaponEvolutionId; readonly name: string; readonly weaponId: string; readonly requiredRank: number; readonly passive: PassiveId; readonly hero: HeroId; readonly effect: string }
+export const WEAPON_EVOLUTIONS: readonly WeaponEvolutionDefinition[] = [
+  { id: 'typhoon-rings', name: 'Typhoon Rings', weaponId: 'pinwheel', requiredRank: 5, passive: 'damage', hero: 'blue-pinwheel', effect: 'Starter rings gain piercing and a shorter cooldown.' },
+  { id: 'eternal-halo', name: 'Eternal Halo', weaponId: 'orbitGuard', requiredRank: 5, passive: 'extendedCharge', hero: 'blue-pinwheel', effect: 'Orbit Guard gains a fourth damaging ring and wider orbit.' },
+  { id: 'shatterstorm', name: 'Shatterstorm', weaponId: 'ricochetRing', requiredRank: 5, passive: 'armorPlating', hero: 'blue-pinwheel', effect: 'Ricochet rings gain an extra bounce and stronger impact.' },
+  { id: 'earthbreaker', name: 'Earthbreaker', weaponId: 'clubSweep', requiredRank: 5, passive: 'wideImpact', hero: 'bok-goo', effect: 'Club Sweep releases a broad ground-impact wave.' },
+  { id: 'avalanche-toss', name: 'Avalanche Toss', weaponId: 'boulderToss', requiredRank: 5, passive: 'extra', hero: 'bok-goo', effect: 'Boulder Toss launches a larger volley.' },
+  { id: 'obsidian-tempest', name: 'Obsidian Tempest', weaponId: 'spearThrust', requiredRank: 5, passive: 'tempo', hero: 'da-ri', effect: 'Spear Thrust performs a rapid multi-thrust sequence.' },
+  { id: 'returning-lance', name: 'Returning Lance', weaponId: 'spearToss', requiredRank: 5, passive: 'velocityCore', hero: 'da-ri', effect: 'Thrown spears return through enemies on their way back.' },
+];
 export type DifficultyId = 'normal' | 'heroic';
 export interface DifficultyDefinition { readonly id: DifficultyId; readonly label: string; readonly enemyDamageMultiplier: number; readonly enemyProjectileSpeedMultiplier: number; readonly rangedAttackIntervalMultiplier: number; readonly playerInvulnerabilitySeconds: number; readonly dashCooldownSeconds: number }
 export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDefinition>> = {
@@ -101,8 +114,8 @@ export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'piercingThrow
   piercingThrow: { id: 'piercing-throw-prototype', name: 'Piercing Ring (Prototype)', projectileShape: 'ring', damage: 26, cooldown: 1.8, projectileSpeed: 345, lifetime: 2.0, targetRange: 470, pierce: 2, rankDamage: [1, 1.2, 1.4, 1.65, 1.9], rankCooldown: [1, 1, 0.82, 0.82, 0.72], rankPierce: [2, 2, 3, 3, 4] },
   special: { id: 'special-prototype', name: 'Prototype Special — Canon TBD', damage: 115, cooldown: 0.7, projectileSpeed: 0, lifetime: 0, targetRange: 230 },
 };
-export interface EvolutionDefinition { readonly id: 'pinwheel-evolution'; readonly weapon: 'pinwheel'; readonly requiredWeaponRank: number; readonly requiredPowerRank: number; readonly name: string; readonly bonusPierce: number; readonly cooldownMultiplier: number }
-export const PINWHEEL_EVOLUTION: EvolutionDefinition = { id: 'pinwheel-evolution', weapon: 'pinwheel', requiredWeaponRank: 5, requiredPowerRank: 2, name: 'Pinwheel Evolution (Prototype)', bonusPierce: 2, cooldownMultiplier: 0.7 };
+export interface PinwheelEvolutionAttackBonus { readonly bonusPierce: number; readonly cooldownMultiplier: number }
+export const PINWHEEL_EVOLUTION: PinwheelEvolutionAttackBonus = { bonusPierce: 2, cooldownMultiplier: 0.7 };
 export interface BossDefinition { readonly name: string; readonly health: number; readonly speed: number; readonly contactDamage: number; readonly radius: number; readonly xp: number; readonly phaseLength: number; readonly approachUntil: number; readonly rangedTelegraphStart: number; readonly rangedTelegraphEnd: number; readonly rangedDamage: number; readonly rangedSpeed: number; readonly chargeStart: number; readonly chargeEnd: number; readonly chargeActiveEnd: number; readonly recoveryEnd: number; readonly chargeRange: number; readonly chargeSpeed: number }
 export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', health: 460, speed: 45, contactDamage: 18, radius: 31, xp: 120, phaseLength: 6.2, approachUntil: 1.0, rangedTelegraphStart: 1.0, rangedTelegraphEnd: 1.65, rangedDamage: 16, rangedSpeed: 280, chargeStart: 3.15, chargeEnd: 3.85, chargeActiveEnd: 4.4, recoveryEnd: 5.4, chargeRange: 320, chargeSpeed: 430 };
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
@@ -117,22 +130,29 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
 };
 
 export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: string }> = [
-  { id: 'damage', title: 'Sharper Rings', detail: '+30% all attack damage' },
-  { id: 'tempo', title: 'Quick Rotation', detail: 'Attack 20% more often' },
-  { id: 'extra', title: 'Double Pattern', detail: 'Fire one extra projectile' },
+  { id: 'damage', title: 'Might Training', detail: '+30% damage for all of this hero’s attacks' },
+  { id: 'tempo', title: 'Rapid Rhythm', detail: 'All player weapons attack 20% faster per rank' },
+  { id: 'extra', title: 'Split Pattern', detail: 'Fire one additional projectile per attack (maximum 5 total)' },
   { id: 'speed', title: 'Light Footwork', detail: '+12% movement speed' },
   { id: 'vitality', title: 'Second Wind', detail: '+25 maximum health and heal 25' },
   { id: 'recovery', title: 'Steady Recovery', detail: '+0.45 health recovered per second' },
   { id: 'magnet', title: 'Wide Pickup', detail: '+45% XP collection radius' },
+  { id: 'wideImpact', title: 'Wide Impact', detail: '+10% area for applicable attacks per rank' },
+  { id: 'velocityCore', title: 'Velocity Core', detail: '+8% player projectile speed per rank' },
+  { id: 'extendedCharge', title: 'Extended Charge', detail: '+12% special charge gained from collected XP per rank' },
+  { id: 'armorPlating', title: 'Armor Plating', detail: 'Reduce incoming damage by 6% per rank (maximum 30%)' },
+  { id: 'experienceTraining', title: 'Experience Training', detail: '+8% XP value when gems are collected per rank' },
   { id: 'orbit', title: 'Orbit Guard (Prototype)', detail: 'Unlock a close-range rotating attack' },
   { id: 'pinwheel', title: 'Starter Ring Rank', detail: 'Strengthen the automatic ring attack' },
   { id: 'piercingThrow', title: 'Piercing Ring (Prototype)', detail: 'Unlock / rank a long piercing ring' },
-  { id: 'power', title: 'Prototype Power', detail: '+15% damage; required for an evolution' },
-  { id: 'evolvePinwheel', title: 'PINWHEEL EVOLUTION', detail: 'Evolve at Pinwheel Rank 5 + Prototype Power Rank 2' },
+  { id: 'ricochetRing', title: 'Ricochet Ring', detail: 'Unlock / rank a ring that bounces from city walls' },
+  { id: 'power', title: 'Prototype Power', detail: '+15% damage for all player weapons' },
   { id: 'clubSweep', title: 'Club Sweep', detail: 'Increase sweep damage and impact reach' },
   { id: 'boulderToss', title: 'Boulder Toss', detail: 'Unlock or strengthen an aimed heavy stone' },
+  { id: 'groundSlam', title: 'Ground Slam', detail: 'Unlock or strengthen an expanding close-range shockwave' },
   { id: 'spearThrust', title: 'Spear Thrust', detail: 'Increase narrow-line reach and piercing' },
   { id: 'spearToss', title: 'Spear Toss', detail: 'Unlock or strengthen a piercing thrown spear' },
+  { id: 'spearSweep', title: 'Spear Sweep', detail: 'Unlock or strengthen a wide defensive sweep' },
   { id: 'mastery', title: 'Limit Break Mastery', detail: '+5% attack damage (repeatable, capped at 20 ranks)' },
 ];
 

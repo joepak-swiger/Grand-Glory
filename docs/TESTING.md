@@ -62,3 +62,17 @@ The natural standard-config browser run uses seeded ordinary gameplay values and
 The local Windows bundled Node 24.22.1 run passed `tsc --noEmit`, Vitest (83 passed, one optional benchmark skipped), `vite build`, and the explicit `node scripts/benchmark-sim.mjs`. The unit suite now covers three hero starting loadouts, the Gang Boss-to-Dr. Smile transition without Endless victory, faction layering, the Yo-Yo active tether damage window/cooldown, melee-only nonboss factions, and the bounded post-max mastery option. The Playwright suite lists eight scenarios, including new real-game hero selection/sprite and boss-transition/retirement coverage.
 
 Local E2E execution was attempted with the bundled Node executable, installed Playwright Chromium, and a fresh port. Chromium launched, but navigation to `http://127.0.0.1:4204/?test=1` returned `net::ERR_NETWORK_ACCESS_DENIED`, so local browser tests and captures were unavailable. Hosted GitHub Actions run [42063274127](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127) passed typecheck, Vitest, production build, and all 8 Playwright scenarios, then uploaded actual Chromium screenshots and traces as artifact [browser-evidence-42063274127](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127/artifacts/13434440109). The first hosted run caught outdated browser assertions for the former Gang Leader label and automatic victory; those assertions now check the Gang Boss label and continued Endless play after a boss defeat. No human gameplay was performed during this assignment. The owner-approved artwork and one-click launcher were preserved.
+
+## Assignment 011 — buildcraft verification
+
+Local checks used the project-installed dependencies with the bundled Node 24.22.1 runtime because the machine's default NVM shim reported that no Node version was configured. Commands and results:
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript strict check | `node node_modules/typescript/bin/tsc --noEmit` | Passed |
+| Unit tests | `node node_modules/vitest/vitest.mjs run` | 90 passed, 1 skipped (benchmark), 7 test files |
+| Production build | `node node_modules/typescript/bin/tsc -b` then `node node_modules/vite/bin/vite.js build` | Passed; 726 modules transformed |
+| Simulation benchmark | `node scripts/benchmark-sim.mjs` | Passed; seeded samples documented in `docs/PERFORMANCE.md` |
+| Playwright | `node node_modules/@playwright/test/cli.js test --workers=1` | Not completed locally: default port 4173 was occupied. On a fresh port Vite started, but localhost requests were denied by the managed environment's socket policy. No browser assertions ran and no new browser evidence was captured locally. |
+
+Coverage added for hero projectile volleys, moving Orbit Guard collision, passive effects and slot limits, bounded Ricochet Ring behavior, Ground Slam, multi-hit starter ranks, and all seven hero-specific boss-cache evolution prerequisites. Browser coverage now includes the rendered boss-cache evolution path, but it still requires hosted CI because local loopback access is restricted. These checks do not constitute human playtesting.
