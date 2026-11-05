@@ -102,7 +102,7 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.screenshot({ path: `${evidence}/05-paused.png` });
   await page.getByRole('button', { name: 'Resume' }).click();
   await page.evaluate(() => window.__GG_TEST__?.startBoss());
-  await expect(page.getByText('GANG LEADER · PROTOTYPE')).toBeVisible();
+  await expect(page.locator('.boss-arrival').getByText('GANG BOSS')).toBeVisible();
   await expect(page.getByText('MAJOR THREAT')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.some(enemy => enemy.kind === 'boss' && enemy.hasSprite) ?? false)).toBe(true);
   const bossFrame = await page.evaluate(() => window.__GG_TEST__?.getRendererState().enemies.find(enemy => enemy.kind === 'boss')?.frame ?? -1);
@@ -258,18 +258,21 @@ test('standard configuration naturally builds an early horde in the browser', as
   const result = await page.evaluate(() => {
     const state = window.__GG_TEST__?.getState();
     const boss = state?.enemies.find(enemy => enemy.kind === 'boss' && !enemy.dead);
-    return state ? { elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank, spawned: state.enemiesSpawned, peak: state.peakEnemies, belowTargetSeconds: state.timeBelowHordeTarget, placementFallbacks: state.spawnPlacementFallbacks, recycled: state.recycledEnemies, spawnRate: state.spawnRate, killRate: state.killRate, chosen: state.chosen } : null;
+    return state ? { endless: state.endless, bossesDefeated: state.bossesDefeated, factionsEncountered: state.factionsEncountered, elapsed: state.elapsed, enemies: state.enemies.length, kinds: [...new Set(state.enemies.map(enemy => enemy.kind))], level: state.player.level, health: state.player.health, kills: state.kills, xp: state.player.xp, status: state.status, endReason: state.endReason, bossHealth: boss?.health ?? 0, weapons: state.player.weaponRanks, powerRank: state.player.powerRank, spawned: state.enemiesSpawned, peak: state.peakEnemies, belowTargetSeconds: state.timeBelowHordeTarget, placementFallbacks: state.spawnPlacementFallbacks, recycled: state.recycledEnemies, spawnRate: state.spawnRate, killRate: state.killRate, chosen: state.chosen } : null;
   });
   console.info(`STANDARD_NATURAL_BROWSER ${JSON.stringify({ ...result, liveRenderMetrics, lateHordeMetrics, naturalBossMetrics, naturalProgression })}`);
   expect(result).not.toBeNull();
   expect(result?.elapsed).toBeGreaterThan(12);
   expect(result?.enemies ?? 0).toBeGreaterThan(0);
   expect(naturalBossMetrics).not.toBeNull();
-  expect(['victory', 'defeat']).toContain(result?.status);
+  expect(result?.endless).toBe(true);
+  expect(result?.status).toBe('playing');
+  expect(result?.bossesDefeated).toBeGreaterThan(0);
+  expect(result?.factionsEncountered).toContain('dr-smile');
+  expect(result?.kinds).toEqual(expect.arrayContaining(['smiler', 'molar']));
   expect(result?.elapsed).toBeGreaterThan(150);
   expect(capturedSurge).toBe(true);
-  if (result?.status === 'victory') await page.screenshot({ path: `${evidence}/13-standard-victory.png` });
-  else await page.screenshot({ path: `${evidence}/13-standard-defeat.png` });
+  await page.screenshot({ path: `${evidence}/13-endless-continues-after-boss.png` });
   await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().playerTextureLoaded ?? false)).toBe(true);
   if (!capturedHorde) await page.screenshot({ path: `${evidence}/09-standard-natural-horde.png` });
   expect(errors).toEqual([]);
