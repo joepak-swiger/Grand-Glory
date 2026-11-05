@@ -184,8 +184,8 @@ test('standard configuration naturally builds an early horde in the browser', as
         const choices = state?.options ?? [];
         const hpRatio = state ? state.player.health / state.player.maxHealth : 1;
         const priority = hpRatio < 0.82
-          ? ['vitality', 'recovery', 'piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'speed', 'extra', 'magnet']
-          : ['piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'vitality', 'recovery', 'speed', 'extra', 'magnet'];
+          ? ['vitality', 'recovery', 'armorPlating', 'piercingThrow', 'orbit', 'ricochetRing', 'damage', 'tempo', 'power', 'pinwheel', 'speed', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery']
+          : ['piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'damage', 'tempo', 'power', 'vitality', 'recovery', 'armorPlating', 'speed', 'magnet', 'extra', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'mastery'];
         return [...choices].sort((a, b) => priority.indexOf(a) - priority.indexOf(b))[0];
       });
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
