@@ -679,6 +679,10 @@ describe('deterministic gameplay simulation', () => {
     expect(chooseUpgrade(s, 'vitality')).toBe(true);
     expect(s.player.maxHealth).toBe(185);
     expect(s.player.health).toBe(65);
+    s.pickups.push({ id: 22192, x: s.player.x, y: s.player.y, value: s.player.xpNext });
+    steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('recovery');
   });
 
   it('registers only the selected hero’s eligible boss-cache evolutions', () => {
