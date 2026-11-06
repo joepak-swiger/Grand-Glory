@@ -183,16 +183,16 @@ test('standard configuration naturally builds an early horde in the browser', as
       if (!state) return { x: 0, y: 0 };
       const player = state.player;
       const healthRatio = player.health / player.maxHealth;
-      if (state.elapsed >= 145 && healthRatio < 0.55) {
-        let closestThreat = null as { x: number; y: number; distance: number } | null;
-        for (const enemy of state.enemies) {
-          if (enemy.dead) continue;
-          const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-          if (!closestThreat || distance < closestThreat.distance) closestThreat = { x: enemy.x, y: enemy.y, distance };
-        }
-        if (closestThreat && closestThreat.distance < 360) {
-          return { x: (player.x - closestThreat.x) / closestThreat.distance, y: (player.y - closestThreat.y) / closestThreat.distance };
-        }
+      let closestThreat = null as { x: number; y: number; distance: number } | null;
+      for (const enemy of state.enemies) {
+        if (enemy.dead) continue;
+        const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+        if (!closestThreat || distance < closestThreat.distance) closestThreat = { x: enemy.x, y: enemy.y, distance };
+      }
+      // The repeatable test strategy avoids nearby contact pressure instead of relying on
+      // perfect combat stats. It still travels for XP and does not dodge distant threats.
+      if (closestThreat && healthRatio < 0.75 && closestThreat.distance < 115) {
+        return { x: (player.x - closestThreat.x) / closestThreat.distance, y: (player.y - closestThreat.y) / closestThreat.distance };
       }
       let nearest = null as { x: number; y: number; distance: number } | null;
       for (const pickup of state.pickups) {
@@ -222,9 +222,10 @@ test('standard configuration naturally builds an early horde in the browser', as
         const speedChoice = speedRank === 0 ? ['agility'] : [];
         // Keep this as an offensive-but-not-perfect repeatable strategy: build meaningful
         // damage early, then select a defensive option only when health is genuinely low.
+        const weaponBuild = ['pinwheel', 'piercingThrow', 'orbit', 'ricochetRing'];
         const priority = hpRatio < 0.45
-          ? [...emergencyChoices, ...defensiveChoices, 'vitality', 'regeneration', 'resilience', 'might', 'tempo', 'piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', ...speedChoice, 'agility', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery']
-          : ['might', 'tempo', 'piercingThrow', 'pinwheel', 'orbit', 'ricochetRing', ...speedChoice, 'agility', 'vitality', 'regeneration', 'resilience', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery'];
+          ? [...emergencyChoices, ...defensiveChoices, ...weaponBuild, 'might', 'tempo', 'vitality', 'regeneration', 'resilience', ...speedChoice, 'agility', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery']
+          : [...weaponBuild, 'might', 'tempo', ...speedChoice, 'agility', 'vitality', 'regeneration', 'resilience', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery'];
         const rank = (id: string) => { const index = priority.indexOf(id); return index < 0 ? priority.length : index; };
         return [...choices].sort((a, b) => rank(a) - rank(b))[0];
       });
