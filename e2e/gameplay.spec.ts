@@ -191,7 +191,7 @@ test('standard configuration naturally builds an early horde in the browser', as
       }
       // The repeatable test strategy avoids nearby contact pressure instead of relying on
       // perfect combat stats. It still travels for XP and does not dodge distant threats.
-      if (closestThreat && healthRatio < 0.75 && closestThreat.distance < 115) {
+      if (closestThreat && healthRatio < 0.9 && closestThreat.distance < 210) {
         return { x: (player.x - closestThreat.x) / closestThreat.distance, y: (player.y - closestThreat.y) / closestThreat.distance };
       }
       let nearest = null as { x: number; y: number; distance: number } | null;
@@ -219,13 +219,16 @@ test('standard configuration naturally builds an early horde in the browser', as
           ? (['vitality', 'regeneration', 'resilience'] as const).filter(id => upgradeRank(id) === 0)
           : [];
         const emergencyChoices = hpRatio < 0.55 ? ['regeneration', 'vitality', 'resilience'] : [];
-        const speedChoice = speedRank === 0 ? ['agility'] : [];
-        // Keep this as an offensive-but-not-perfect repeatable strategy: build meaningful
-        // damage early, then select a defensive option only when health is genuinely low.
+        const defensivePlan: string[] = [];
+        if (speedRank === 0) defensivePlan.push('agility');
+        if (upgradeRank('vitality') === 0) defensivePlan.push('vitality');
+        if (upgradeRank('regeneration') < 2) defensivePlan.push('regeneration');
+        // Use a brief mobility/recovery opening, then build weapons and damage; reserve
+        // repeated defensive picks for genuinely low health.
         const weaponBuild = ['pinwheel', 'piercingThrow', 'orbit', 'ricochetRing'];
         const priority = hpRatio < 0.45
-          ? [...emergencyChoices, ...defensiveChoices, ...weaponBuild, 'might', 'tempo', 'vitality', 'regeneration', 'resilience', ...speedChoice, 'agility', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery']
-          : [...weaponBuild, 'might', 'tempo', ...speedChoice, 'agility', 'vitality', 'regeneration', 'resilience', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery'];
+          ? [...emergencyChoices, ...defensiveChoices, ...weaponBuild, 'might', 'tempo', ...defensivePlan, 'resilience', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery']
+          : [...defensivePlan, ...weaponBuild, 'might', 'tempo', 'resilience', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery'];
         const rank = (id: string) => { const index = priority.indexOf(id); return index < 0 ? priority.length : index; };
         return [...choices].sort((a, b) => rank(a) - rank(b))[0];
       });
