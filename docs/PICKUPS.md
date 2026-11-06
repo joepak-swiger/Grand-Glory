@@ -31,3 +31,7 @@ XP remains accounted through `xpSpawned`, `xpCollected`, active pile value, merg
 ## Future concepts
 
 Crisis Pulse, Stasis Field, Heroic Surge, Second Wind, and Fortune Token are documented as unavailable concepts in the registry module. They are absent from active drops.
+
+## Assignment 013 presentation
+
+Touch feedback now announces pickups in a compact HUD toast. Cache reward panels use a gold-accented reveal entrance, distinct Field/Hero cache labels, and clearer reward wording; gameplay remains paused until the player chooses. XP Recall adds a short cyan expanding signal around the hero while recalled gems travel or resolve through the existing blocked-route pulse. The visual pulse is cosmetic: pickup state and XP accounting remain simulation-owned. Reduced Motion removes the secondary pulse ring and the global CSS setting shortens the panel/toast transitions.

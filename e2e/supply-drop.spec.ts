@@ -90,3 +90,40 @@ test('Dr. Smile sprites and supply pickups render and resolve in real gameplay',
   expect(errors).toEqual([]);
   expect(failedAssets).toEqual([]);
 });
+
+test('cache opening and XP Recall give clear reward feedback in the live game', async ({ page }) => {
+  mkdirSync(evidence, { recursive: true });
+  await page.setViewportSize({ width: 1365, height: 900 });
+  await page.goto('/?test=normal');
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
+  const inserted = await page.evaluate(() => {
+    const state = window.__GG_TEST__?.getState();
+    if (!state) return false;
+    state.spawnTimer = 10_000; state.player.attackTimer = 10_000; state.player.piercingTimer = 10_000;
+    state.pickups.push({ id: state.nextId++, x: state.player.x, y: state.player.y, value: 0, kind: 'hero-cache', age: 0 });
+    window.__GG_TEST__?.advance(0.05);
+    return state.status === 'upgrade' && state.supplyCacheTier === 'hero-cache';
+  });
+  expect(inserted).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Cache opened!' })).toBeVisible();
+  await page.screenshot({ path: `${evidence}/assignment-013-hero-cache-open.png` });
+  await page.locator('[data-upgrade]').first().click();
+  await expect(page.getByText(/HERO CACHE OPENED/)).toBeVisible();
+
+  const recallInserted = await page.evaluate(() => {
+    const state = window.__GG_TEST__?.getState();
+    if (!state) return false;
+    state.player.xp = 0;
+    state.pickups.push(
+      { id: state.nextId++, x: state.player.x + 240, y: state.player.y + 30, value: 18, kind: 'xp', age: 0 },
+      { id: state.nextId++, x: state.player.x, y: state.player.y, value: 0, kind: 'xp-recall', age: 0 },
+    );
+    window.__GG_TEST__?.advance(0.05);
+    return state.xpRecallTimer > 0;
+  });
+  expect(recallInserted).toBe(true);
+  await expect(page.getByText(/XP RECALL · 1 GEM PILES/)).toBeVisible();
+  await page.screenshot({ path: `${evidence}/assignment-013-xp-recall-pulse.png` });
+  await page.evaluate(() => window.__GG_TEST__?.advance(1.5));
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getState()?.xpCollected ?? 0)).toBe(18);
+});

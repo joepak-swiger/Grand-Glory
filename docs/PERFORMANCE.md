@@ -254,3 +254,17 @@ The current local seeded simulation benchmark ran on Windows x64 with Node 24.22
 | 200 | 0.2872 / 0.3492 / 0.4762 | 0.4032 / 0.6017 / 0.9774 |
 
 The latest sample is slower at each population median from 50 enemies upward and has a noisy 5.75ms worst update at 100 enemies. All reported p95 values remain under the 16.7ms fixed-step budget, but the results do not demonstrate a performance improvement. These single-run samples cannot attribute the difference to crates, utilities, or runtime noise; run repeated paired trials and browser renderer comparisons before drawing a cause. Local Chromium could not reach its own Vite server because Windows denied localhost socket access, so no new local FPS, renderer, or memory result is available.
+
+## Assignment 013 matching simulation sample
+
+The same seeded 120-warm-up / 600-measured update benchmark was rerun with bundled Node 24.22.1 on Windows x64. Each target uses mixed enemy/projectile/pickup/effect state as above. Assignment 012 values are retained as the before sample. These are separate process runs, so they show observed variance rather than proving a code speedup; Assignment 013 changes are primarily UI feedback and do not alter the per-entity simulation workload.
+
+| Active enemies | Assignment 012 median / p95 / worst ms | Assignment 013 median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0480 / 0.1471 / 0.3406 | 0.0324 / 0.1319 / 0.9380 |
+| 50 | 0.0576 / 0.1024 / 0.6347 | 0.0500 / 0.0834 / 0.1949 |
+| 100 | 0.2023 / 0.4087 / 5.7489 | 0.1155 / 0.1733 / 0.5260 |
+| 150 | 0.2927 / 0.4818 / 1.3351 | 0.1949 / 0.2418 / 0.2852 |
+| 200 | 0.4032 / 0.6017 / 0.9774 | 0.2760 / 0.3589 / 0.4375 |
+
+This run had lower medians at every population but a higher isolated worst update at 25 enemies. Because the update code is essentially unchanged and this is one unpaired run per version, do not attribute the lower medians to the pickup presentation work. The new XP Recall pulse adds at most two simple ring strokes for roughly 1.35 seconds; the cache entrance is CSS-only while the simulation is paused. A fresh browser FPS/renderer comparison was not available locally because the managed Windows environment refused the Playwright localhost socket. Existing hosted Assignment 012 SwiftShader figures remain the only browser baseline and do not represent desktop GPU performance.

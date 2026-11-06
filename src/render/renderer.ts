@@ -270,6 +270,13 @@ export class GameRenderer {
     this.updateTransientSprites(state);
     this.updateDamageLabels(state);
     const g = this.entities; g.clear();
+    if (state.xpRecallTimer > 0) {
+      const progress = 1 - state.xpRecallTimer / 1.35;
+      const radius = 34 + progress * 270;
+      const alpha = Math.max(0.08, state.xpRecallTimer / 1.35) * 0.42;
+      g.circle(state.player.x, state.player.y, radius).stroke({ color: 0x57ddff, width: 5, alpha });
+      if (!this.reducedMotion) g.circle(state.player.x, state.player.y, Math.max(12, radius - 18)).stroke({ color: 0xb5f7ff, width: 2, alpha: alpha * 0.68 });
+    }
     for (const shot of state.projectiles) {
       if (!this.isVisible(shot.x, shot.y, 36)) continue;
       if(shot.weaponId==='chainball'&&shot.sourceEnemyId!==undefined){const boss=state.enemies.find(enemy=>enemy.id===shot.sourceEnemyId&&!enemy.dead);if(boss)g.moveTo(boss.x,boss.y).lineTo(shot.x,shot.y).stroke({color:0xafa0a0,width:4,alpha:0.92});continue;}

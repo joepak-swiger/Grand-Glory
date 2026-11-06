@@ -30,7 +30,7 @@ export interface SimState {
   navigationTargetCell: number;
   elapsed: number; kills: number; bossDefeated: boolean; bossesDefeated: number; completedWaves: number; currentBossId: 'gang-boss' | 'dr-smile' | null; lastBossId: 'gang-boss' | 'dr-smile' | null; factionsEncountered: FactionId[]; nextBossAt: number; endless: boolean; bossArrivalAt: number | null; bossFightDuration: number | null; endReason: 'player-down' | 'boss-escaped' | 'retired' | null; seed: number; nextId: number; spawnTimer: number; spawnBudget: number; levelChoices: number; surgeRemaining: number; surgeCount: number; surgeDirection: HordeEntrySide; pickupMergeTimer: number; eliteSpawnTimer: number; elitesSpawned: number; elitesDefeated: number; supplyCacheTier: 'field-cache' | 'hero-cache' | null; infernoCooldowns: Record<number, number>;
   peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; killWindowCount: number; killWindowSeconds: number; killRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number; xpSpawned: number; xpCollected: number; xpPilesMerged: number; xpLost: number;
-  options: UpgradeId[]; chosen: UpgradeId[]; evolutionOptions: Array<WeaponEvolutionId | 'field-cache' | 'arsenal-cache'>; attacks: string[]; messages: string[]; specialTimer: number;
+  options: UpgradeId[]; chosen: UpgradeId[]; evolutionOptions: Array<WeaponEvolutionId | 'field-cache' | 'arsenal-cache'>; attacks: string[]; messages: string[]; toast: { text: string; until: number } | null; xpRecallTimer: number; specialTimer: number;
   damageTaken: DamageBreakdown;
 }
 export interface InputState { x: number; y: number; dash: boolean; special: boolean }
@@ -55,7 +55,7 @@ export function createGame(seed = standardRun.seed, config: RunConfig = standard
       { id: -2, ...nearestWalkablePoint(stage, 1230, 205), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
       { id: -3, ...nearestWalkablePoint(stage, 580, 995), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
       { id: -4, ...nearestWalkablePoint(stage, 1230, 995), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
-    ], waves: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossesDefeated: 0, completedWaves: 0, currentBossId: null, lastBossId: null, factionsEncountered: ['street-gang'], nextBossAt: config.bossAt, endless: (config.gameMode ?? (config.testMode ? 'finite' : 'endless')) === 'endless', bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, xpSpawned: 0, xpCollected: 0, xpPilesMerged: 0, xpLost: 0, options: [], chosen: [], evolutionOptions: [], attacks: [hero.attackName], messages: [], specialTimer: 0, damageTaken: emptyDamageBreakdown(),
+    ], waves: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossesDefeated: 0, completedWaves: 0, currentBossId: null, lastBossId: null, factionsEncountered: ['street-gang'], nextBossAt: config.bossAt, endless: (config.gameMode ?? (config.testMode ? 'finite' : 'endless')) === 'endless', bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, xpSpawned: 0, xpCollected: 0, xpPilesMerged: 0, xpLost: 0, options: [], chosen: [], evolutionOptions: [], attacks: [hero.attackName], messages: [], toast: null, xpRecallTimer: 0, specialTimer: 0, damageTaken: emptyDamageBreakdown(),
     eliteSpawnTimer: 42, elitesSpawned: 0, elitesDefeated: 0, supplyCacheTier: null, infernoCooldowns: {},
   };
 }
@@ -160,14 +160,14 @@ export function chooseBossReward(state: SimState, id: WeaponEvolutionId | 'field
     const heal = premium ? Math.max(62, state.player.maxHealth * 0.38) : Math.max(36, state.player.maxHealth * 0.24);
     state.player.health = Math.min(state.player.maxHealth, state.player.health + heal);
     state.player.special = Math.min(100, state.player.special + (premium ? 55 : 30));
-    state.messages.push(premium ? 'ARSENAL CACHE · PREMIUM RECOVERY' : 'FIELD CACHE · RECOVERY + SPECIAL CHARGE');
+    announce(state, premium ? 'ARSENAL CACHE · PREMIUM RECOVERY' : 'FIELD CACHE · RECOVERY + SPECIAL CHARGE');
   } else {
     const definition = WEAPON_EVOLUTIONS.find(evolution => evolution.id === id);
     if (!definition) return false;
     state.player.evolutions.push(id);
     if (id === 'typhoon-rings') state.player.evolvedPinwheel = true;
     state.attacks.push(definition.name);
-    state.messages.push(`${definition.name.toUpperCase()} EVOLVED`);
+    announce(state, `${definition.name.toUpperCase()} EVOLVED`);
   }
   state.evolutionOptions = [];
   state.status = 'playing';
@@ -199,6 +199,7 @@ function moveEnemy(state: SimState, enemy: Enemy, direction: Vec, speed: number,
 }
 
 function float(state: SimState, text: string, x: number, y: number): void { state.numbers.push({ id: state.nextId++, text, x, y, life: 0.75 }); }
+function announce(state: SimState, text: string, duration = 2.5): void { state.messages.push(text); state.toast = { text, until: state.elapsed + duration }; }
 export function spawnPickup(state: SimState, kind: PickupId, position: Vec, value = 0): Pickup | undefined {
   const definition = PICKUPS[kind];
   const active = state.pickups.reduce((count, pickup) => count + Number(!pickup.consumed && pickup.kind === kind), 0);
@@ -232,7 +233,7 @@ export function damageBreakableProp(state: SimState, prop: BreakableProp, damage
   prop.destroyed = true;
   const drop = rollUtilityDrop('prop', difficulty, state.player.passiveRanks.fortune, random(state));
   if (drop) spawnPickup(state, drop, prop);
-  state.messages.push(drop ? 'SUPPLY BOX · PICKUP FOUND' : 'SUPPLY BOX BROKEN');
+  announce(state, drop ? 'SUPPLY BOX · PICKUP FOUND' : 'SUPPLY BOX BROKEN');
   return true;
 }
 
@@ -260,6 +261,7 @@ function openSupplyCache(state: SimState, tier: 'field-cache' | 'hero-cache'): v
     state.levelChoices = 0;
     state.status = 'playing';
     float(state, 'CACHE RECOVERY', state.player.x, state.player.y - 36);
+    announce(state, 'CACHE OPENED · RECOVERY + SPECIAL CHARGE');
   }
 }
 
@@ -277,6 +279,7 @@ export function applyEnemyDamage(state: SimState, enemy: Enemy, damage: number, 
     if (enemy.elite) {
       state.elitesDefeated++;
       dropEliteCache(state, drop);
+      announce(state, 'ELITE DOWN · SUPPLY CACHE DROPPED');
     } else if (enemy.kind !== 'boss') {
       const utility = rollUtilityDrop('ordinary', config.difficulty, state.player.passiveRanks.fortune, random(state));
       if (utility) spawnPickup(state, utility, drop);
@@ -289,7 +292,7 @@ export function applyEnemyDamage(state: SimState, enemy: Enemy, damage: number, 
       if (state.endless) {
         if (state.bossesDefeated === 1 && !state.factionsEncountered.includes('dr-smile')) state.factionsEncountered.push('dr-smile');
         state.nextBossAt = state.bossesDefeated === 1 ? Math.max(300, state.elapsed + 30) : state.elapsed + 180;
-        state.messages.push('BOSS DEFEATED · NEW THREAT APPROACHING');
+        announce(state, 'BOSS DEFEATED · NEW THREAT APPROACHING', 3.5);
       }
     }
   }
@@ -813,7 +816,7 @@ function updateNamedBoss(state: SimState, enemy: Enemy, toward: Vec, route: Vec,
 export function updateGame(state: SimState, dt: number, input: InputState, config: RunConfig = standardRun): void {
   if (state.status !== 'playing') return;
   const step = Math.min(dt, 0.05); const p = state.player;
-  state.elapsed += step; p.health = Math.min(p.maxHealth, p.health + p.healthRegen * step); p.invulnerable = Math.max(0, p.invulnerable - step); p.dashCooldown = Math.max(0, p.dashCooldown - step); p.dashTimer = Math.max(0, p.dashTimer - step); p.infernoCurryTimer = Math.max(0, (p.infernoCurryTimer ?? 0) - step); state.specialTimer = Math.max(0, state.specialTimer - step);
+    state.elapsed += step; p.health = Math.min(p.maxHealth, p.health + p.healthRegen * step); p.invulnerable = Math.max(0, p.invulnerable - step); p.dashCooldown = Math.max(0, p.dashCooldown - step); p.dashTimer = Math.max(0, p.dashTimer - step); p.infernoCurryTimer = Math.max(0, (p.infernoCurryTimer ?? 0) - step); state.xpRecallTimer = Math.max(0, state.xpRecallTimer - step); state.specialTimer = Math.max(0, state.specialTimer - step);
   const startingDash = input.dash && p.dashCooldown === 0;
   if (startingDash) { p.dashTimer = 0.16; p.dashCooldown = DIFFICULTIES[config.difficulty].dashCooldownSeconds; p.invulnerable = Math.max(p.invulnerable, 0.22); }
   const dashX = input.x || (startingDash ? p.facing.x : 0); const dashY = input.y || (startingDash ? p.facing.y : 0);
@@ -827,7 +830,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2 && !segmentHitsBuilding(state.stage, p, e)) applyEnemyDamage(state, e, ATTACKS.special.damage * playerDamageMultiplier(p), normalize(e.x - p.x, e.y - p.y), config);
   }
   if ((state.endless ? state.elapsed >= state.nextBossAt : state.elapsed >= config.bossAt && !state.bossDefeated) && !state.enemies.some(e => e.kind === 'boss' && !e.dead)) {
-    const boss = spawnBossForEncounter(state, config); state.currentBossId=boss.bossId; state.enemies.push(boss); state.enemyGrid.insert(boss); state.bossArrivalAt = state.elapsed; state.messages.push((boss.bossId==='dr-smile'?'DR. SMILE':'GANG BOSS')+' ARRIVED');
+    const boss = spawnBossForEncounter(state, config); state.currentBossId=boss.bossId; state.enemies.push(boss); state.enemyGrid.insert(boss); state.bossArrivalAt = state.elapsed; announce(state, (boss.bossId==='dr-smile'?'DR. SMILE':'GANG BOSS')+' ARRIVED', 3.5);
   }
   updateHordeDirector(state, step, config);
   updateGroundWaves(state, step, nearbyEnemies, config);
@@ -1046,7 +1049,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
           state.evolutionOptions = [random(state) < premiumChance ? 'arsenal-cache' : 'field-cache'];
         }
         state.status = 'boss-reward'; pickup.consumed = true;
-        state.messages.push(eligible.length ? 'BOSS REWARD · CHOOSE AN EVOLUTION' : 'BOSS REWARD · FIELD CACHE AVAILABLE');
+        announce(state, eligible.length ? 'BOSS REWARD · CHOOSE AN EVOLUTION' : 'BOSS REWARD · FIELD CACHE AVAILABLE');
         break;
       }
       continue;
@@ -1073,7 +1076,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     if (kind === 'field-cache' || kind === 'hero-cache') {
       if (d2 < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) {
         pickup.consumed = true; openSupplyCache(state, kind);
-        state.messages.push(`${kind === 'hero-cache' ? 'HERO' : 'FIELD'} CACHE OPENED`);
+        announce(state, `${kind === 'hero-cache' ? 'HERO' : 'FIELD'} CACHE OPENED`);
         break;
       }
       continue;
@@ -1081,18 +1084,19 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     if (kind === 'recovery-rations') {
       if (d2 < definition.collisionRadius ** 2 && p.health < p.maxHealth && !segmentHitsBuilding(state.stage, pickup, p)) {
         const recovered = Math.min(p.maxHealth - p.health, Math.max(35, p.maxHealth * 0.2));
-        p.health += recovered; float(state, `+${Math.round(recovered)} HP`, pickup.x, pickup.y); pickup.consumed = true;
+        p.health += recovered; float(state, `+${Math.round(recovered)} HP`, pickup.x, pickup.y); announce(state, 'RECOVERY RATIONS · HEALTH RESTORED'); pickup.consumed = true;
       }
     } else if (kind === 'xp-recall' && d2 < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) {
       let recalled = 0;
       for (const gem of state.pickups) if ((gem.kind ?? 'xp') === 'xp' && gem.value > 0 && !gem.recalling) {
         gem.recalling = true; gem.recallElapsed = 0; gem.recallBlocked = segmentHitsBuilding(state.stage, gem, p); recalled++;
       }
-      state.messages.push(recalled ? `XP RECALL · ${recalled} GEM PILES` : 'XP RECALL · NO GEMS LEFT');
+      state.xpRecallTimer = recalled ? 1.35 : 0;
+      announce(state, recalled ? `XP RECALL · ${recalled} GEM PILES` : 'XP RECALL · NO GEMS LEFT');
       pickup.consumed = true;
     } else if (kind === 'inferno-curry' && d2 < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) {
       p.infernoCurryTimer = Math.max(p.infernoCurryTimer ?? 0, definition.durationSeconds ?? 8);
-      state.messages.push('INFERNO CURRY · 8 SECONDS'); pickup.consumed = true;
+      announce(state, 'INFERNO CURRY · 8 SECONDS'); pickup.consumed = true;
     }
   }
   let writePickups = 0;

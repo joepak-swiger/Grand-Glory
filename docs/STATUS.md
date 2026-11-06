@@ -1,5 +1,11 @@
 # Project status
 
+## Assignment 013 — Endless Survival, Reward Polish & Gameplay Balance (in progress)
+
+Based on the verified Assignment 012 head on `feature/supply-drop`. Reward processing already serializes cache choice, boss reward, and level-up state; new regressions cover queued XP behind a cache and overlapping caches. Pickup feedback now includes concise HUD toasts, a reduced-motion-aware cache reveal panel, and a short cyan XP Recall signal. No reward tables, enemy density, weapon math, or difficulty tuning were changed.
+
+The added nine-case seeded hero/build matrix (three heroes × offense/defense/balanced) reaches the four-minute simulation cap for Bok-Goo offense/balanced and Da-Ri balanced. Other cases end in defeat between 132–174 simulated seconds; three reach a boss defeat before ending, while defensive-leaning scripts die before 2:55. These inputs are scripted circular movement with held dash/special, not a human playtest; they signal that defensive-only progression can lag behind offensive scaling. XP spawned/collected/on-map/lost remains exactly conserved and active enemies stay within the configured cap. Current local typecheck, unit tests, build, and 25–200 simulation benchmark pass. Local Chromium is blocked by localhost socket permissions, so new visual captures and hosted CI are pending. Before/after benchmark samples are in `docs/PERFORMANCE.md`; separate runs do not establish an optimization from the presentation changes.
+
 ## Assignment 012 — Supply Drop! (published for review)
 
 Development is on `feature/supply-drop`, based on the verified `feature/rings-xp-and-melee` head containing merged PRs #11 and #12. This change corrects Smiler/Molar clips from 256×170 to their verified 256×341 frames and anchors each on its measured feet; adds a typed pickup registry, Recovery Rations, XP Recall, temporary directional Inferno Curry, capped Field/Hero Caches, deterministic Fortune-aware utility drops, and bounded elites; and places four nonblocking breakable supply boxes in the city. Boss evolution rewards continue using the existing boss-cache flow. Pickup and elite behavior is documented in `docs/PICKUPS.md` and `docs/ELITES.md`.
