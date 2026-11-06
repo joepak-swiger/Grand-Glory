@@ -1,21 +1,21 @@
-import { ATTACKS, DIFFICULTIES, ENEMIES, GANG_LEADER, HEROES, PASSIVE_IDS, PINWHEEL_EVOLUTION, standardRun, UPGRADES, WEAPON_EVOLUTIONS, type EnemyKind, type FactionId, type GameStatus, type HeroId, type HordeEntrySide, type PassiveId, type RunConfig, type UpgradeId, type WeaponEvolutionId } from './definitions';
+import { ATTACKS, DIFFICULTIES, ENEMIES, GANG_LEADER, HEROES, HEROIC_TRAITS, PASSIVE_IDS, PASSIVE_SLOT_LIMIT, PINWHEEL_EVOLUTION, standardRun, UPGRADES, WEAPON_EVOLUTIONS, WEAPON_REGISTRY, WEAPON_SLOT_LIMIT, type EnemyKind, type FactionId, type GameStatus, type HeroId, type HordeEntrySide, type PassiveId, type RunConfig, type UpgradeId, type WeaponEvolutionId, type WeaponId } from './definitions';
 import { SpatialGrid } from './spatial-grid';
 import { buildNavigationField, createCityStage, isWalkable, moveOnStage, navigationDirection, nearestWalkablePoint, segmentHitsBuilding, type CityStage, type NavigationField } from './stage';
+import { heroicStatMultiplier } from './heroic-traits';
 
 export interface Vec { x: number; y: number }
 export type HorizontalFacing = 'left' | 'right';
-export type WeaponId = 'pinwheel' | 'orbitGuard' | 'piercingThrow' | 'ricochetRing' | 'clubSweep' | 'boulderToss' | 'groundSlam' | 'spearThrust' | 'spearToss' | 'spearSweep';
-export interface OrbitRing { angle: number; hitCooldowns: Record<number, number> }
+export interface OrbitRing { angle: number; active: boolean; hitCooldowns: Record<number, number> }
 export type DamageSource = 'thug-contact' | 'fast-contact' | 'bruiser-contact' | 'ranged-projectile' | 'boss-contact' | 'boss-projectile' | 'boss-charge' | 'yoyo-line' | 'boss-chain' | 'dr-smile-melee' | 'dr-smile-zone';
 export type DamageBreakdown = Record<DamageSource, number>;
 export const DAMAGE_SOURCES: readonly DamageSource[] = ['thug-contact', 'fast-contact', 'bruiser-contact', 'ranged-projectile', 'boss-contact', 'boss-projectile', 'boss-charge', 'yoyo-line', 'boss-chain', 'dr-smile-melee', 'dr-smile-zone'];
 function emptyDamageBreakdown(): DamageBreakdown { return { 'thug-contact': 0, 'fast-contact': 0, 'bruiser-contact': 0, 'ranged-projectile': 0, 'boss-contact': 0, 'boss-projectile': 0, 'boss-charge': 0, 'yoyo-line': 0, 'boss-chain': 0, 'dr-smile-melee': 0, 'dr-smile-zone': 0 }; }
-export interface Player extends Vec { heroId: HeroId; health: number; maxHealth: number; speed: number; healthRegen: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; orbitRings: OrbitRing[]; damageDealt: number; weaponRanks: Record<WeaponId, number>; passiveRanks: Record<PassiveId, number>; powerRank: number; evolvedPinwheel: boolean; evolutions: WeaponEvolutionId[]; piercingTimer: number; ricochetTimer: number; groundSlamTimer: number; spearSweepTimer: number; followupStrike: { kind: 'club' | 'spear'; direction: Vec; rank: number } | null; followupStrikeTimer: number; attackVisual: 'club-sweep' | 'spear-thrust' | 'ground-slam' | 'spear-sweep' | null; attackVisualTimer: number }
+export interface Player extends Vec { heroId: HeroId; health: number; maxHealth: number; speed: number; healthRegen: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; orbitRings: OrbitRing[]; damageDealt: number; weaponRanks: Record<WeaponId, number>; passiveRanks: Record<PassiveId, number>; evolvedPinwheel: boolean; evolutions: WeaponEvolutionId[]; piercingTimer: number; ricochetTimer: number; groundSlamTimer: number; spearSweepTimer: number; followupStrike: { kind: 'club' | 'spear'; direction: Vec; rank: number } | null; followupStrikeTimer: number; tempestStrikesRemaining: number; tempestStrikeIndex: number; tempestStrikeTimer: number; tempestAim: Vec; attackVisual: 'club-sweep' | 'spear-thrust' | 'ground-slam' | 'spear-sweep' | null; attackVisualTimer: number }
 export type BossAttackState = 'idle' | 'ranged-telegraph' | 'charge-telegraph' | 'charging' | 'recovering' | 'melee-telegraph' | 'melee-swing' | 'yoyo-telegraph' | 'yoyo-extension' | 'yoyo-hold' | 'yoyo-retract' | 'chain-telegraph' | 'chain-swing' | 'chain-throw' | 'hazard-telegraph' | 'hazard-active';
 export interface Enemy extends Vec { id: number; kind: EnemyKind; bossId: 'gang-boss' | 'dr-smile' | null; attackTarget: Vec; attackCooldown: number; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; horizontalFacing: HorizontalFacing; animationTime: number; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number; rangedTimer: number; distantTime: number }
 export interface Projectile extends Vec { id: number; vx: number; vy: number; damage: number; life: number; pierce: number; hitIds: number[]; special: boolean; owner: 'player' | 'enemy'; spin: number; arcHeight?: number; arcDuration?: number; arcElapsed?: number; bouncesRemaining?: number; splashRadius?: number; weaponId?: WeaponId | 'special' | 'enemy' | 'baseball' | 'boulder' | 'spear' | 'chainball'; damageSource?: DamageSource; sourceEnemyId?: number; maxRange?: number; returning?: boolean }
 export interface Pickup extends Vec { id: number; value: number; pullSpeed?: number; kind?: 'xp' | 'boss-evolution'; consumed?: boolean }
-export interface GroundWave extends Vec { id: number; radius: number; maxRadius: number; life: number; damage: number; hitIds: number[]; direction: Vec; halfAngle: number }
+export interface GroundWave extends Vec { id: number; radius: number; maxRadius: number; life: number; duration?: number; damage: number; hitIds: number[]; direction: Vec; halfAngle: number }
 export interface FloatText extends Vec { id: number; text: string; life: number }
 export interface SimState {
   status: GameStatus; player: Player; enemies: Enemy[]; projectiles: Projectile[]; pickups: Pickup[]; waves: GroundWave[]; numbers: FloatText[];
@@ -28,13 +28,14 @@ export interface SimState {
   navigationTargetCell: number;
   elapsed: number; kills: number; bossDefeated: boolean; bossesDefeated: number; completedWaves: number; currentBossId: 'gang-boss' | 'dr-smile' | null; lastBossId: 'gang-boss' | 'dr-smile' | null; factionsEncountered: FactionId[]; nextBossAt: number; endless: boolean; bossArrivalAt: number | null; bossFightDuration: number | null; endReason: 'player-down' | 'boss-escaped' | 'retired' | null; seed: number; nextId: number; spawnTimer: number; spawnBudget: number; levelChoices: number; surgeRemaining: number; surgeCount: number; surgeDirection: HordeEntrySide; pickupMergeTimer: number;
   peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; killWindowCount: number; killWindowSeconds: number; killRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number; xpSpawned: number; xpCollected: number; xpPilesMerged: number; xpLost: number;
-  options: UpgradeId[]; chosen: UpgradeId[]; evolutionOptions: Array<WeaponEvolutionId | 'field-cache'>; attacks: string[]; messages: string[]; specialTimer: number;
+  options: UpgradeId[]; chosen: UpgradeId[]; evolutionOptions: Array<WeaponEvolutionId | 'field-cache' | 'arsenal-cache'>; attacks: string[]; messages: string[]; specialTimer: number;
   damageTaken: DamageBreakdown;
 }
 export interface InputState { x: number; y: number; dash: boolean; special: boolean }
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const dist2 = (a: Vec, b: Vec) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 const normalize = (x: number, y: number): Vec => { const m = Math.hypot(x, y); return m > 0 ? { x: x / m, y: y / m } : { x: 0, y: 0 }; };
+const playerDamageMultiplier = (player: Player): number => (1 + player.damageBonus) * heroicStatMultiplier(player.passiveRanks, 'damage');
 function distanceToSegment(point: Vec, start: Vec, end: Vec): number {
   const dx=end.x-start.x, dy=end.y-start.y, length=dx*dx+dy*dy;
   const t=length ? clamp(((point.x-start.x)*dx+(point.y-start.y)*dy)/length,0,1) : 0;
@@ -44,7 +45,7 @@ function distanceToSegment(point: Vec, start: Vec, end: Vec): number {
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun, heroId: HeroId = 'blue-pinwheel'): SimState {
   const stage = createCityStage(config.arenaWidth, config.arenaHeight);
   const hero = HEROES[heroId];
-  const player = { heroId, x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: hero.maxHealth, maxHealth: hero.maxHealth, speed: hero.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right' as const, damageBonus: 0, extraShots: 0, pickupRadius: 72, orbit: false, orbitTimer: 0, orbitRings: [], damageDealt: 0, weaponRanks: { pinwheel: heroId === 'blue-pinwheel' ? 1 : 0, orbitGuard: 0, piercingThrow: 0, ricochetRing: 0, clubSweep: heroId === 'bok-goo' ? 1 : 0, boulderToss: 0, groundSlam: 0, spearThrust: heroId === 'da-ri' ? 1 : 0, spearToss: 0, spearSweep: 0 }, passiveRanks: { damage: 0, tempo: 0, extra: 0, speed: 0, vitality: 0, recovery: 0, magnet: 0, wideImpact: 0, velocityCore: 0, extendedCharge: 0, armorPlating: 0, experienceTraining: 0 }, powerRank: 0, evolvedPinwheel: false, evolutions: [], piercingTimer: 0.6, ricochetTimer: 0.9, groundSlamTimer: 2.4, spearSweepTimer: 2.1, followupStrike: null as Player['followupStrike'], followupStrikeTimer: 0, attackVisual: null as Player['attackVisual'], attackVisualTimer: 0 };
+  const player = { heroId, x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: hero.maxHealth, maxHealth: hero.maxHealth, speed: hero.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right' as const, damageBonus: 0, extraShots: 0, pickupRadius: 72, orbit: false, orbitTimer: 0, orbitRings: [], damageDealt: 0, weaponRanks: { pinwheel: heroId === 'blue-pinwheel' ? 1 : 0, orbitGuard: 0, piercingThrow: 0, ricochetRing: 0, clubSweep: heroId === 'bok-goo' ? 1 : 0, boulderToss: 0, groundSlam: 0, spearThrust: heroId === 'da-ri' ? 1 : 0, spearToss: 0, spearSweep: 0 }, passiveRanks: Object.fromEntries(PASSIVE_IDS.map(id => [id, 0])) as Record<PassiveId, number>, evolvedPinwheel: false, evolutions: [], piercingTimer: 0.6, ricochetTimer: 0.9, groundSlamTimer: 2.4, spearSweepTimer: 2.1, followupStrike: null as Player['followupStrike'], followupStrikeTimer: 0, tempestStrikesRemaining: 0, tempestStrikeIndex: 0, tempestStrikeTimer: 0, tempestAim: { x: 1, y: 0 }, attackVisual: null as Player['attackVisual'], attackVisualTimer: 0 };
   return {
     status: 'playing', player,
     enemies: [], projectiles: [], pickups: [], waves: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossesDefeated: 0, completedWaves: 0, currentBossId: null, lastBossId: null, factionsEncountered: ['street-gang'], nextBossAt: config.bossAt, endless: (config.gameMode ?? (config.testMode ? 'finite' : 'endless')) === 'endless', bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, xpSpawned: 0, xpCollected: 0, xpPilesMerged: 0, xpLost: 0, options: [], chosen: [], evolutionOptions: [], attacks: [hero.attackName], messages: [], specialTimer: 0, damageTaken: emptyDamageBreakdown(),
@@ -141,16 +142,17 @@ export function acquireTarget(state: SimState, range = 520): Enemy | undefined {
 }
 
 export function eligibleWeaponEvolutions(state: SimState): WeaponEvolutionId[] {
-  return WEAPON_EVOLUTIONS.filter(evolution => evolution.hero === state.player.heroId && !state.player.evolutions.includes(evolution.id) && (state.player.weaponRanks[evolution.weaponId as WeaponId] ?? 0) >= evolution.requiredRank && state.player.passiveRanks[evolution.passive] > 0).map(evolution => evolution.id);
+  return WEAPON_EVOLUTIONS.filter(evolution => evolution.hero === state.player.heroId && !state.player.evolutions.includes(evolution.id) && state.player.weaponRanks[evolution.weaponId] >= evolution.requiredRank && state.player.passiveRanks[evolution.passive] > 0).map(evolution => evolution.id);
 }
 
-export function chooseBossReward(state: SimState, id: WeaponEvolutionId | 'field-cache'): boolean {
+export function chooseBossReward(state: SimState, id: WeaponEvolutionId | 'field-cache' | 'arsenal-cache'): boolean {
   if (state.status !== 'boss-reward' || !state.evolutionOptions.includes(id)) return false;
-  if (id === 'field-cache') {
-    const heal = Math.max(36, state.player.maxHealth * 0.24);
+  if (id === 'field-cache' || id === 'arsenal-cache') {
+    const premium = id === 'arsenal-cache';
+    const heal = premium ? Math.max(62, state.player.maxHealth * 0.38) : Math.max(36, state.player.maxHealth * 0.24);
     state.player.health = Math.min(state.player.maxHealth, state.player.health + heal);
-    state.player.special = Math.min(100, state.player.special + 30);
-    state.messages.push('FIELD CACHE · RECOVERY + SPECIAL CHARGE');
+    state.player.special = Math.min(100, state.player.special + (premium ? 55 : 30));
+    state.messages.push(premium ? 'ARSENAL CACHE · PREMIUM RECOVERY' : 'FIELD CACHE · RECOVERY + SPECIAL CHARGE');
   } else {
     const definition = WEAPON_EVOLUTIONS.find(evolution => evolution.id === id);
     if (!definition) return false;
@@ -218,11 +220,11 @@ export function applyEnemyDamage(state: SimState, enemy: Enemy, damage: number, 
 
 function launchShot(state: SimState, target: Enemy, damage: number, weaponId: WeaponId | 'special', pierce = 0, special = false): void {
   const dir = normalize(target.x - state.player.x, target.y - state.player.y);
-  const count = Math.min(5, 1 + state.player.extraShots);
+  const count = Math.min(5, 1 + state.player.passiveRanks.multiplicity + (weaponId === 'pinwheel' && state.player.evolvedPinwheel ? 1 : 0));
   for (let i = 0; i < count; i++) {
     const angle = Math.atan2(dir.y, dir.x) + (i - (count - 1) / 2) * 0.18;
     const def = weaponId === 'piercingThrow' ? ATTACKS.piercingThrow : ATTACKS.pinwheel;
-    const speed = def.projectileSpeed * (1 + state.player.passiveRanks.velocityCore * 0.08);
+    const speed = def.projectileSpeed * heroicStatMultiplier(state.player.passiveRanks, 'projectileSpeed');
     state.projectiles.push({ id: state.nextId++, x: state.player.x, y: state.player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage, life: def.lifetime, pierce, hitIds: [], special, owner: 'player', spin: 0, weaponId });
   }
 }
@@ -230,27 +232,38 @@ function launchShot(state: SimState, target: Enemy, damage: number, weaponId: We
 function launchHeroProjectile(state: SimState, target: Enemy, weaponId: 'boulderToss' | 'spearToss'): void {
   const dir=normalize(target.x-state.player.x,target.y-state.player.y);
   const spear=weaponId==='spearToss'; const rank=state.player.weaponRanks[weaponId];
-  const count = Math.min(6, 1 + state.player.extraShots + (spear && rank >= 4 ? 1 : 0) + (!spear && rank >= 3 ? 1 : 0) + (!spear && state.player.evolutions.includes('avalanche-toss') ? 1 : 0));
+  const count = Math.min(6, 1 + state.player.passiveRanks.multiplicity + (spear && rank >= 4 ? 1 : 0) + (!spear && rank >= 3 ? 1 : 0) + (!spear && state.player.evolutions.includes('avalanche-toss') ? 1 : 0));
   const baseAngle = Math.atan2(dir.y, dir.x);
   for (let i = 0; i < count; i++) {
     const angle = baseAngle + (i - (count - 1) / 2) * 0.14;
-    const speed = (spear ? 390 : 260) * (1 + state.player.passiveRanks.velocityCore * 0.08);
+    const speed = (spear ? 390 : 260) * heroicStatMultiplier(state.player.passiveRanks, 'projectileSpeed');
     const returningLance = spear && state.player.evolutions.includes('returning-lance');
-    state.projectiles.push({ id: state.nextId++, x: state.player.x, y: state.player.y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, damage:(spear?24:34)*(1+state.player.damageBonus)*(1+(rank-1)*0.22), life:spear?(returningLance?3.4:1.6):1.35, ...(!spear && rank >= 4 ? { splashRadius: 42 + rank * 2 } : {}), ...(spear ? { maxRange: 560 } : { arcDuration: 0.7, arcHeight: 0, arcElapsed: 0 }), pierce:spear?Math.min(4,1+Math.floor(rank/2)):Math.max(0,Math.floor((rank-1)/2)), hitIds:[],special:false,owner:'player',spin:0,weaponId:spear?'spear':'boulder' });
+    state.projectiles.push({ id: state.nextId++, x: state.player.x, y: state.player.y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, damage:(spear?24:34)*playerDamageMultiplier(state.player)*(1+(rank-1)*0.22), life:spear?(returningLance?3.4:1.6):1.35, ...(!spear && rank >= 4 ? { splashRadius: 42 + rank * 2 } : {}), ...(spear ? { maxRange: 560 } : { arcDuration: 0.7, arcHeight: 0, arcElapsed: 0 }), pierce:spear?Math.min(4,1+Math.floor(rank/2)):Math.max(0,Math.floor((rank-1)/2)), hitIds:[],special:false,owner:'player',spin:0,weaponId:spear?'spear':'boulder' });
   }
 }
 
 function launchRicochetRing(state: SimState, target: Enemy): void {
   const p = state.player; const rank = p.weaponRanks.ricochetRing; const aim = normalize(target.x - p.x, target.y - p.y);
   const shatterstorm = p.evolutions.includes('shatterstorm');
-  state.projectiles.push({ id: state.nextId++, x: p.x, y: p.y, vx: aim.x * 380 * (1 + p.passiveRanks.velocityCore * 0.08), vy: aim.y * 380 * (1 + p.passiveRanks.velocityCore * 0.08), damage: 19 * (1 + p.damageBonus) * (1 + (rank - 1) * 0.24) * (shatterstorm ? 1.35 : 1), life: 3.2, pierce: Math.min(4, Math.floor(rank / 2)), hitIds: [], special: false, owner: 'player', spin: 0, weaponId: 'ricochetRing', bouncesRemaining: Math.min(5, 1 + Math.floor((rank - 1) / 2) + (shatterstorm ? 2 : 0)) });
+  const speed = 380 * heroicStatMultiplier(p.passiveRanks, 'projectileSpeed');
+  const duration = 3.2 * heroicStatMultiplier(p.passiveRanks, 'duration');
+  const count = Math.min(3, 1 + p.passiveRanks.multiplicity);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.atan2(aim.y, aim.x) + (i - (count - 1) / 2) * 0.13;
+    state.projectiles.push({ id: state.nextId++, x: p.x, y: p.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: 19 * playerDamageMultiplier(p) * (1 + (rank - 1) * 0.24) * (shatterstorm ? 1.35 : 1), life: duration, pierce: Math.min(4, Math.floor(rank / 2)), hitIds: [], special: false, owner: 'player', spin: 0, weaponId: 'ricochetRing', bouncesRemaining: Math.min(5, 1 + Math.floor((rank - 1) / 2) + (shatterstorm ? 2 : 0)) });
+  }
+}
+
+function shatterBurst(state: SimState, shot: Projectile): void {
+  if (!state.player.evolutions.includes('shatterstorm')) return;
+  state.waves.push({ id: state.nextId++, x: shot.x, y: shot.y, radius: 0, maxRadius: 68, life: 0.24, duration: 0.24, damage: shot.damage * 0.38, hitIds: [], direction: { x: 0, y: 0 }, halfAngle: Math.PI });
 }
 
 function updateGroundWaves(state: SimState, step: number, nearbyEnemies: Enemy[], config: RunConfig): void {
   let write = 0;
   for (const wave of state.waves) {
     const previousRadius = wave.radius; wave.life -= step;
-    wave.radius = wave.maxRadius * (1 - Math.max(0, wave.life) / 0.48);
+    wave.radius = wave.maxRadius * (1 - Math.max(0, wave.life) / (wave.duration ?? 0.48));
     for (const enemy of state.enemyGrid.queryRadius(wave.x, wave.y, wave.maxRadius + GANG_LEADER.radius, nearbyEnemies)) {
       if (enemy.dead || wave.hitIds.includes(enemy.id)) continue;
       const dx = enemy.x - wave.x; const dy = enemy.y - wave.y; const distance = Math.hypot(dx, dy);
@@ -264,32 +277,32 @@ function updateGroundWaves(state: SimState, step: number, nearbyEnemies: Enemy[]
 }
 
 function performClubStrike(state: SimState, aim: Vec, rank: number, nearby: Enemy[], config: RunConfig): void {
-  const p = state.player; const range = (76 + rank * 7) * (1 + p.passiveRanks.wideImpact * 0.1); const cone = Math.cos(0.92);
+  const p = state.player; const range = (76 + rank * 7) * heroicStatMultiplier(p.passiveRanks, 'area'); const cone = Math.cos(0.92);
   for (const enemy of state.enemyGrid.queryRadius(p.x, p.y, range, nearby)) {
     if (enemy.dead || segmentHitsBuilding(state.stage, p, enemy)) continue;
     const dx = enemy.x - p.x; const dy = enemy.y - p.y; const distance = Math.hypot(dx, dy) || 1;
-    if (distance <= range + enemy.radius && (dx * aim.x + dy * aim.y) / distance >= cone) applyEnemyDamage(state, enemy, 26 * (1 + p.damageBonus) * (1 + (rank - 1) * 0.24), aim, config);
+    if (distance <= range + enemy.radius && (dx * aim.x + dy * aim.y) / distance >= cone) applyEnemyDamage(state, enemy, 26 * playerDamageMultiplier(p) * (1 + (rank - 1) * 0.24), aim, config);
   }
 }
 
 function performSpearThrust(state: SimState, aim: Vec, rank: number, nearby: Enemy[], config: RunConfig): void {
-  const p = state.player; const reach = (150 + rank * 15) * (1 + p.passiveRanks.wideImpact * 0.1); const halfWidth = (12 + rank * 1.5) * (1 + p.passiveRanks.wideImpact * 0.1);
+  const p = state.player; const area = heroicStatMultiplier(p.passiveRanks, 'area'); const reach = (150 + rank * 15) * area; const halfWidth = (12 + rank * 1.5) * area;
   for (const enemy of state.enemyGrid.queryRadius(p.x, p.y, reach, nearby)) {
     if (enemy.dead || segmentHitsBuilding(state.stage, p, enemy)) continue;
     const dx = enemy.x - p.x; const dy = enemy.y - p.y; const along = dx * aim.x + dy * aim.y; const across = Math.abs(dx * aim.y - dy * aim.x);
-    if (along >= 0 && along <= reach + enemy.radius && across <= halfWidth + enemy.radius) applyEnemyDamage(state, enemy, 21 * (1 + p.damageBonus) * (1 + (rank - 1) * 0.22) * (p.evolutions.includes('obsidian-tempest') ? 1.55 : 1), aim, config);
+    if (along >= 0 && along <= reach + enemy.radius && across <= halfWidth + enemy.radius) applyEnemyDamage(state, enemy, 21 * playerDamageMultiplier(p) * (1 + (rank - 1) * 0.22) * (p.evolutions.includes('obsidian-tempest') ? 1.55 : 1), aim, config);
   }
 }
 
 function attackRateMultiplier(state: SimState): number {
-  return Math.max(0.4, Math.pow(0.8, state.chosen.filter(id => id === 'tempo').length));
+  return heroicStatMultiplier(state.player.passiveRanks, 'cooldown');
 }
 
-function orbitRingCount(rank: number): number { return rank <= 2 ? 2 : rank <= 4 ? 3 : 4; }
+function orbitRingCount(rank: number): number { return rank <= 1 ? 1 : rank <= 3 ? 2 : rank === 4 ? 3 : 4; }
 
 function syncOrbitRings(player: Player): void {
-  const count = !player.orbit ? 0 : player.evolutions.includes('eternal-halo') ? 4 : orbitRingCount(Math.max(1, player.weaponRanks.orbitGuard));
-  while (player.orbitRings.length < count) player.orbitRings.push({ angle: (Math.PI * 2 * player.orbitRings.length) / Math.max(1, count), hitCooldowns: {} });
+  const count = !player.orbit ? 0 : Math.min(6, (player.evolutions.includes('eternal-halo') ? 4 : orbitRingCount(Math.max(1, player.weaponRanks.orbitGuard))) + player.passiveRanks.multiplicity);
+  while (player.orbitRings.length < count) player.orbitRings.push({ angle: (Math.PI * 2 * player.orbitRings.length) / Math.max(1, count), active: true, hitCooldowns: {} });
   player.orbitRings.length = count;
 }
 
@@ -297,43 +310,38 @@ function populateOptions(state: SimState): void {
   const p = state.player;
   const candidates = UPGRADES.filter(u => {
     if (u.id === 'mastery') return state.endless && state.chosen.filter(chosen => chosen === 'mastery').length < 20;
-    if (u.id === 'clubSweep') return p.heroId === 'bok-goo' && p.weaponRanks.clubSweep < 5;
-    if (u.id === 'boulderToss') return p.heroId === 'bok-goo' && p.weaponRanks.boulderToss < 5;
-    if (u.id === 'spearThrust') return p.heroId === 'da-ri' && p.weaponRanks.spearThrust < 5;
-    if (u.id === 'spearToss') return p.heroId === 'da-ri' && p.weaponRanks.spearToss < 5;
-    if (u.id === 'ricochetRing') return p.heroId === 'blue-pinwheel' && p.weaponRanks.ricochetRing < 5;
-    if (u.id === 'groundSlam') return p.heroId === 'bok-goo' && p.weaponRanks.groundSlam < 5;
-    if (u.id === 'spearSweep') return p.heroId === 'da-ri' && p.weaponRanks.spearSweep < 5;
-    if (p.heroId !== 'blue-pinwheel' && ['orbit', 'pinwheel', 'piercingThrow', 'ricochetRing', 'power'].includes(u.id)) return false;
-    if (u.id === 'orbit') return p.weaponRanks.orbitGuard < 5;
-    if (u.id === 'piercingThrow') return p.weaponRanks.piercingThrow < 5;
-    if (u.id === 'pinwheel') return p.weaponRanks.pinwheel < 5;
-    if (u.id === 'power') return p.powerRank < 5;
+    const weaponId = u.id === 'orbit' ? 'orbitGuard' : u.id;
+    if (weaponId in WEAPON_REGISTRY) {
+      const definition = WEAPON_REGISTRY[weaponId as WeaponId];
+      const rank = p.weaponRanks[definition.id];
+      const hasSlot = rank > 0 || Object.values(p.weaponRanks).filter(ownedRank => ownedRank > 0).length < WEAPON_SLOT_LIMIT;
+      return definition.hero === p.heroId && hasSlot && rank < definition.maxRank;
+    }
     if (PASSIVE_IDS.includes(u.id as PassiveId)) {
       const passive = u.id as PassiveId;
-      const ownedSlots = PASSIVE_IDS.filter(id => p.passiveRanks[id] > 0 || state.chosen.includes(id)).length;
-      const rank = Math.max(p.passiveRanks[passive], state.chosen.filter(chosen => chosen === passive).length);
-      return rank < (passive === 'extra' ? 4 : 5) && (rank > 0 || ownedSlots < 6);
+      const ownedSlots = PASSIVE_IDS.filter(id => p.passiveRanks[id] > 0).length;
+      const rank = p.passiveRanks[passive];
+      return rank < HEROIC_TRAITS[passive].maxRank && (rank > 0 || ownedSlots < PASSIVE_SLOT_LIMIT);
     }
     return false;
   });
   const pool = [...candidates]; state.options = [];
   const groups: UpgradeId[][] = [
     pool.filter(upgrade => ['pinwheel', 'orbit', 'piercingThrow', 'ricochetRing', 'clubSweep', 'boulderToss', 'groundSlam', 'spearThrust', 'spearToss', 'spearSweep'].includes(upgrade.id)).map(upgrade => upgrade.id),
-    pool.filter(upgrade => PASSIVE_IDS.includes(upgrade.id as PassiveId) && !['damage', 'tempo', 'extra'].includes(upgrade.id)).map(upgrade => upgrade.id),
-    pool.filter(upgrade => ['damage', 'tempo', 'extra', 'power', 'mastery'].includes(upgrade.id)).map(upgrade => upgrade.id),
+    pool.filter(upgrade => PASSIVE_IDS.includes(upgrade.id as PassiveId) && !['might', 'tempo', 'multiplicity'].includes(upgrade.id)).map(upgrade => upgrade.id),
+    pool.filter(upgrade => ['might', 'tempo', 'multiplicity', 'mastery'].includes(upgrade.id)).map(upgrade => upgrade.id),
   ];
   for (const groupedIds of groups) {
     const group = groupedIds.filter(id => pool.some(upgrade => upgrade.id === id));
     if (state.options.length >= 3 || !group.length) continue;
-    const freshWeapon = group.find(id => (id === 'orbit' && p.weaponRanks.orbitGuard === 0) || (id === 'piercingThrow' && p.weaponRanks.piercingThrow === 0) || (id === 'ricochetRing' && p.weaponRanks.ricochetRing === 0) || (id === 'boulderToss' && p.weaponRanks.boulderToss === 0) || (id === 'groundSlam' && p.weaponRanks.groundSlam === 0) || (id === 'spearToss' && p.weaponRanks.spearToss === 0) || (id === 'spearSweep' && p.weaponRanks.spearSweep === 0));
-    const defensiveBases: PassiveId[] = ['vitality', 'recovery', 'armorPlating'];
+    const freshWeapon = group.find(id => { const weaponId = id === 'orbit' ? 'orbitGuard' : id; return weaponId in WEAPON_REGISTRY && p.weaponRanks[weaponId as WeaponId] === 0; });
+    const defensiveBases: PassiveId[] = ['vitality', 'regeneration', 'resilience'];
     const criticalDefenses: PassiveId[] = p.health / p.maxHealth < 0.5
-      ? [...defensiveBases.filter(id => p.passiveRanks[id] === 0), 'recovery', 'armorPlating', 'vitality']
+      ? [...defensiveBases.filter(id => p.passiveRanks[id] === 0), 'regeneration', 'resilience', 'vitality']
       : [...defensiveBases.filter(id => p.passiveRanks[id] === 0), ...defensiveBases];
     const passivePriority: PassiveId[] = p.health / p.maxHealth < 0.65
-      ? [...criticalDefenses, 'speed', 'magnet', 'wideImpact', 'velocityCore', 'extendedCharge', 'experienceTraining', 'damage', 'tempo', 'extra']
-      : ['speed', 'magnet', 'vitality', 'recovery', 'wideImpact', 'velocityCore', 'extendedCharge', 'armorPlating', 'experienceTraining', 'damage', 'tempo', 'extra'];
+      ? [...criticalDefenses, 'agility', 'attraction', 'reach', 'momentum', 'persistence', 'wisdom', 'might', 'tempo', 'multiplicity']
+      : ['agility', 'attraction', 'vitality', 'regeneration', 'reach', 'momentum', 'persistence', 'resilience', 'wisdom', 'might', 'tempo', 'multiplicity'];
     const corePassive = passivePriority.find(id => group.includes(id));
     const picked = freshWeapon ?? corePassive ?? group[Math.floor(random(state) * group.length)];
     if (picked) { state.options.push(picked); const removeIndex = pool.findIndex(upgrade => upgrade.id === picked); if (removeIndex >= 0) pool.splice(removeIndex, 1); }
@@ -351,14 +359,15 @@ function offerLevel(state: SimState): void {
 export function chooseUpgrade(state: SimState, id: UpgradeId): boolean {
   if (state.status !== 'upgrade' || !state.options.includes(id)) return false;
   const p = state.player;
-  if (id === 'damage') p.damageBonus += 0.3;
-  if (id === 'tempo') p.attackTimer = Math.min(p.attackTimer, 0.25);
-  if (id === 'extra') p.extraShots = Math.min(4, p.extraShots + 1);
-  if (id === 'speed') p.speed *= 1.12;
-  if (id === 'vitality') { p.maxHealth += 25; p.health = Math.min(p.maxHealth, p.health + 25); }
-  if (id === 'recovery') p.healthRegen += 0.45;
-  if (id === 'magnet') p.pickupRadius = Math.min(160, p.pickupRadius + 20);
-  if (PASSIVE_IDS.includes(id as PassiveId)) p.passiveRanks[id as PassiveId]++;
+  if (PASSIVE_IDS.includes(id as PassiveId)) {
+    const trait = id as PassiveId;
+    p.passiveRanks[trait] = Math.min(HEROIC_TRAITS[trait].maxRank, p.passiveRanks[trait] + 1);
+    if (trait === 'multiplicity') { p.extraShots = p.passiveRanks.multiplicity; syncOrbitRings(p); }
+    if (trait === 'agility') p.speed *= 1.1;
+    if (trait === 'vitality') { const gain = Math.round(HEROES[p.heroId].maxHealth * HEROIC_TRAITS.vitality.perRank); p.maxHealth += gain; p.health = Math.min(p.maxHealth, p.health + gain); }
+    if (trait === 'regeneration') p.healthRegen += HEROIC_TRAITS.regeneration.perRank;
+    if (trait === 'attraction') p.pickupRadius = Math.min(160, p.pickupRadius + HEROIC_TRAITS.attraction.perRank);
+  }
   if (id === 'orbit') { p.weaponRanks.orbitGuard++; p.orbit = true; syncOrbitRings(p); if (p.weaponRanks.orbitGuard === 1) state.attacks.push('Orbit Guard (Prototype)'); }
   if (id === 'pinwheel') p.weaponRanks.pinwheel++;
   if (id === 'piercingThrow') { p.weaponRanks.piercingThrow++; if (p.weaponRanks.piercingThrow === 1) state.attacks.push(ATTACKS.piercingThrow.name); }
@@ -370,7 +379,6 @@ export function chooseUpgrade(state: SimState, id: UpgradeId): boolean {
   if (id === 'groundSlam') p.weaponRanks.groundSlam++;
   if (id === 'spearSweep') p.weaponRanks.spearSweep++;
   if (id === 'mastery') p.damageBonus = Math.min(2, p.damageBonus + 0.05);
-  if (id === 'power') { p.powerRank++; p.damageBonus += 0.15; }
   state.chosen.push(id); state.levelChoices--; state.options = [];
   if (state.levelChoices > 0) { state.status = 'upgrade'; populateOptions(state); } else { state.status = 'playing'; while (p.xp >= p.xpNext && state.status === 'playing') { p.xp -= p.xpNext; offerLevel(state); } }
   return true;
@@ -379,7 +387,7 @@ export function chooseUpgrade(state: SimState, id: UpgradeId): boolean {
 export function damagePlayer(state: SimState, amount: number, source: DamageSource = 'thug-contact', config: RunConfig = standardRun): boolean {
   const p = state.player;
   if (state.status !== 'playing' || p.invulnerable > 0 || p.health <= 0 || !Number.isFinite(amount) || amount <= 0) return false;
-  const mitigatedAmount = amount * (1 - Math.min(0.3, p.passiveRanks.armorPlating * 0.06));
+  const mitigatedAmount = amount * heroicStatMultiplier(p.passiveRanks, 'incomingDamage');
   const actual = Math.min(p.health, mitigatedAmount);
   p.health = Math.max(0, p.health - actual); state.damageTaken[source] += actual; p.invulnerable = DIFFICULTIES[config.difficulty].playerInvulnerabilitySeconds;
   if (p.health === 0) { state.status = 'defeat'; state.endReason = 'player-down'; }
@@ -535,6 +543,16 @@ export function mergeNearbyPickups(state: SimState): void {
 function updateHeroWeapons(state: SimState, step: number, nearbyEnemies: Enemy[], config: RunConfig): void {
   const p=state.player;
   p.attackVisualTimer=Math.max(0,p.attackVisualTimer-step); if(p.attackVisualTimer===0)p.attackVisual=null;
+  if (p.tempestStrikesRemaining > 0) {
+    p.tempestStrikeTimer -= step;
+    if (p.tempestStrikeTimer <= 0) {
+      const angle = Math.atan2(p.tempestAim.y, p.tempestAim.x) + (p.tempestStrikeIndex === 1 ? -0.24 : 0.24);
+      const aim = { x: Math.cos(angle), y: Math.sin(angle) };
+      performSpearThrust(state, aim, p.weaponRanks.spearThrust, nearbyEnemies, config);
+      p.attackVisual = 'spear-thrust'; p.attackVisualTimer = 0.18;
+      p.tempestStrikesRemaining--; p.tempestStrikeIndex++; p.tempestStrikeTimer = 0.11;
+    }
+  }
   if (p.followupStrike) {
     p.followupStrikeTimer -= step;
     if (p.followupStrikeTimer <= 0) {
@@ -560,14 +578,15 @@ function updateHeroWeapons(state: SimState, step: number, nearbyEnemies: Enemy[]
       const rank=p.weaponRanks.clubSweep; const aim=target?normalize(target.x-p.x,target.y-p.y):p.facing;
       p.attackVisual='club-sweep'; p.attackVisualTimer=0.32;
       performClubStrike(state, aim, rank, nearbyEnemies, config);
-      if (p.evolutions.includes('earthbreaker')) state.waves.push({ id: state.nextId++, x: p.x + aim.x * 46, y: p.y + aim.y * 46, radius: 0, maxRadius: 150, life: 0.48, damage: 20 * (1 + p.damageBonus), hitIds: [], direction: aim, halfAngle: 1.1 });
+      if (p.evolutions.includes('earthbreaker')) { const duration = 0.48 * heroicStatMultiplier(p.passiveRanks, 'duration'); state.waves.push({ id: state.nextId++, x: p.x + aim.x * 46, y: p.y + aim.y * 46, radius: 0, maxRadius: 150, life: duration, duration, damage: 20 * playerDamageMultiplier(p), hitIds: [], direction: aim, halfAngle: 1.1 }); }
       if (rank >= 4) { p.followupStrike = { kind: 'club', direction: aim, rank }; p.followupStrikeTimer = 0.2; }
       p.facing=aim; p.attackTimer=0.96*Math.max(0.58,1-(rank-1)*0.075)*attackRateMultiplier(state);
     }else{
       const rank=p.weaponRanks.spearThrust; const aim=target?normalize(target.x-p.x,target.y-p.y):p.facing;
       p.attackVisual='spear-thrust'; p.attackVisualTimer=0.24; p.facing=aim;
       performSpearThrust(state, aim, rank, nearbyEnemies, config);
-      if (rank >= 4 || p.evolutions.includes('obsidian-tempest')) { p.followupStrike = { kind: 'spear', direction: aim, rank }; p.followupStrikeTimer = 0.16; }
+      if (p.evolutions.includes('obsidian-tempest')) { p.tempestStrikesRemaining = 2; p.tempestStrikeIndex = 1; p.tempestStrikeTimer = 0.1; p.tempestAim = aim; }
+      else if (rank >= 4) { p.followupStrike = { kind: 'spear', direction: aim, rank }; p.followupStrikeTimer = 0.16; }
       p.attackTimer=0.76*Math.max(0.6,1-(rank-1)*0.065)*attackRateMultiplier(state);
     }
   }
@@ -581,8 +600,9 @@ function updateHeroWeapons(state: SimState, step: number, nearbyEnemies: Enemy[]
   if (p.heroId === 'bok-goo' && p.weaponRanks.groundSlam > 0) {
     const rank = p.weaponRanks.groundSlam; p.groundSlamTimer -= step;
     if (p.groundSlamTimer <= 0) {
-      const radius = (84 + rank * 8) * (1 + p.passiveRanks.wideImpact * 0.1);
-      state.waves.push({ id: state.nextId++, x: p.x, y: p.y, radius: 0, maxRadius: radius, life: 0.48, damage: 18 * (1 + p.damageBonus) * (1 + (rank - 1) * 0.2), hitIds: [], direction: p.facing, halfAngle: Math.PI });
+      const radius = (84 + rank * 8) * heroicStatMultiplier(p.passiveRanks, 'area');
+      const duration = 0.48 * heroicStatMultiplier(p.passiveRanks, 'duration');
+      state.waves.push({ id: state.nextId++, x: p.x, y: p.y, radius: 0, maxRadius: radius, life: duration, duration, damage: 18 * playerDamageMultiplier(p) * (1 + (rank - 1) * 0.2), hitIds: [], direction: p.facing, halfAngle: Math.PI });
       p.attackVisual = 'ground-slam'; p.attackVisualTimer = 0.42;
       p.groundSlamTimer = Math.max(0.8, 2.5 * attackRateMultiplier(state) * Math.max(0.6, 1 - (rank - 1) * 0.08));
     }
@@ -590,10 +610,10 @@ function updateHeroWeapons(state: SimState, step: number, nearbyEnemies: Enemy[]
   if (p.heroId === 'da-ri' && p.weaponRanks.spearSweep > 0) {
     const rank = p.weaponRanks.spearSweep; p.spearSweepTimer -= step;
     if (p.spearSweepTimer <= 0) {
-      const range = (102 + rank * 8) * (1 + p.passiveRanks.wideImpact * 0.1); const aim = p.facing;
+      const range = (102 + rank * 8) * heroicStatMultiplier(p.passiveRanks, 'area'); const aim = p.facing;
       for (const enemy of state.enemyGrid.queryRadius(p.x, p.y, range, nearbyEnemies)) {
         const dx = enemy.x - p.x; const dy = enemy.y - p.y; const distance = Math.hypot(dx, dy) || 1;
-        if (!enemy.dead && distance <= range + enemy.radius && (dx * aim.x + dy * aim.y) / distance > -0.25 && !segmentHitsBuilding(state.stage, p, enemy)) applyEnemyDamage(state, enemy, 16 * (1 + p.damageBonus) * (1 + (rank - 1) * 0.2), aim, config);
+        if (!enemy.dead && distance <= range + enemy.radius && (dx * aim.x + dy * aim.y) / distance > -0.25 && !segmentHitsBuilding(state.stage, p, enemy)) applyEnemyDamage(state, enemy, 16 * playerDamageMultiplier(p) * (1 + (rank - 1) * 0.2), aim, config);
       }
       p.attackVisual = 'spear-sweep'; p.attackVisualTimer = 0.3;
       p.spearSweepTimer = Math.max(0.7, 2.25 * attackRateMultiplier(state) * Math.max(0.6, 1 - (rank - 1) * 0.09));
@@ -687,7 +707,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   const nearbyEnemies = state.enemyQueryScratch;
   if (input.special && p.special >= 100 && state.specialTimer === 0) {
     p.special = 0; state.specialTimer = ATTACKS.special.cooldown; state.messages.push(ATTACKS.special.name);
-    for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2 && !segmentHitsBuilding(state.stage, p, e)) applyEnemyDamage(state, e, ATTACKS.special.damage * (1 + p.damageBonus), normalize(e.x - p.x, e.y - p.y), config);
+    for (const e of state.enemyGrid.queryRadius(p.x, p.y, ATTACKS.special.targetRange, nearbyEnemies)) if (!e.dead && dist2(p, e) < ATTACKS.special.targetRange ** 2 && !segmentHitsBuilding(state.stage, p, e)) applyEnemyDamage(state, e, ATTACKS.special.damage * playerDamageMultiplier(p), normalize(e.x - p.x, e.y - p.y), config);
   }
   if ((state.endless ? state.elapsed >= state.nextBossAt : state.elapsed >= config.bossAt && !state.bossDefeated) && !state.enemies.some(e => e.kind === 'boss' && !e.dead)) {
     const boss = spawnBossForEncounter(state, config); state.currentBossId=boss.bossId; state.enemies.push(boss); state.enemyGrid.insert(boss); state.bossArrivalAt = state.elapsed; state.messages.push((boss.bossId==='dr-smile'?'DR. SMILE':'GANG BOSS')+' ARRIVED');
@@ -700,14 +720,16 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   if (p.orbit) {
     const effectiveOrbitRank = Math.max(1, orbitRank); const rankIndex = Math.max(0, effectiveOrbitRank - 1); const count = p.orbitRings.length;
     const angularSpeed = 2.8 * attackRateMultiplier(state) * (ATTACKS.orbitGuard.rankCooldown?.[rankIndex] ?? 1);
-    const radius = (48 + Math.min(12, effectiveOrbitRank * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0)) * (1 + p.passiveRanks.wideImpact * 0.1);
+    const radius = (48 + Math.min(12, effectiveOrbitRank * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0)) * heroicStatMultiplier(p.passiveRanks, 'area');
+    p.orbitTimer = (p.orbitTimer + step) % 3.2;
+    const activeDuration = p.evolutions.includes('eternal-halo') ? 3.2 : Math.min(2.8, 1.8 * heroicStatMultiplier(p.passiveRanks, 'duration'));
     for (let ringIndex = 0; ringIndex < count; ringIndex++) {
-      const ring = p.orbitRings[ringIndex]!; ring.angle = (ring.angle + angularSpeed * step) % (Math.PI * 2);
+      const ring = p.orbitRings[ringIndex]!; ring.active = p.evolutions.includes('eternal-halo') || p.orbitTimer < activeDuration; ring.angle = (ring.angle + angularSpeed * step) % (Math.PI * 2);
       const position = { x: p.x + Math.cos(ring.angle) * radius, y: p.y + Math.sin(ring.angle) * radius };
       for (const id of Object.keys(ring.hitCooldowns)) { ring.hitCooldowns[Number(id)] = Math.max(0, ring.hitCooldowns[Number(id)]! - step); if (ring.hitCooldowns[Number(id)] === 0) delete ring.hitCooldowns[Number(id)]; }
       for (const enemy of state.enemyGrid.queryRadius(position.x, position.y, 22, nearbyEnemies)) {
-        if (enemy.dead || (ring.hitCooldowns[enemy.id] ?? 0) > 0 || dist2(position, enemy) > (enemy.radius + 13) ** 2 || segmentHitsBuilding(state.stage, p, position)) continue;
-        applyEnemyDamage(state, enemy, ATTACKS.orbitGuard.damage * (1 + p.damageBonus) * (ATTACKS.orbitGuard.rankDamage?.[rankIndex] ?? 1) * (p.evolutions.includes('eternal-halo') ? 1.3 : 1), normalize(enemy.x - p.x, enemy.y - p.y), config);
+        if (!ring.active || enemy.dead || (ring.hitCooldowns[enemy.id] ?? 0) > 0 || dist2(position, enemy) > (enemy.radius + 13) ** 2 || segmentHitsBuilding(state.stage, p, position)) continue;
+        applyEnemyDamage(state, enemy, ATTACKS.orbitGuard.damage * playerDamageMultiplier(p) * (ATTACKS.orbitGuard.rankDamage?.[rankIndex] ?? 1) * (p.evolutions.includes('eternal-halo') ? 1.3 : 1), normalize(enemy.x - p.x, enemy.y - p.y), config);
         ring.hitCooldowns[enemy.id] = Math.max(0.24, ATTACKS.orbitGuard.cooldown * (ATTACKS.orbitGuard.rankCooldown?.[rankIndex] ?? 1) * attackRateMultiplier(state));
       }
     }
@@ -719,7 +741,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     if (target) {
       const rank = p.weaponRanks.pinwheel;
       const rankIndex = Math.max(0, rank - 1);
-      const damage = ATTACKS.pinwheel.damage * (1 + p.damageBonus) * (ATTACKS.pinwheel.rankDamage?.[rankIndex] ?? 1);
+      const damage = ATTACKS.pinwheel.damage * playerDamageMultiplier(p) * (ATTACKS.pinwheel.rankDamage?.[rankIndex] ?? 1);
       const pierce = (ATTACKS.pinwheel.rankPierce?.[rankIndex] ?? 0) + (p.evolvedPinwheel ? PINWHEEL_EVOLUTION.bonusPierce : 0);
       launchShot(state, target, damage, 'pinwheel', pierce);
       p.attackTimer = Math.max(0.24, ATTACKS.pinwheel.cooldown * attackRateMultiplier(state) * (ATTACKS.pinwheel.rankCooldown?.[rankIndex] ?? 1) * (p.evolvedPinwheel ? PINWHEEL_EVOLUTION.cooldownMultiplier : 1));
@@ -732,7 +754,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
       if (target) {
         const rank = p.weaponRanks.piercingThrow;
         const rankIndex = Math.max(0, rank - 1);
-        launchShot(state, target, ATTACKS.piercingThrow.damage * (1 + p.damageBonus) * (ATTACKS.piercingThrow.rankDamage?.[rankIndex] ?? 1), 'piercingThrow', ATTACKS.piercingThrow.rankPierce?.[rankIndex] ?? ATTACKS.piercingThrow.pierce ?? 0);
+        launchShot(state, target, ATTACKS.piercingThrow.damage * playerDamageMultiplier(p) * (ATTACKS.piercingThrow.rankDamage?.[rankIndex] ?? 1), 'piercingThrow', ATTACKS.piercingThrow.rankPierce?.[rankIndex] ?? ATTACKS.piercingThrow.pierce ?? 0);
         p.piercingTimer = ATTACKS.piercingThrow.cooldown * attackRateMultiplier(state) * (ATTACKS.piercingThrow.rankCooldown?.[rankIndex] ?? 1);
       }
     }
@@ -765,6 +787,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
         if (xBlocked) shot.vx *= -1; if (yBlocked) shot.vy *= -1;
         if (!xBlocked && !yBlocked) { shot.vx *= -1; shot.vy *= -1; }
         shot.bouncesRemaining!--;
+        shatterBurst(state, shot);
       } else { shot.life = 0; continue; }
     }
     if (shot.weaponId === 'ricochetRing' && (shot.x <= 1 || shot.x >= config.arenaWidth - 1 || shot.y <= 1 || shot.y >= config.arenaHeight - 1)) {
@@ -772,6 +795,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
       if (shot.x <= 1 || shot.x >= config.arenaWidth - 1) { shot.vx *= -1; shot.x = clamp(shot.x, 2, config.arenaWidth - 2); }
       if (shot.y <= 1 || shot.y >= config.arenaHeight - 1) { shot.vy *= -1; shot.y = clamp(shot.y, 2, config.arenaHeight - 2); }
       shot.bouncesRemaining!--;
+      shatterBurst(state, shot);
     }
     if (shot.owner === 'player') for (const e of state.enemyGrid.queryRadius(shot.x, shot.y, GANG_LEADER.radius + 9, nearbyEnemies)) {
       if (e.dead || shot.hitIds.includes(e.id) || dist2(shot, e) >= (e.radius + 9) ** 2) continue;
@@ -884,7 +908,11 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
       const nearReward = dist2(p, pickup) < 34 ** 2 && !segmentHitsBuilding(state.stage, pickup, p);
       if (nearReward) {
         const eligible = eligibleWeaponEvolutions(state);
-        state.evolutionOptions = eligible.length ? eligible.slice(0, 3) : ['field-cache'];
+        if (eligible.length) state.evolutionOptions = eligible.slice(0, 3);
+        else {
+          const premiumChance = Math.min(0.4, state.player.passiveRanks.fortune * 0.08);
+          state.evolutionOptions = [random(state) < premiumChance ? 'arsenal-cache' : 'field-cache'];
+        }
         state.status = 'boss-reward'; pickup.consumed = true;
         state.messages.push(eligible.length ? 'BOSS REWARD · CHOOSE AN EVOLUTION' : 'BOSS REWARD · FIELD CACHE AVAILABLE');
         break;
@@ -892,7 +920,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
       continue;
     }
     const dx = p.x - pickup.x; const dy = p.y - pickup.y; const d2 = dx * dx + dy * dy;
-    if (d2 < directPickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { p.xp += pickup.value * (1 + p.passiveRanks.experienceTraining * 0.08); p.special = Math.min(100, p.special + pickup.value * 0.42 * (1 + p.passiveRanks.extendedCharge * 0.12)); state.xpCollected += pickup.value; float(state, `+${pickup.value} XP`, pickup.x, pickup.y); pickup.value = 0; }
+    if (d2 < directPickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { p.xp += pickup.value * heroicStatMultiplier(p.passiveRanks, 'xp'); p.special = Math.min(100, p.special + pickup.value * 0.42); state.xpCollected += pickup.value; float(state, `+${pickup.value} XP`, pickup.x, pickup.y); pickup.value = 0; }
     else if (d2 < p.pickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { const distance = Math.sqrt(d2) || 1; pickup.pullSpeed = Math.min(290, (pickup.pullSpeed ?? 0) + 720 * step); const pull = Math.min(distance, pickup.pullSpeed * step); const moved = moveOnStage(state.stage, pickup, { x: dx / distance * pull, y: dy / distance * pull }, 0); pickup.x = moved.x; pickup.y = moved.y; }
     else pickup.pullSpeed = 0;
   }

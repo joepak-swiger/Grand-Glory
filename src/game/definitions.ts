@@ -9,19 +9,57 @@ export const PLANNED_VILLAINS: readonly PlannedVillainDefinition[] = [
   { id: 'clownasaurus-rex', name: 'Clownasaurus Rex', faction: 'Clownasaurus faction', enabled: false },
 ];
 export type EnemyKind = 'thug' | 'fastThug' | 'gangster' | 'bruiser' | 'yoYoPunk' | 'smiler' | 'molar' | 'boss';
-export type PassiveId = 'damage' | 'tempo' | 'extra' | 'speed' | 'vitality' | 'recovery' | 'magnet' | 'wideImpact' | 'velocityCore' | 'extendedCharge' | 'armorPlating' | 'experienceTraining';
-export const PASSIVE_IDS: readonly PassiveId[] = ['damage', 'tempo', 'extra', 'speed', 'vitality', 'recovery', 'magnet', 'wideImpact', 'velocityCore', 'extendedCharge', 'armorPlating', 'experienceTraining'];
-export type UpgradeId = PassiveId | 'orbit' | 'pinwheel' | 'piercingThrow' | 'ricochetRing' | 'power' | 'clubSweep' | 'boulderToss' | 'groundSlam' | 'spearThrust' | 'spearToss' | 'spearSweep' | 'mastery';
+export type PassiveId = 'might' | 'tempo' | 'reach' | 'momentum' | 'persistence' | 'multiplicity' | 'resilience' | 'vitality' | 'regeneration' | 'agility' | 'attraction' | 'fortune' | 'wisdom';
+export const PASSIVE_IDS: readonly PassiveId[] = ['might', 'tempo', 'reach', 'momentum', 'persistence', 'multiplicity', 'resilience', 'vitality', 'regeneration', 'agility', 'attraction', 'fortune', 'wisdom'];
+export interface HeroicTraitDefinition { readonly id: PassiveId; readonly name: string; readonly maxRank: number; readonly perRank: number; readonly unit: string; readonly compatibility: string }
+export const HEROIC_TRAITS: Readonly<Record<PassiveId, HeroicTraitDefinition>> = {
+  might: { id: 'might', name: 'Might', maxRank: 5, perRank: 0.10, unit: 'applicable damage', compatibility: 'All damaging weapons' },
+  tempo: { id: 'tempo', name: 'Tempo', maxRank: 5, perRank: 0.08, unit: 'cooldown reduction', compatibility: 'All timed attacks' },
+  reach: { id: 'reach', name: 'Reach', maxRank: 5, perRank: 0.10, unit: 'attack area', compatibility: 'Area, melee arcs, and attack lines' },
+  momentum: { id: 'momentum', name: 'Momentum', maxRank: 5, perRank: 0.10, unit: 'projectile speed', compatibility: 'Traveling projectiles' },
+  persistence: { id: 'persistence', name: 'Persistence', maxRank: 5, perRank: 0.10, unit: 'active duration', compatibility: 'Orbiting weapons, ricochets, and lingering attacks' },
+  multiplicity: { id: 'multiplicity', name: 'Multiplicity', maxRank: 2, perRank: 1, unit: 'compatible projectile or attack', compatibility: 'Weapons with explicit bounded volleys' },
+  resilience: { id: 'resilience', name: 'Resilience', maxRank: 5, perRank: 0.05, unit: 'incoming damage reduction', compatibility: 'All incoming damage; capped at 25%' },
+  vitality: { id: 'vitality', name: 'Vitality', maxRank: 5, perRank: 0.15, unit: 'maximum health', compatibility: 'All heroes' },
+  regeneration: { id: 'regeneration', name: 'Regeneration', maxRank: 5, perRank: 0.2, unit: 'health per second', compatibility: 'All heroes' },
+  agility: { id: 'agility', name: 'Agility', maxRank: 5, perRank: 0.10, unit: 'movement speed', compatibility: 'All heroes' },
+  attraction: { id: 'attraction', name: 'Attraction', maxRank: 5, perRank: 14, unit: 'XP attraction reach', compatibility: 'Collectible XP gems' },
+  fortune: { id: 'fortune', name: 'Fortune', maxRank: 5, perRank: 0.08, unit: 'quality-cache chance', compatibility: 'Non-evolution boss rewards' },
+  wisdom: { id: 'wisdom', name: 'Wisdom', maxRank: 5, perRank: 0.08, unit: 'collected XP bonus', compatibility: 'XP awarded on gem collection' },
+};
+export const PLANNED_HEROIC_TRAITS = [
+  { id: 'prosperity', name: 'Prosperity', available: false, reason: 'Requires a persistent currency system.' },
+  { id: 'provocation', name: 'Provocation', available: false, reason: 'Requires a risk-for-reward horde modifier.' },
+  { id: 'second-chance', name: 'Second Chance', available: false, reason: 'Limited revival is not implemented.' },
+  { id: 'overdrive', name: 'Overdrive', available: false, reason: 'Difficulty-tradeoff trait is deferred.' },
+] as const;
+export type UpgradeId = PassiveId | 'orbit' | 'pinwheel' | 'piercingThrow' | 'ricochetRing' | 'clubSweep' | 'boulderToss' | 'groundSlam' | 'spearThrust' | 'spearToss' | 'spearSweep' | 'mastery';
+export type WeaponId = 'pinwheel' | 'orbitGuard' | 'piercingThrow' | 'ricochetRing' | 'clubSweep' | 'boulderToss' | 'groundSlam' | 'spearThrust' | 'spearToss' | 'spearSweep';
+export interface WeaponDefinition { readonly id: WeaponId; readonly name: string; readonly hero: HeroId; readonly maxRank: 5; readonly traits: readonly PassiveId[]; readonly ranks: readonly [string, string, string, string, string] }
+export const WEAPON_SLOT_LIMIT = 6;
+export const PASSIVE_SLOT_LIMIT = 6;
+export const WEAPON_REGISTRY: Readonly<Record<WeaponId, WeaponDefinition>> = {
+  pinwheel: { id: 'pinwheel', name: 'Starter Ring Throw', hero: 'blue-pinwheel', maxRank: 5, traits: ['might','tempo','reach','momentum','multiplicity'], ranks: ['Locks to a nearby target and throws a blue ring.','Increases ring damage.','Increases ring damage and cadence.','Adds one piercing hit.','Strengthens damage and piercing.'] },
+  orbitGuard: { id: 'orbitGuard', name: 'Orbit Guard', hero: 'blue-pinwheel', maxRank: 5, traits: ['might','tempo','reach','persistence','multiplicity'], ranks: ['Unlocks one orbiting damaging ring.','Adds a second ring.','Widens coverage and rotation speed.','Adds a third ring and improves damage.','Adds a fourth ring and shortens downtime.'] },
+  piercingThrow: { id: 'piercingThrow', name: 'Piercing Ring', hero: 'blue-pinwheel', maxRank: 5, traits: ['might','tempo','reach','momentum','multiplicity'], ranks: ['Unlocks a long piercing ring throw.','Increases damage.','Increases piercing and cadence.','Improves damage and piercing.','Increases damage and penetration.'] },
+  ricochetRing: { id: 'ricochetRing', name: 'Ricochet Rings', hero: 'blue-pinwheel', maxRank: 5, traits: ['might','tempo','reach','momentum','persistence','multiplicity','resilience'], ranks: ['Unlocks a ring that bounces once from solid terrain.','Increases ring damage.','Adds another terrain bounce.','Increases penetration and damage.','Adds another bounce and improves damage.'] },
+  clubSweep: { id: 'clubSweep', name: 'Club Sweep', hero: 'bok-goo', maxRank: 5, traits: ['might','tempo','reach'], ranks: ['Wide forward club swing.','Increases strike damage.','Wider reach and heavier knockback.','Adds a timed follow-up swing.','Improves area and reduces cooldown.'] },
+  boulderToss: { id: 'boulderToss', name: 'Boulder Toss', hero: 'bok-goo', maxRank: 5, traits: ['might','tempo','reach','momentum','multiplicity'], ranks: ['Throws one arcing boulder.','Increases impact damage.','Throws a second boulder.','Increases impact area.','Throws three boulders and reduces cooldown.'] },
+  groundSlam: { id: 'groundSlam', name: 'Ground Slam', hero: 'bok-goo', maxRank: 5, traits: ['might','tempo','reach','persistence'], ranks: ['Creates a close-range expanding ground wave.','Increases wave radius.','Increases impact damage.','Shortens cooldown and adds knockback.','Adds a bounded secondary impact.'] },
+  spearThrust: { id: 'spearThrust', name: 'Spear Thrust', hero: 'da-ri', maxRank: 5, traits: ['might','tempo','reach'], ranks: ['One precise piercing thrust.','Increases thrust damage.','Extends the attack line.','Adds a separate timed follow-up thrust.','Improves penetration and cadence.'] },
+  spearToss: { id: 'spearToss', name: 'Spear Toss', hero: 'da-ri', maxRank: 5, traits: ['might','tempo','momentum','multiplicity'], ranks: ['Throws one long-range spear.','Increases spear damage.','Improves penetration.','Adds a second spear to the volley.','Improves frequency and travel distance.'] },
+  spearSweep: { id: 'spearSweep', name: 'Spear Sweep', hero: 'da-ri', maxRank: 5, traits: ['might','tempo','reach'], ranks: ['Unlocks a broad forward sweep.','Widens the sweep.','Increases sweep damage.','Adds an opposite-direction follow-up sweep.','Improves reach and attack cadence.'] },
+};
 export type WeaponEvolutionId = 'typhoon-rings' | 'eternal-halo' | 'shatterstorm' | 'earthbreaker' | 'avalanche-toss' | 'obsidian-tempest' | 'returning-lance';
-export interface WeaponEvolutionDefinition { readonly id: WeaponEvolutionId; readonly name: string; readonly weaponId: string; readonly requiredRank: number; readonly passive: PassiveId; readonly hero: HeroId; readonly effect: string }
+export interface WeaponEvolutionDefinition { readonly id: WeaponEvolutionId; readonly name: string; readonly weaponId: WeaponId; readonly requiredRank: number; readonly passive: PassiveId; readonly hero: HeroId; readonly effect: string }
 export const WEAPON_EVOLUTIONS: readonly WeaponEvolutionDefinition[] = [
-  { id: 'typhoon-rings', name: 'Typhoon Rings', weaponId: 'pinwheel', requiredRank: 5, passive: 'damage', hero: 'blue-pinwheel', effect: 'Starter rings gain piercing and a shorter cooldown.' },
-  { id: 'eternal-halo', name: 'Eternal Halo', weaponId: 'orbitGuard', requiredRank: 5, passive: 'extendedCharge', hero: 'blue-pinwheel', effect: 'Orbit Guard gains a fourth damaging ring and wider orbit.' },
-  { id: 'shatterstorm', name: 'Shatterstorm', weaponId: 'ricochetRing', requiredRank: 5, passive: 'armorPlating', hero: 'blue-pinwheel', effect: 'Ricochet rings gain an extra bounce and stronger impact.' },
-  { id: 'earthbreaker', name: 'Earthbreaker', weaponId: 'clubSweep', requiredRank: 5, passive: 'wideImpact', hero: 'bok-goo', effect: 'Club Sweep releases a broad ground-impact wave.' },
-  { id: 'avalanche-toss', name: 'Avalanche Toss', weaponId: 'boulderToss', requiredRank: 5, passive: 'extra', hero: 'bok-goo', effect: 'Boulder Toss launches a larger volley.' },
-  { id: 'obsidian-tempest', name: 'Obsidian Tempest', weaponId: 'spearThrust', requiredRank: 5, passive: 'tempo', hero: 'da-ri', effect: 'Spear Thrust performs a rapid multi-thrust sequence.' },
-  { id: 'returning-lance', name: 'Returning Lance', weaponId: 'spearToss', requiredRank: 5, passive: 'velocityCore', hero: 'da-ri', effect: 'Thrown spears return through enemies on their way back.' },
+  { id: 'typhoon-rings', name: 'Typhoon Rings', weaponId: 'pinwheel', requiredRank: 5, passive: 'might', hero: 'blue-pinwheel', effect: 'Starter rings gain bonus piercing and a shorter cooldown.' },
+  { id: 'eternal-halo', name: 'Eternal Halo', weaponId: 'orbitGuard', requiredRank: 5, passive: 'persistence', hero: 'blue-pinwheel', effect: 'Orbit Guard stays active and circles with four damaging rings.' },
+  { id: 'shatterstorm', name: 'Shatterstorm', weaponId: 'ricochetRing', requiredRank: 5, passive: 'resilience', hero: 'blue-pinwheel', effect: 'Ricochet rings create a bounded burst on wall bounces.' },
+  { id: 'earthbreaker', name: 'Earthbreaker', weaponId: 'clubSweep', requiredRank: 5, passive: 'reach', hero: 'bok-goo', effect: 'Club Sweep releases an additional expanding impact wave.' },
+  { id: 'avalanche-toss', name: 'Avalanche Toss', weaponId: 'boulderToss', requiredRank: 5, passive: 'multiplicity', hero: 'bok-goo', effect: 'Boulder Toss launches a wider spread of arcing boulders.' },
+  { id: 'obsidian-tempest', name: 'Obsidian Tempest', weaponId: 'spearThrust', requiredRank: 5, passive: 'tempo', hero: 'da-ri', effect: 'Spear Thrust performs a rapid fan of penetrating strikes.' },
+  { id: 'returning-lance', name: 'Returning Lance', weaponId: 'spearToss', requiredRank: 5, passive: 'momentum', hero: 'da-ri', effect: 'Thrown spears return through enemies along their outward path.' },
 ];
 export type DifficultyId = 'normal' | 'heroic';
 export interface DifficultyDefinition { readonly id: DifficultyId; readonly label: string; readonly enemyDamageMultiplier: number; readonly enemyProjectileSpeedMultiplier: number; readonly rangedAttackIntervalMultiplier: number; readonly playerInvulnerabilitySeconds: number; readonly dashCooldownSeconds: number }
@@ -130,23 +168,23 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
 };
 
 export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: string }> = [
-  { id: 'damage', title: 'Might Training', detail: '+30% damage for all of this hero’s attacks' },
-  { id: 'tempo', title: 'Rapid Rhythm', detail: 'All player weapons attack 20% faster per rank' },
-  { id: 'extra', title: 'Split Pattern', detail: 'Fire one additional projectile per attack (maximum 5 total)' },
-  { id: 'speed', title: 'Light Footwork', detail: '+12% movement speed' },
-  { id: 'vitality', title: 'Second Wind', detail: '+25 maximum health and heal 25' },
-  { id: 'recovery', title: 'Steady Recovery', detail: '+0.45 health recovered per second' },
-  { id: 'magnet', title: 'Wide Pickup', detail: '+45% XP collection radius' },
-  { id: 'wideImpact', title: 'Wide Impact', detail: '+10% area for applicable attacks per rank' },
-  { id: 'velocityCore', title: 'Velocity Core', detail: '+8% player projectile speed per rank' },
-  { id: 'extendedCharge', title: 'Extended Charge', detail: '+12% special charge gained from collected XP per rank' },
-  { id: 'armorPlating', title: 'Armor Plating', detail: 'Reduce incoming damage by 6% per rank (maximum 30%)' },
-  { id: 'experienceTraining', title: 'Experience Training', detail: '+8% XP value when gems are collected per rank' },
+  { id: 'might', title: 'Might', detail: '+10% applicable weapon damage per rank' },
+  { id: 'tempo', title: 'Tempo', detail: '−8% cooldown for eligible attacks per rank' },
+  { id: 'reach', title: 'Reach', detail: '+10% area, width, or melee reach for compatible attacks' },
+  { id: 'momentum', title: 'Momentum', detail: '+10% speed for traveling projectiles per rank' },
+  { id: 'persistence', title: 'Persistence', detail: '+10% active duration for compatible attacks per rank' },
+  { id: 'multiplicity', title: 'Multiplicity', detail: '+1 compatible projectile or attack per rank (maximum rank 2)' },
+  { id: 'resilience', title: 'Resilience', detail: '−5% incoming damage per rank (maximum 25%)' },
+  { id: 'vitality', title: 'Vitality', detail: '+15% maximum health per rank, with immediate recovery' },
+  { id: 'regeneration', title: 'Regeneration', detail: '+0.2 health per second per rank' },
+  { id: 'agility', title: 'Agility', detail: '+10% movement speed per rank' },
+  { id: 'attraction', title: 'Attraction', detail: '+14 world units of XP attraction reach per rank' },
+  { id: 'fortune', title: 'Fortune', detail: 'Improves the seeded chance of a higher-quality boss field cache' },
+  { id: 'wisdom', title: 'Wisdom', detail: '+8% credited XP when collecting gems per rank' },
   { id: 'orbit', title: 'Orbit Guard (Prototype)', detail: 'Unlock a close-range rotating attack' },
   { id: 'pinwheel', title: 'Starter Ring Rank', detail: 'Strengthen the automatic ring attack' },
   { id: 'piercingThrow', title: 'Piercing Ring (Prototype)', detail: 'Unlock / rank a long piercing ring' },
   { id: 'ricochetRing', title: 'Ricochet Ring', detail: 'Unlock / rank a ring that bounces from city walls' },
-  { id: 'power', title: 'Prototype Power', detail: '+15% damage for all player weapons' },
   { id: 'clubSweep', title: 'Club Sweep', detail: 'Increase sweep damage and impact reach' },
   { id: 'boulderToss', title: 'Boulder Toss', detail: 'Unlock or strengthen an aimed heavy stone' },
   { id: 'groundSlam', title: 'Ground Slam', detail: 'Unlock or strengthen an expanding close-range shockwave' },

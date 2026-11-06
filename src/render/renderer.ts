@@ -3,6 +3,7 @@ import type { Enemy, SimState, Vec } from '../game/simulation';
 import { BLUE_PINWHEEL, DR_SMILE_BOSS_ANIMATION, ENEMIES, GANG_LEADER, HEROES, type AnimationClipDefinition, type EnemyAnimationState, type EnemyKind, type RunConfig } from '../game/definitions';
 import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-map';
 import { getTerrain } from '../game/stage';
+import { heroicStatMultiplier } from '../game/heroic-traits';
 
 const W = 960; const H = 640;
 export type CameraPreset = 'wide' | 'standard' | 'close';
@@ -339,13 +340,14 @@ export class GameRenderer {
       g.poly(points).fill({color,alpha:0.22});g.poly(points).stroke({color:p.attackVisual==='club-sweep'?0xf5d18b:0xf1fcff,width:3,alpha:0.75});
     }
     if (p.orbit) {
-      const radius = 48 + Math.min(12, p.weaponRanks.orbitGuard * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0);
+      const radius = (48 + Math.min(12, p.weaponRanks.orbitGuard * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0)) * heroicStatMultiplier(p.passiveRanks, 'area');
       for (const ring of p.orbitRings) {
         const x = p.x + Math.cos(ring.angle) * radius; const y = p.y + Math.sin(ring.angle) * radius;
         // The hollow center and bright metal edge keep orbit weapons legible over both road and sidewalk.
-        g.circle(x, y, 11).stroke({ color: 0x168ce0, width: 5, alpha: 0.96 });
-        g.circle(x - 1, y - 1, 8).stroke({ color: 0xb8f2ff, width: 1.5, alpha: 0.94 });
-        g.circle(x + 3, y - 4, 2).fill({ color: 0xffffff, alpha: 0.98 });
+        const alpha = ring.active ? 1 : 0.2;
+        g.circle(x, y, 11).stroke({ color: 0x168ce0, width: 5, alpha: 0.96 * alpha });
+        g.circle(x - 1, y - 1, 8).stroke({ color: 0xb8f2ff, width: 1.5, alpha: 0.94 * alpha });
+        g.circle(x + 3, y - 4, 2).fill({ color: 0xffffff, alpha: 0.98 * alpha });
       }
     }
     if (!this.playerSprite) {
