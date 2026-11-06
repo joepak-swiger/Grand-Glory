@@ -143,7 +143,7 @@ test('real boss-cache UI offers and applies a qualifying weapon evolution', asyn
   await page.evaluate(() => {
     const test = window.__GG_TEST__; const state = test?.getState(); if (!test || !state) return;
     state.endless = true; state.enemies.length = 0; state.projectiles.length = 0; state.pickups.length = 0;
-    state.player.weaponRanks.pinwheel = 5; state.player.passiveRanks.damage = 1; state.player.attackTimer = 10_000;
+    state.player.weaponRanks.pinwheel = 5; state.player.passiveRanks.might = 1; state.player.attackTimer = 10_000;
     state.pickups.push({ id: state.nextId++, x: state.player.x, y: state.player.y, value: 0, kind: 'boss-evolution' });
     test.advance(0.05);
   });
@@ -220,11 +220,11 @@ test('standard configuration naturally builds an early horde in the browser', as
           : [];
         const emergencyChoices = hpRatio < 0.55 ? ['regeneration', 'vitality', 'resilience'] : [];
         const speedChoice = speedRank === 0 ? ['agility'] : [];
-        const priority = hpRatio < 0.82
-          ? [...emergencyChoices, ...defensiveChoices, ...speedChoice, 'piercingThrow', 'orbit', 'ricochetRing', 'might', 'tempo', 'pinwheel', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery', 'agility', 'vitality', 'regeneration', 'resilience']
-          : speedRank < 1
-            ? ['agility', 'piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'might', 'tempo', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'vitality', 'regeneration', 'resilience', 'mastery']
-            : ['piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', 'might', 'tempo', 'multiplicity', 'agility', 'vitality', 'regeneration', 'resilience', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery'];
+        // Keep this as an offensive-but-not-perfect repeatable strategy: build meaningful
+        // damage early, then select a defensive option only when health is genuinely low.
+        const priority = hpRatio < 0.45
+          ? [...emergencyChoices, ...defensiveChoices, 'vitality', 'regeneration', 'resilience', 'might', 'tempo', 'piercingThrow', 'orbit', 'pinwheel', 'ricochetRing', ...speedChoice, 'agility', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery']
+          : ['might', 'tempo', 'piercingThrow', 'pinwheel', 'orbit', 'ricochetRing', ...speedChoice, 'agility', 'vitality', 'regeneration', 'resilience', 'multiplicity', 'attraction', 'wisdom', 'fortune', 'persistence', 'mastery'];
         const rank = (id: string) => { const index = priority.indexOf(id); return index < 0 ? priority.length : index; };
         return [...choices].sort((a, b) => rank(a) - rank(b))[0];
       });
