@@ -204,6 +204,7 @@ export class GameRenderer {
       }));
     }
     this.primitiveTextures.set('enemy-shot', this.textureFromGraphics(g => { g.circle(16, 16, 7).fill(0xffffff); g.circle(16, 16, 12).stroke({ color: 0xffffff, width: 2, alpha: 0.65 }); }));
+    this.primitiveTextures.set('evolution', this.textureFromGraphics(g => { g.star(18, 18, 8, 15, 8).fill(0xffd467).stroke({ color: 0xfff3bd, width: 2 }); g.circle(18, 18, 4).fill(0x68cfff); }));
     for (const kind of ['bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
     this.primitiveTextures.set('bruiser', this.proceduralEnemyFrames.get('bruiser')![0]!);
     this.primitiveTextures.set('boss', this.proceduralEnemyFrames.get('boss')![0]!);
@@ -326,15 +327,26 @@ export class GameRenderer {
         g.moveTo(startX, startY).lineTo(startX - this.playerMotion.x * 0.04, startY - this.playerMotion.y * 0.04).stroke({ color: 0x8be4ff, width: 4 - streak * 0.6, alpha: 0.24 });
       }
     }
-    if(p.attackVisualTimer>0&&p.attackVisual){
-      const angle=Math.atan2(p.facing.y,p.facing.x);const reach=p.attackVisual==='club-sweep'?88:170;const width=p.attackVisual==='club-sweep'?0.95:0.15;
+    for (const wave of state.waves) {
+      const color = 0xe7c681; const alpha = Math.max(0.12, wave.life * 1.2);
+      if (wave.halfAngle >= Math.PI) g.circle(wave.x, wave.y, Math.max(2, wave.radius)).stroke({ color, width: 4, alpha });
+      else { const angle = Math.atan2(wave.direction.y, wave.direction.x); g.arc(wave.x, wave.y, Math.max(2, wave.radius), angle - wave.halfAngle, angle + wave.halfAngle).stroke({ color, width: 4, alpha }); }
+    }
+    if(p.attackVisualTimer>0&&p.attackVisual && p.attackVisual !== 'ground-slam'){
+      const angle=Math.atan2(p.facing.y,p.facing.x);const reach=p.attackVisual==='club-sweep'?88:p.attackVisual==='spear-sweep'?122:170;const width=p.attackVisual==='club-sweep'?0.95:p.attackVisual==='spear-sweep'?1.28:0.15;
       const points=[p.x,p.y];for(let i=0;i<=10;i++){const a=angle-width+i/10*(width*2);points.push(p.x+Math.cos(a)*reach,p.y+Math.sin(a)*reach);}
-      g.poly(points).fill({color:p.attackVisual==='club-sweep'?0xd0a266:0xbfeeff,alpha:0.22});g.poly(points).stroke({color:p.attackVisual==='club-sweep'?0xf5d18b:0xf1fcff,width:3,alpha:0.75});
+      const color=p.attackVisual==='club-sweep'?0xd0a266:0xbfeeff;
+      g.poly(points).fill({color,alpha:0.22});g.poly(points).stroke({color:p.attackVisual==='club-sweep'?0xf5d18b:0xf1fcff,width:3,alpha:0.75});
     }
     if (p.orbit) {
-      const spin = this.reducedMotion ? 0 : state.elapsed * 5.2;
-      g.circle(p.x, p.y, 37).stroke({ color: 0x66c9ff, width: 1.5, alpha: 0.22 });
-      for (let blade = 0; blade < 4; blade++) { const angle = spin + blade * Math.PI / 2; const x = p.x + Math.cos(angle) * 39; const y = p.y + Math.sin(angle) * 39; g.poly([x, y - 8, x + 3, y - 2, x + 9, y, x + 3, y + 2, x, y + 8, x - 3, y + 2, x - 9, y, x - 3, y - 2]).fill(blade % 2 ? 0xb8f2ff : 0x55baff); }
+      const radius = 48 + Math.min(12, p.weaponRanks.orbitGuard * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0);
+      for (const ring of p.orbitRings) {
+        const x = p.x + Math.cos(ring.angle) * radius; const y = p.y + Math.sin(ring.angle) * radius;
+        // The hollow center and bright metal edge keep orbit weapons legible over both road and sidewalk.
+        g.circle(x, y, 11).stroke({ color: 0x168ce0, width: 5, alpha: 0.96 });
+        g.circle(x - 1, y - 1, 8).stroke({ color: 0xb8f2ff, width: 1.5, alpha: 0.94 });
+        g.circle(x + 3, y - 4, 2).fill({ color: 0xffffff, alpha: 0.98 });
+      }
     }
     if (!this.playerSprite) {
       const color = flash ? 0xffffff : COLORS.blue;
@@ -375,12 +387,12 @@ export class GameRenderer {
     for (const shot of state.projectiles) {
       if (!this.isVisible(shot.x, shot.y, 28)) continue;
       let sprite = this.projectileViews[used];
-      const textureKey = shot.weaponId==='baseball'?'baseball':shot.weaponId==='boulder'?'boulder':shot.weaponId==='spear'?'spear':shot.weaponId==='chainball'?'chainball':shot.owner==='enemy'?'enemy-shot':shot.weaponId==='piercingThrow'?'piercing':'pinwheel';
+      const textureKey = shot.weaponId==='baseball'?'baseball':shot.weaponId==='boulder'?'boulder':shot.weaponId==='spear'?'spear':shot.weaponId==='chainball'?'chainball':shot.owner==='enemy'?'enemy-shot':['piercingThrow','ricochetRing'].includes(shot.weaponId??'')?'piercing':'pinwheel';
       const texture = this.primitiveTextures.get(textureKey)!;
       if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.projectileViews.push(sprite); }
-      sprite.texture = texture; sprite.renderable = true; sprite.position.set(shot.x, shot.y); sprite.rotation = shot.owner === 'enemy' && shot.weaponId!=='chainball' ? 0 : shot.spin;
+      sprite.texture = texture; sprite.renderable = true; sprite.position.set(shot.x, shot.y - (shot.arcHeight ?? 0)); sprite.rotation = shot.owner === 'enemy' && shot.weaponId!=='chainball' ? 0 : shot.spin;
       const rank = shot.weaponId === 'piercingThrow' ? state.player.weaponRanks.piercingThrow : state.player.weaponRanks.pinwheel;
-      const size = shot.weaponId==='baseball'?17:shot.weaponId==='chainball'?29:shot.weaponId==='boulder'?28:shot.weaponId==='spear'?34:shot.owner==='enemy'?23:shot.weaponId==='piercingThrow'?30+Math.min(5,rank):27+Math.min(8,rank*1.5)+(state.player.evolvedPinwheel?3:0);
+      const size = shot.weaponId==='baseball'?17:shot.weaponId==='chainball'?29:shot.weaponId==='boulder'?28:shot.weaponId==='spear'?34:shot.owner==='enemy'?23:shot.weaponId==='ricochetRing'?30:shot.weaponId==='piercingThrow'?30+Math.min(5,rank):27+Math.min(8,rank*1.5)+(state.player.evolvedPinwheel?3:0);
       sprite.width = size; sprite.height = size;
       sprite.tint = ['baseball','boulder','spear','chainball'].includes(shot.weaponId??'')?0xffffff:shot.owner==='enemy'?0xff715f:state.player.evolvedPinwheel?0xf8e391:COLORS.cyan;
       used++;
@@ -390,12 +402,13 @@ export class GameRenderer {
     for (let i = 0; i < this.pickupViewCount; i++) this.pickupViews[i]!.renderable = false;
     used = 0;
     for (const pickup of state.pickups) {
+      if (pickup.consumed) continue;
       if (!this.isVisible(pickup.x, pickup.y, 20)) continue;
       let sprite = this.pickupViews[used];
-      const texture = this.primitiveTextures.get(pickup.value >= 80 ? 'xp-large' : pickup.value >= 32 ? 'xp-medium' : 'xp-small')!;
+      const texture = this.primitiveTextures.get(pickup.kind === 'boss-evolution' ? 'evolution' : pickup.value >= 80 ? 'xp-large' : pickup.value >= 32 ? 'xp-medium' : 'xp-small')!;
       if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
       const glint = this.reducedMotion ? 0 : 1 + Math.sin(state.elapsed * 8 + pickup.id) * 0.12;
-      sprite.renderable = true; sprite.texture = texture; sprite.position.set(pickup.x, pickup.y); sprite.rotation = this.reducedMotion ? 0 : Math.sin(state.elapsed * 2.5 + pickup.id) * 0.12; const size = pickup.value >= 80 ? 21 : pickup.value >= 32 ? 16 : 12; sprite.width = size * glint; sprite.height = size * glint; sprite.tint = 0xffffff;
+      sprite.renderable = true; sprite.texture = texture; sprite.position.set(pickup.x, pickup.y); sprite.rotation = this.reducedMotion ? 0 : pickup.kind === 'boss-evolution' ? state.elapsed * 0.7 : Math.sin(state.elapsed * 2.5 + pickup.id) * 0.12; const size = pickup.kind === 'boss-evolution' ? 30 : pickup.value >= 80 ? 21 : pickup.value >= 32 ? 16 : 12; sprite.width = size * glint; sprite.height = size * glint; sprite.tint = 0xffffff;
       used++;
     }
     this.pickupViewCount = used;
