@@ -4,11 +4,11 @@ The following PNG files were supplied directly by the project owner and are appr
 
 | In-game use | Repository asset | Notes |
 |---|---|---|
-| Blue Pinwheel title portrait | `public/assets/blue-pinwheel/select-portrait.png` | Complete framed portrait; menu only, not a transparent gameplay sprite. |
-| Blue Pinwheel idle and provisional movement | `public/assets/blue-pinwheel/idle-cycle.png` | Four 543×724 RGBA frames in a 2172×724 strip. The source is an idle cycle; using it for movement is a temporary fallback, not a supplied walk cycle. |
-| Blue Pinwheel single-pose fallback | `public/assets/blue-pinwheel/standing-pose.png` | One 611×906 RGBA standing pose, despite “Sprite Sheet” in the source filename. Used for damage/ability/defeat fallback states. |
-| Thug walk | `public/assets/enemies/thug-walk-cycle.png` | Four 543×724 RGBA frames in a 2172×724 strip. |
-| Fast Thug walk | `public/assets/enemies/fast-thug-bat-walk-cycle.png` | Four 543×724 RGBA frames in a 2172×724 strip; separate atlas and animation clock. |
+| Blue Pinwheel title portrait | `public/assets/game/heroes/blue-pinwheel/portrait.png` | Complete framed portrait; menu only, not a transparent gameplay sprite. |
+| Blue Pinwheel idle and provisional movement | `public/assets/game/heroes/blue-pinwheel/idle-cycle.png` | Four 543×724 RGBA frames in a 2172×724 strip. The source is an idle cycle; using it for movement is a temporary fallback, not a supplied walk cycle. |
+| Blue Pinwheel single-pose fallback | `public/assets/game/heroes/blue-pinwheel/standing-pose.png` | One 611×906 RGBA standing pose, despite “Sprite Sheet” in the source filename. Used for damage/ability/defeat fallback states. |
+| Thug walk | `public/assets/game/enemies/street-gang/thug/walk.png` | Four 543×724 RGBA frames in a 2172×724 strip. |
+| Fast Thug walk | `public/assets/game/enemies/street-gang/fast-thug/walk.png` | Four 543×724 RGBA frames in a 2172×724 strip; separate atlas and animation clock. |
 
 The character strips are right-facing source art. Left-facing display uses horizontal mirroring. Vertical movement retains the last horizontal direction. Authentic front-facing, back-facing, and left-facing source animation has not been supplied. Mirroring is a display fallback, not a claim that a distinct left-facing design exists. Enemy walk strips and the Blue Pinwheel strip keep their own simulation time; textures are loaded once and reused.
 
@@ -16,7 +16,7 @@ The character strips are right-facing source art. Left-facing display uses horiz
 
 | In-game use | Repository asset | Source and terms |
 |---|---|---|
-| City stage tile atlas | `public/assets/city/kenney-city.png` | Kenney, “Roguelike Modern City”; user-supplied handoff. The original CC0 notice is retained in `public/assets/city/LICENSE.txt`. Source: <https://opengameart.org/content/roguelike-modern-city-pack>. Handoff SHA-256: `8f31898af10f55160d55bebe5fbc183718e00e13de152f9b14bf916190edbfe0`. |
+| City stage tile atlas | `public/assets/game/stages/seoulumbus/tiles/kenney-city.png` | Kenney, “Roguelike Modern City”; user-supplied handoff. The original CC0 notice is retained in the same folder. Source: <https://opengameart.org/content/roguelike-modern-city-pack>. Handoff SHA-256: `8f31898af10f55160d55bebe5fbc183718e00e13de152f9b14bf916190edbfe0`. |
 
 The atlas is 628×475 and uses 16×16 tiles with a 1-pixel gutter. Its alpha channel was checked directly; `roguelikeCity_magenta.png` is the alpha-bearing source. The similarly named `roguelikeCity_transparent.png` is RGB and is not used. Individual source tiles are cropped to assemble the stage; the supplied town sample is not used as a background. The map is cached as one nearest-neighbor texture.
 
@@ -28,11 +28,11 @@ Assignment 007 adds original renderer-generated pixel silhouettes for the ranged
 
 Assignment 008 keeps all supplied source files unchanged. The Gangster, Bruiser, and unnamed Gang Leader use newly refined original pixel silhouettes generated once as cached 48×56 canvases with four gait/encounter poses per type. Rooftop parapets, brick storefront windows, mechanical roof units, planters, bins, dashed attack warnings, local hit bursts, and rank-sensitive weapon visuals are programmatically drawn originals. They do not introduce character lore, named locations, or permanent power claims. Browser evidence is captured from the actual Vite/PixiJS game; test-run output is kept separate from the small curated evidence set.
 
-Assignment 009 adds the owner's supplied Street Pitcher walk cycle and throwing pose, processed into `public/assets/enemies/street-pitcher-walk-cycle.png` (four 418×941 frames) and `public/assets/enemies/street-pitcher-throw-pose.png` (one 1024×1536 pose). The supplied PNG sources are black-backed RGB files; background pixels with RGB channels at or below 1 were made transparent in derived runtime copies to remove the source's near-black background speckling, while the originals remain untouched outside the repository. The supplied four-frame GIF was inspected (416×941 frames, 150 ms per frame) but is not duplicated in runtime assets; the processed strip is used for cached frame extraction. These owner-provided images are used for the Street Pitcher prototype and are not a claim about character canon. The blue ring projectiles and faceted XP gems are original renderer-generated pixel-art textures, created in code from owner-provided visual direction; no new standalone/raw artwork was imported for those items.
+Assignment 009 adds the owner's supplied Street Pitcher walk cycle and throwing pose, now at `public/assets/game/enemies/street-gang/street-pitcher/{walk,attack}.png` (four 418×941 frames and one 1024×1536 pose). The supplied PNG sources are black-backed RGB files; background pixels with RGB channels at or below 1 were made transparent in derived runtime copies to remove the source's near-black background speckling, while the originals remain untouched outside the repository. The supplied four-frame GIF was inspected (416×941 frames, 150 ms per frame) but is not duplicated in runtime assets; the processed strip is used for cached frame extraction. These owner-provided images are used for the Street Pitcher prototype and are not a claim about character canon. The blue ring projectiles and faceted XP gems are original renderer-generated pixel-art textures, created in code from owner-provided visual direction; no new standalone/raw artwork was imported for those items.
 
 ## Assignment 010 character handoff
 
-The owner explicitly authorized public distribution of the supplied Milestone 010 character artwork and transparent runtime derivatives. This authorization applies to this handoff's owner-supplied character files; it does not claim a separate third-party license or change character canon. The original handoff files were preserved in the local work area during processing and were not edited. Public runtime files are derived copies in `public/assets/milestone010/`.
+The owner explicitly authorized public distribution of the supplied Milestone 010 character artwork and transparent runtime derivatives. This authorization applies to this handoff's owner-supplied character files; it does not claim a separate third-party license or change character canon. The original handoff files were preserved in the local work area during processing and were not edited. Public runtime files are derived copies under `public/assets/game/heroes/`, `public/assets/game/enemies/`, and `public/assets/game/bosses/`.
 
 | Character | Runtime files | Processing and use |
 |---|---|---|
@@ -53,6 +53,27 @@ Milestone 011 adds no new imported images and does not alter the owner-supplied 
 The consolidated Grand Arsenal update adds no imported artwork. Weapon silhouettes, attack effects, and evolution visuals continue to use original PixiJS-rendered textures/graphics and the existing owner-approved character sprites. The weapon inspiration atlas documents mechanical references only and imports no third-party code, art, or assets.
 # Assignment 012 runtime sprite correction
 
-The processed Smiler and Molar runtime sheets remain the owner-supplied Milestone 010 artwork at `public/assets/milestone010/{smiler,molar}/walk.png`. Each is 1024×341: four 256×341 frames. Their metadata now uses the full 341-pixel frame height. The renderer uses measured per-sheet foot anchors (Smiler y=292/341, Molar y=254/341), fits both to a consistent gameplay role scale, and keeps their world collision radii unchanged. This repairs a metadata crop error; it does not alter or replace the source character designs.
+## Assignment 014 runtime paths and local source-art preservation
 
-Assignment 012 pickup icons (ration, XP Recall, curry, Field/Hero Cache, and supply box) are generated from small original Pixi vector primitives at runtime and cached as textures. No external pickup artwork or source code was imported.
+Tracked runtime images use descriptive, identity-scoped paths beneath `public/assets/game/`. The typed `src/game/assets.ts` registry is the source of runtime URL IDs; definitions and render code should consume it rather than embedding URLs. The 20 path migrations were Git renames with byte-identical contents. `docs/asset-migration-014.json` records each old/new path, size, SHA-256, runtime use, and publication status. `docs/asset-inventory-014.json` records the pre-migration raster inventory (path, size, format, SHA-256, and Git state).
+
+The 74 locally discovered untracked raster files formerly beneath `public/assets` were moved into ignored `art-library/` and copied to `art-library/_backups/assignment-014/public-assets/`. Both copies were SHA-256 verified against their original inventory values. These source/concept files are local-only and were not added to this public PR because their publication status is unknown. The backup is on the same workspace/device; it is a recovery copy, not an off-device backup. Make a separate backup before device migration or disk maintenance. No original file was overwritten or deleted. Existing `artifacts/milestone-010-work/originals/` inputs remain untouched.
+
+The source library is outside `public/`, and `vite.config.ts` excludes `art-library/**` from the development watcher. Vite still serves and watches registered runtime assets in `public/assets/game/`. Production output is checked to ensure it contains no local source library.
+
+| Former runtime path | Current runtime path |
+|---|---|
+| `public/assets/blue-pinwheel/*` | `public/assets/game/heroes/blue-pinwheel/*` |
+| `public/assets/milestone010/bok-goo/*` | `public/assets/game/heroes/bok-goo/*` |
+| `public/assets/milestone010/da-ri/*` | `public/assets/game/heroes/da-ri/*` |
+| `public/assets/enemies/*` | `public/assets/game/enemies/street-gang/{thug,fast-thug,street-pitcher}/*` |
+| `public/assets/milestone010/yo-yo-punk/*` | `public/assets/game/enemies/street-gang/yo-yo-punk/*` |
+| `public/assets/milestone010/{smiler,molar}/*` | `public/assets/game/enemies/dr-smile-faction/{smiler,molar}/*` |
+| `public/assets/milestone010/{gang-boss,dr-smile}/*` | `public/assets/game/bosses/{gang-boss,dr-smile}/*` |
+| `public/assets/city/*` | `public/assets/game/stages/seoulumbus/tiles/*` |
+
+See [ART_LIBRARY.md](ART_LIBRARY.md) for inventory totals, processing rules, backup guidance, and new-character import steps. Assignment 010 public authorization remains limited to those identified handoff assets; newly found art stays private pending separate approval.
+
+The processed Smiler and Molar runtime sheets remain the owner-supplied Milestone 010 artwork at `public/assets/game/enemies/dr-smile-faction/{smiler,molar}/walk.png`. Each is 1024×341: four 256×341 frames. Their metadata now uses the full 341-pixel frame height. The renderer uses measured per-sheet foot anchors (Smiler y=292/341, Molar y=254/341), fits both to a consistent gameplay role scale, and keeps their world collision radii unchanged. This repairs a metadata crop error; it does not alter or replace the source character designs.
+
+Assignment 012 pickup icons (ration, XP Recall, curry, Field/Hero Cache, and supply box) are generated from small original Pixi vector primitives at runtime and cached as textures. Assignment 014 adds cached code-drawn delivery-package and utility-container visuals; these are original temporary environment props. No external pickup artwork or source code was imported.

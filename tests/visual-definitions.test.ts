@@ -19,9 +19,9 @@ describe('temporary enemy animation metadata', () => {
 
   it('uses the owner-supplied Street Pitcher frames for an opt-in baseball thrower', () => {
     const pitcher = ENEMIES.gangster;
-    expect(pitcher.animation?.asset).toContain('street-pitcher-walk-cycle.png');
+    expect(pitcher.animation?.asset).toContain('/street-pitcher/walk.png');
     expect(pitcher.animation?.frameCount).toBe(4);
-    expect(pitcher.attackAnimation?.asset).toContain('street-pitcher-throw-pose.png');
+    expect(pitcher.attackAnimation?.asset).toContain('/street-pitcher/attack.png');
     expect(pitcher.ranged?.projectile).toBe('baseball');
     expect(ENEMIES.thug.ranged).toBeUndefined();
     expect(ENEMIES.fastThug.ranged).toBeUndefined();

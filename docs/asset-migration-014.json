@@ -1,0 +1,668 @@
+[
+  {
+    "originalPath": "public/assets/blue-pinwheel/Blue Pinwheel Hero Idle Cycle.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/Blue Pinwheel Hero Idle Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/Blue Pinwheel Hero Idle Cycle.png",
+    "bytes": 713855,
+    "sha256": "ACBE737248C0787C098ED9C48FA18F000EF04906B15331C6C957F6662867743C",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/Blue Pinwheel Hero Sprite Sheet.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/Blue Pinwheel Hero Sprite Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/Blue Pinwheel Hero Sprite Sheet.png",
+    "bytes": 461676,
+    "sha256": "0C24E9C2C5A0ED72BD1AA44E151C3495CB2C577C6F42748E5D9F9315F30F7642",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/Blue Pinwheel_ Windborne Hero.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/Blue Pinwheel_ Windborne Hero.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/Blue Pinwheel_ Windborne Hero.png",
+    "bytes": 1806417,
+    "sha256": "2C49A1E5A6ABD499988C40E872CD6B38EE26140ECE746570E51C8EF8EE409F5B",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/Blue Superhero Pixel Walk Cycle.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/Blue Superhero Pixel Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/Blue Superhero Pixel Walk Cycle.png",
+    "bytes": 527060,
+    "sha256": "42DD0DF885B01734B14FB312D50CE701914C0C8A697EA6F41638BFA2637A951F",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/The Blue Pinwheel Hero Concept Sheet.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/The Blue Pinwheel Hero Concept Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/The Blue Pinwheel Hero Concept Sheet.png",
+    "bytes": 2317988,
+    "sha256": "88921497DEA1EAEE052CC08A6EDE4AA00E6F208407712F8FC2448BF6D0266A0E",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/The Blue Pinwheel_ Hero Design Sheet.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/The Blue Pinwheel_ Hero Design Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/The Blue Pinwheel_ Hero Design Sheet.png",
+    "bytes": 2513720,
+    "sha256": "1AEC3D118BEDE1DF66FB2C03C3280D3B3E8801F934288A6A75366A4D64A14E2E",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/animation(1).gif",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/animation(1).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/animation(1).gif",
+    "bytes": 172361,
+    "sha256": "5DD64A598F02197F03D3B1B286F28E4C1160B8717A9734BC1BB25145BB19E665",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/animation(2).gif",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/animation(2).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/animation(2).gif",
+    "bytes": 172361,
+    "sha256": "5DD64A598F02197F03D3B1B286F28E4C1160B8717A9734BC1BB25145BB19E665",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/animation(3).gif",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/animation(3).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/animation(3).gif",
+    "bytes": 172361,
+    "sha256": "5DD64A598F02197F03D3B1B286F28E4C1160B8717A9734BC1BB25145BB19E665",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/animation(4).gif",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/animation(4).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/animation(4).gif",
+    "bytes": 172361,
+    "sha256": "5DD64A598F02197F03D3B1B286F28E4C1160B8717A9734BC1BB25145BB19E665",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/blue_pinwheel_walking.gif",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/blue_pinwheel_walking.gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/blue_pinwheel_walking.gif",
+    "bytes": 209167,
+    "sha256": "BE647640A6D227DC88CD682954EDD925C39930DBD6E4BB0A4987485FD53CA66D",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/blue_pinwheel_walking_frames.png",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/blue_pinwheel_walking_frames.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/blue_pinwheel_walking_frames.png",
+    "bytes": 439744,
+    "sha256": "D3EBDD53BC564D6A6091ABA79EC5D641A1DD856F3B0908E1DEDE2E549C5BA55D",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/blue-pinwheel/sprite-animation.gif",
+    "libraryPath": "art-library/characters/heroes/blue-pinwheel/source-files/sprite-animation.gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/blue-pinwheel/sprite-animation.gif",
+    "bytes": 290896,
+    "sha256": "42EE1224EF1254C55FE57819AF74E53EBBF703835D9794E78D465765449DF494",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Korean Thug Pixel Art Sprite.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Korean Thug Pixel Art Sprite.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Korean Thug Pixel Art Sprite.png",
+    "bytes": 556516,
+    "sha256": "6B794020024927BE12CCC6AC36D8094A581E1D3D2D981CAC1EB28B718FB64FF9",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Pixel Art Thug in Fighting Stance.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Pixel Art Thug in Fighting Stance.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Pixel Art Thug in Fighting Stance.png",
+    "bytes": 846446,
+    "sha256": "9F1F67BC77B64FAF7C2E589FA51CFDD0227F65F160E443CCF84618CA47916997",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Pixel Art Thug with Blue-Taped Bat.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Pixel Art Thug with Blue-Taped Bat.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Pixel Art Thug with Blue-Taped Bat.png",
+    "bytes": 644306,
+    "sha256": "2AC5F88E7B7EC4C94E2D418CA1281951E104244C58DD453C7BBC55949B73474D",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Pixel Thug Bat-Wielding Walk Cycle.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Pixel Thug Bat-Wielding Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Pixel Thug Bat-Wielding Walk Cycle.png",
+    "bytes": 858291,
+    "sha256": "1B2EBF315624278EE2E9CCCFDC59F1F01E31F2557C337741C9BE6055CF197924",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Pixel Thug Four-Frame Walk Cycle.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Pixel Thug Four-Frame Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Pixel Thug Four-Frame Walk Cycle.png",
+    "bytes": 852466,
+    "sha256": "DFB1040828842FB523C0477881A0ECCA448845120E1076AFB83B1821FA6A50A5",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Pixel-Art Street Pitcher Character.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Pixel-Art Street Pitcher Character.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Pixel-Art Street Pitcher Character.png",
+    "bytes": 1155610,
+    "sha256": "608B17686EE8F8ADFF9368CE649D128DAE1F02FD48CA3D01BABAB6F151EEED45",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Street Pitcher Four-Frame Walk Cycle.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Street Pitcher Four-Frame Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Street Pitcher Four-Frame Walk Cycle.png",
+    "bytes": 1270770,
+    "sha256": "BB9009FABCD529BC4118859A3876288B7465004D5E689432DA2A92F4C77FEFCD",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/Thug 3 Pixel Walk Cycle.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/Thug 3 Pixel Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/Thug 3 Pixel Walk Cycle.png",
+    "bytes": 1107962,
+    "sha256": "3803EBD0A1B992CEB5FA31C0C00D3C7535036FCE40B4388819B4AAF18F06C5DB",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/sprite-animation(1).gif",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/sprite-animation(1).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/sprite-animation(1).gif",
+    "bytes": 355012,
+    "sha256": "ED85BB204C15B70D9062651AB05F1FF4966692CCCE3DFFD755C517361E5ED414",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/sprite-animation(2).gif",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/sprite-animation(2).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/sprite-animation(2).gif",
+    "bytes": 367838,
+    "sha256": "895C83723FD2477C80FA13DBA3831D0C404B651AC8FC2E29E850569C64F97B26",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/sprite-animation(3).gif",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/sprite-animation(3).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/sprite-animation(3).gif",
+    "bytes": 555822,
+    "sha256": "F2EA42D14E5268E0F14E7FA3B9938D79123A2252F090EA5A15DE9660984D6293",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/enemies/sprite-animation(8).gif",
+    "libraryPath": "art-library/characters/enemies/street-gang/unclassified-source-files/sprite-animation(8).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/enemies/sprite-animation(8).gif",
+    "bytes": 591706,
+    "sha256": "2B761AEABBC90AF9E7BA7E8336A732BF7E6232F3E3908E1FB1307075F15E3DA6",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kimchi-Crawlers/Kimchi Crawler Pixel Animation Sheet.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kimchi-crawler/source-files/Kimchi Crawler Pixel Animation Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kimchi-Crawlers/Kimchi Crawler Pixel Animation Sheet.png",
+    "bytes": 731580,
+    "sha256": "26531C7FB5BEC5BC1AC75807776B33AA7CBAF45DFDDD70F43AB244F53F782B83",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kimchi-Crawlers/Kimchi Crawlers_ Spawn of KrakKimchi.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kimchi-crawler/source-files/Kimchi Crawlers_ Spawn of KrakKimchi.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kimchi-Crawlers/Kimchi Crawlers_ Spawn of KrakKimchi.png",
+    "bytes": 2521081,
+    "sha256": "934CD34BA66A5EC8CA58E4072F2A0CC50995A6B4F440057F60A6C744C1DC0CBB",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kimchi-Crawlers/sprite-animation(5).gif",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kimchi-crawler/source-files/sprite-animation(5).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kimchi-Crawlers/sprite-animation(5).gif",
+    "bytes": 290861,
+    "sha256": "6450934C67D80508555E057AD985D6FC201C4ABE0BF08FEBCA9D8D6D98D145EE",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Charge Spritesheet.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crusher Charge Spritesheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Charge Spritesheet.png",
+    "bytes": 821969,
+    "sha256": "BAA810735EB165187F40CE73186CE38AE2D12D4A7A615239C784F2B8B750A0E9",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Enemy Dossier.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crusher Enemy Dossier.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Enemy Dossier.png",
+    "bytes": 2550714,
+    "sha256": "1CFF104F1F3DBA88378DA9FDD1B246A6CB8CCA6D7EE680B83F3270998BDB4928",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Rolling Attack Sequence(1).png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crusher Rolling Attack Sequence(1).png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Rolling Attack Sequence(1).png",
+    "bytes": 1033020,
+    "sha256": "83B7D0F010DDD603C3F31AE5FA8F02B0EF5A45728FFD88D9C0D0F3DAFB555401",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Rolling Attack Sequence.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crusher Rolling Attack Sequence.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crusher Rolling Attack Sequence.png",
+    "bytes": 1033020,
+    "sha256": "83B7D0F010DDD603C3F31AE5FA8F02B0EF5A45728FFD88D9C0D0F3DAFB555401",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crushers Sprite Sheet.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crushers Sprite Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crushers Sprite Sheet.png",
+    "bytes": 1399516,
+    "sha256": "C2337039725503372B5AC1A65BE059BAFF8B6728D3E5A508E6944F1E9A991601",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crushers Sprite Sheet2.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crushers Sprite Sheet2.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crushers Sprite Sheet2.png",
+    "bytes": 575104,
+    "sha256": "88DAD6F6B94A57B3E28C78DB0FA1C7DAA536942C24B5EFF65EDC93094B45DA75",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crushers Sprite Sheet23.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/Kkakdugi Crushers Sprite Sheet23.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/Kkakdugi Crushers Sprite Sheet23.png",
+    "bytes": 814808,
+    "sha256": "31DD73E75EE28BC8AFCD70D75058527A95C7DA4CD162DFFF1A589A2B6ED1AA33",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/sprite-animation(6).gif",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/sprite-animation(6).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/sprite-animation(6).gif",
+    "bytes": 194377,
+    "sha256": "8C7896CE203D966C0C1C21B405097D9322D48988ED85DF263AA2238D011E5112",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Kkakdugi-Crushers/sprite-animation(7).gif",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/kkakdugi-crusher/source-files/sprite-animation(7).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Kkakdugi-Crushers/sprite-animation(7).gif",
+    "bytes": 302475,
+    "sha256": "D69022BB6E6BE452C6F14B7FF9BF1CE65BD49A441071767BE8166D15D91DA026",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/KrakKimchi/Kimchi Beast With Fiery Eyes.png",
+    "libraryPath": "art-library/characters/bosses/krakkimchi/source-files/Kimchi Beast With Fiery Eyes.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/KrakKimchi/Kimchi Beast With Fiery Eyes.png",
+    "bytes": 2574739,
+    "sha256": "00DC176D40B115C08DD09F0B8D76968FB10BF38954DEE0884FED2EDEDE534CDE",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/KrakKimchi/Krakkimchi Idle Wave Sprite Sheet.png",
+    "libraryPath": "art-library/characters/bosses/krakkimchi/source-files/Krakkimchi Idle Wave Sprite Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/KrakKimchi/Krakkimchi Idle Wave Sprite Sheet.png",
+    "bytes": 2323492,
+    "sha256": "3FE19D56C86FE78F45AC4A911D824A4B26488FD178DA3AAC51E86BB2946BE517",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/KrakKimchi/Krakkimchi_ Kimchi Cabbage Kraken.png",
+    "libraryPath": "art-library/characters/bosses/krakkimchi/source-files/Krakkimchi_ Kimchi Cabbage Kraken.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/KrakKimchi/Krakkimchi_ Kimchi Cabbage Kraken.png",
+    "bytes": 1608868,
+    "sha256": "50A63BF35C8F05D24A8232AEDD88A38849C1721E1F9582AC1BB2A827E1F07D74",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/KrakKimchi/animation.gif",
+    "libraryPath": "art-library/characters/bosses/krakkimchi/source-files/animation.gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/KrakKimchi/animation.gif",
+    "bytes": 701745,
+    "sha256": "7B0706BCD74E34E1C1E7BED6A7D6748A21D5D8A33A53E04A0B0A6A3A35550F42",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Pa-Kimchi Lasher/Pa-Kimchi Lasher Attack Cycle.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/pa-kimchi-lasher/source-files/Pa-Kimchi Lasher Attack Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Pa-Kimchi Lasher/Pa-Kimchi Lasher Attack Cycle.png",
+    "bytes": 894982,
+    "sha256": "B09B825BF627055160FD2B42318C536CFCF4E97A66BE940F6E8EC8041F505D78",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Pa-Kimchi Lasher/Pa-Kimchi Lasher Enemy Concept Sheet.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/pa-kimchi-lasher/source-files/Pa-Kimchi Lasher Enemy Concept Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Pa-Kimchi Lasher/Pa-Kimchi Lasher Enemy Concept Sheet.png",
+    "bytes": 2444746,
+    "sha256": "7D403536F2AEC076FD29DEA0549A46CC75191B205F2613BB748F10B4B98FE91D",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/Pa-Kimchi Lasher/Pa-Kimchi Lasher Sprite Sheet.png",
+    "libraryPath": "art-library/characters/enemies/krakkimchi-faction/pa-kimchi-lasher/source-files/Pa-Kimchi Lasher Sprite Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/Pa-Kimchi Lasher/Pa-Kimchi Lasher Sprite Sheet.png",
+    "bytes": 1214309,
+    "sha256": "B4B76BA44F9D3FB9CDBBD1A54A0D45DAE731ED5DEA0681BFDD09E2D3282AEEE8",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/bok-goo/Caveman Warrior Boulder Walk Cycle.png",
+    "libraryPath": "art-library/characters/heroes/bok-goo/source-files/Caveman Warrior Boulder Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/bok-goo/Caveman Warrior Boulder Walk Cycle.png",
+    "bytes": 1710253,
+    "sha256": "1973A5055394705478FDC6CA5DA14C9D2B5FEA8C7260D83488FD938A9C535157",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/bok-goo/Pixel-art Korean Caveman Champion.png",
+    "libraryPath": "art-library/characters/heroes/bok-goo/source-files/Pixel-art Korean Caveman Champion.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/bok-goo/Pixel-art Korean Caveman Champion.png",
+    "bytes": 1773094,
+    "sha256": "8526DA1A43F624F60A2418B455B6BA27A03F242C5DCC849796B2C912E808F7C9",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/bok-goo/Prehistoric Guardians of the Mountain Valley.png",
+    "libraryPath": "art-library/characters/heroes/bok-goo/source-files/Prehistoric Guardians of the Mountain Valley.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/bok-goo/Prehistoric Guardians of the Mountain Valley.png",
+    "bytes": 3602481,
+    "sha256": "25B2F5F4C5397B4347C2ADAB7C6892FB327393942567882EBC18E646CF0997C6",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/bok-goo/sprite-animation(14).gif",
+    "libraryPath": "art-library/characters/heroes/bok-goo/source-files/sprite-animation(14).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/bok-goo/sprite-animation(14).gif",
+    "bytes": 725386,
+    "sha256": "B1F8F69690AF2181518DFF90D8F4C452D47487120166FAF140AF7D630DA605BA",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/da-ri/Prehistoric Guardians of the Mountain Valley.png",
+    "libraryPath": "art-library/characters/heroes/da-ri/source-files/Prehistoric Guardians of the Mountain Valley.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/da-ri/Prehistoric Guardians of the Mountain Valley.png",
+    "bytes": 3602481,
+    "sha256": "25B2F5F4C5397B4347C2ADAB7C6892FB327393942567882EBC18E646CF0997C6",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/da-ri/Tribal Warrior Spear Walk Cycle.png",
+    "libraryPath": "art-library/characters/heroes/da-ri/source-files/Tribal Warrior Spear Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/da-ri/Tribal Warrior Spear Walk Cycle.png",
+    "bytes": 1513282,
+    "sha256": "EE606FEDDDFD4BF5406641E1865D1416EE490617DFC97200BF09B80196F7709B",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/da-ri/sprite-animation(15).gif",
+    "libraryPath": "art-library/characters/heroes/da-ri/source-files/sprite-animation(15).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/da-ri/sprite-animation(15).gif",
+    "bytes": 669789,
+    "sha256": "62C495BA3A96621DE94597969BBF7CF747A850C2CFADE02E6B161DDF16528D76",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/ChatGPT Image Nov 3, 2026, 07_58_38 PM.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/ChatGPT Image Nov 3, 2026, 07_58_38 PM.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/ChatGPT Image Nov 3, 2026, 07_58_38 PM.png",
+    "bytes": 490262,
+    "sha256": "9E317AEE84439A5BD414A21F08715658EAB07B1001B52FD241B601695CDEC0BA",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/ChatGPT Image Nov 3, 2026, 07_58_45 PM.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/ChatGPT Image Nov 3, 2026, 07_58_45 PM.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/ChatGPT Image Nov 3, 2026, 07_58_45 PM.png",
+    "bytes": 498862,
+    "sha256": "2197BEDFEB65CB8344C35D9E97F97AC7B2535303E91F7F01248D87A195899B21",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Dr. Smile Pixel Walk Cycle.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Dr. Smile Pixel Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Dr. Smile Pixel Walk Cycle.png",
+    "bytes": 877196,
+    "sha256": "88AC61FF270B6257E403AD4E64EE7BD7099F2A90BFE03A45900A9A02A191E9EB",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Dr. Smile Pixel Walking Sprite Sheet.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Dr. Smile Pixel Walking Sprite Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Dr. Smile Pixel Walking Sprite Sheet.png",
+    "bytes": 791856,
+    "sha256": "22DCD8F7896988C9AAA0B933B017D0EDF169A18BE258630FE69F449B72E16AD0",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Dr. Smile in the Haunted Operating Room.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Dr. Smile in the Haunted Operating Room.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Dr. Smile in the Haunted Operating Room.png",
+    "bytes": 2604909,
+    "sha256": "D2120B9F0D71FBAD4D12718561EF848E34A9582350A1EFAED6B94E74721C08CD",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Pixel-Art Dr. Smile Dentist Villain.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Pixel-Art Dr. Smile Dentist Villain.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Pixel-Art Dr. Smile Dentist Villain.png",
+    "bytes": 805416,
+    "sha256": "F078912EDE528BF0434712200459769A550A945C2818726064736600ECFF7A56",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Pixel-Art Mad Scientist with Tooth Emblem.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Pixel-Art Mad Scientist with Tooth Emblem.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Pixel-Art Mad Scientist with Tooth Emblem.png",
+    "bytes": 1295318,
+    "sha256": "60B304AD959C8979678C2E01667C355AD5F13828C7DE48CAAEEB3403F2E6EE13",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Pixel-Art Villain Dentist Walking Cycle.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Pixel-Art Villain Dentist Walking Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Pixel-Art Villain Dentist Walking Cycle.png",
+    "bytes": 837547,
+    "sha256": "3C6ACCB998CD030A3866993B3B2A65224E961E7727198C6BE2279186C4434D44",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/sprite-animation(11).gif",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/sprite-animation(11).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/sprite-animation(11).gif",
+    "bytes": 591062,
+    "sha256": "F3DA86A52D45117E040F030AE394809FF643805B44FB38A38E3916A1EFBA7026",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/sprite-animation(4).gif",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/sprite-animation(4).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/sprite-animation(4).gif",
+    "bytes": 400706,
+    "sha256": "39E7EF2B237CA27EA6A0A75145B34CBCCD05B5F72D565716601AA1220BD4F9DA",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/gang-boss/Pixel-Art Chain Boss Walking Cycle.png",
+    "libraryPath": "art-library/characters/bosses/gang-boss/source-files/Pixel-Art Chain Boss Walking Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/gang-boss/Pixel-Art Chain Boss Walking Cycle.png",
+    "bytes": 1418265,
+    "sha256": "04BE2678A6D380DF4FA7E5D7CCA5B18A53BA8E03EC6CB7BA4B26069B3831888D",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/gang-boss/Pixel-Art Gang Boss with Chain Weapon.png",
+    "libraryPath": "art-library/characters/bosses/gang-boss/source-files/Pixel-Art Gang Boss with Chain Weapon.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/gang-boss/Pixel-Art Gang Boss with Chain Weapon.png",
+    "bytes": 1181258,
+    "sha256": "9E2A88B6E56FEB8EC8BE98E9691630FDC3CC63B3981C0D46A9AC935199047F7A",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/gang-boss/sprite-animation(10).gif",
+    "libraryPath": "art-library/characters/bosses/gang-boss/source-files/sprite-animation(10).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/gang-boss/sprite-animation(10).gif",
+    "bytes": 673531,
+    "sha256": "F6FB88AD52769B9A92778387D7376C55FB366B8FE7D8E2EDBEF6CC5E517BF2B2",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/molar/The Molars_ Cyberpunk Robot Minions.png",
+    "libraryPath": "art-library/characters/enemies/dr-smile-faction/molar/source-files/The Molars_ Cyberpunk Robot Minions.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/molar/The Molars_ Cyberpunk Robot Minions.png",
+    "bytes": 1944913,
+    "sha256": "E50C5059638EF3C69D8D75458C9A6536F2F846DAAEAE62E51FB46E04B53A4E98",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/molar/sprite-animation(13).gif",
+    "libraryPath": "art-library/characters/enemies/dr-smile-faction/molar/source-files/sprite-animation(13).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/molar/sprite-animation(13).gif",
+    "bytes": 469152,
+    "sha256": "43F196597FAFD7DD6F426DCC3A328C9D031A8E8A745323C00D5E2CFFC5FF5B51",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/smiler/Smiler Advancing Grab Sprite Sheet.png",
+    "libraryPath": "art-library/characters/enemies/dr-smile-faction/smiler/source-files/Smiler Advancing Grab Sprite Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/smiler/Smiler Advancing Grab Sprite Sheet.png",
+    "bytes": 1208039,
+    "sha256": "F5E883A4C8A6F7D8AA4EAB65B4CA1C9111831245AD5FFD6172BCC8F2C9FBEA01",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/smiler/The Smiler_ Failed Experiment Concept Sheet.png",
+    "libraryPath": "art-library/characters/enemies/dr-smile-faction/smiler/source-files/The Smiler_ Failed Experiment Concept Sheet.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/smiler/The Smiler_ Failed Experiment Concept Sheet.png",
+    "bytes": 2051257,
+    "sha256": "524B4243E4ECA1472EFE8D333506F78D366D7934725DD89697C62151DC7E5C5E",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/smiler/sprite-animation(12).gif",
+    "libraryPath": "art-library/characters/enemies/dr-smile-faction/smiler/source-files/sprite-animation(12).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/smiler/sprite-animation(12).gif",
+    "bytes": 519796,
+    "sha256": "524CBDA9685EDC758281D7BF38DF046AA47A1BA64F57172009DCE0E7C7401F35",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/yo-yo-punk/Yo-Yo Punk Street Fighter Sprite.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/yo-yo-punk/source-files/Yo-Yo Punk Street Fighter Sprite.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/yo-yo-punk/Yo-Yo Punk Street Fighter Sprite.png",
+    "bytes": 1125260,
+    "sha256": "6E45B699C68E980C0A8F5298EB5EAD68C0F9FDAC7806439857C81D260585F68F",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/yo-yo-punk/Yo-Yo Punk Walking Cycle.png",
+    "libraryPath": "art-library/characters/enemies/street-gang/yo-yo-punk/source-files/Yo-Yo Punk Walking Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/yo-yo-punk/Yo-Yo Punk Walking Cycle.png",
+    "bytes": 1210018,
+    "sha256": "1CA7F9C71B3AF333271A12C5865D2CEA7D885BB78E69780F78A2340F2625EF7C",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/yo-yo-punk/sprite-animation(9).gif",
+    "libraryPath": "art-library/characters/enemies/street-gang/yo-yo-punk/source-files/sprite-animation(9).gif",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/yo-yo-punk/sprite-animation(9).gif",
+    "bytes": 548156,
+    "sha256": "8AFAD985348B209DAD36CC3F1D454E60CFCD60DF149E791D69B8C2CCBCD990BF",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/dr-smile/Dr. Smile’s Pixel Lab Walk Cycle.png",
+    "libraryPath": "art-library/characters/bosses/dr-smile/source-files/Dr. Smile’s Pixel Lab Walk Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/dr-smile/Dr. Smile’s Pixel Lab Walk Cycle.png",
+    "bytes": 1195804,
+    "sha256": "7B488C73D630A3629D4BA3B8358341B82189FA6AE403BC9F1FD42A4A66670EEC",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  },
+  {
+    "originalPath": "public/assets/milestone010/molar/Molar’s Neon Scuttle Cycle.png",
+    "libraryPath": "art-library/characters/enemies/dr-smile-faction/molar/source-files/Molar’s Neon Scuttle Cycle.png",
+    "backupPath": "art-library/_backups/assignment-014/public-assets/milestone010/molar/Molar’s Neon Scuttle Cycle.png",
+    "bytes": 1012205,
+    "sha256": "879947D629483CAA29DCD2CCA6D26B7DC9A86D7CCB2A99D9BDD602A0FD53B806",
+    "usage": "not referenced by runtime code",
+    "publication": "local-only; not approved for GitHub"
+  }
+]

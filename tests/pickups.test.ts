@@ -131,7 +131,7 @@ describe('supply pickup registry and Dr. Smile art frames', () => {
     tick(s, 1, cfg);
     expect(box.destroyed).toBe(true);
     expect(s.projectiles).not.toContain(projectile);
-    expect(s.props).toHaveLength(4);
+    expect(s.props).toHaveLength(7);
   });
 
   it('keeps a cache choice paused and applies one valid upgrade before resuming', () => {

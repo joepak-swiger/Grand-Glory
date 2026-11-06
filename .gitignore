@@ -7,8 +7,10 @@ test-results/
 artifacts/recordings/
 artifacts/evidence/living-city/run/
 artifacts/evidence/rings-xp-and-melee/run/
+artifacts/evidence/supply-drop/
 artifacts/playwright-browsers/
 artifacts/milestone-010-work/
+/art-library/
 artifacts/evidence/milestone-010/
 .vite/
 .cache/

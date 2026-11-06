@@ -1,3 +1,5 @@
+import { GAME_ASSETS } from './assets';
+
 export type GameStatus = 'title' | 'playing' | 'upgrade' | 'boss-reward' | 'paused' | 'victory' | 'defeat' | 'retired';
 export type HeroId = 'blue-pinwheel' | 'bok-goo' | 'da-ri';
 export type ImplementedBossId = 'gang-boss' | 'dr-smile';
@@ -99,11 +101,11 @@ export const BLUE_PINWHEEL: HeroDefinition = {
   attackName: 'Starter Ring Throw (Prototype)',
   animation: {
     anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
-    idle: { asset: '/assets/blue-pinwheel/idle-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 360 },
-    move: { asset: '/assets/blue-pinwheel/idle-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 120 },
-    damage: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
-    defeat: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
-    ability: { asset: '/assets/blue-pinwheel/standing-pose.png', frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+    idle: { asset: GAME_ASSETS.heroes.bluePinwheel.idle, frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 360 },
+    move: { asset: GAME_ASSETS.heroes.bluePinwheel.idle, frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 120 },
+    damage: { asset: GAME_ASSETS.heroes.bluePinwheel.standing, frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+    defeat: { asset: GAME_ASSETS.heroes.bluePinwheel.standing, frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
+    ability: { asset: GAME_ASSETS.heroes.bluePinwheel.standing, frameWidth: 611, frameHeight: 906, frameCount: 1, frameDurationMs: 120 },
   },
 };
 
@@ -112,20 +114,20 @@ export const HEROES: Readonly<Record<HeroId, HeroDefinition>> = {
   'bok-goo': {
     id: 'bok-goo', name: 'Bok-Goo', title: '복구 · The Boulder', role: 'DURABLE MELEE FIGHTER', startingWeapon: 'Club Sweep', specialty: 'Broad close-range control', description: 'Hold your ground with sweeping club strikes and heavy crowd knockback.', placeholder: false, maxHealth: 225, moveSpeed: 180, attackName: 'Club Sweep (Prototype)',
     animation: { anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
-      idle: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 360 },
-      move: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 145 },
-      damage: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 100 },
-      defeat: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 1, frameDurationMs: 120 },
-      ability: { asset: '/assets/milestone010/bok-goo/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 90 } },
+      idle: { asset: GAME_ASSETS.heroes.bokGoo.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 360 },
+      move: { asset: GAME_ASSETS.heroes.bokGoo.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 145 },
+      damage: { asset: GAME_ASSETS.heroes.bokGoo.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 100 },
+      defeat: { asset: GAME_ASSETS.heroes.bokGoo.walk, frameWidth: 256, frameHeight: 341, frameCount: 1, frameDurationMs: 120 },
+      ability: { asset: GAME_ASSETS.heroes.bokGoo.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 90 } },
   },
   'da-ri': {
     id: 'da-ri', name: 'Da-Ri', title: '다리 · The Obsidian', role: 'AGILE SPEAR FIGHTER', startingWeapon: 'Spear Thrust', specialty: 'Long-reach precision', description: 'Align attacks through a lane, pierce the front rank, and reposition quickly.', placeholder: false, maxHealth: 145, moveSpeed: 225, attackName: 'Spear Thrust (Prototype)',
     animation: { anchor: { x: 0.5, y: 1 }, mirrorLeft: true, verticalFacingFallback: 'right-facing profile, mirrored when facing left',
-      idle: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 360 },
-      move: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 150 },
-      damage: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 100 },
-      defeat: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 1, frameDurationMs: 120 },
-      ability: { asset: '/assets/milestone010/da-ri/walk-gif.png', frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 90 } },
+      idle: { asset: GAME_ASSETS.heroes.daRi.walk, frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 360 },
+      move: { asset: GAME_ASSETS.heroes.daRi.walk, frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 150 },
+      damage: { asset: GAME_ASSETS.heroes.daRi.walk, frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 100 },
+      defeat: { asset: GAME_ASSETS.heroes.daRi.walk, frameWidth: 625, frameHeight: 627, frameCount: 1, frameDurationMs: 120 },
+      ability: { asset: GAME_ASSETS.heroes.daRi.walk, frameWidth: 625, frameHeight: 627, frameCount: 4, frameDurationMs: 90 } },
   },
 };
 
@@ -144,7 +146,7 @@ const prototypeAnimation: EnemyPrototypeAnimationDefinition = {
 };
 export interface RangedAttackDefinition { readonly projectile: 'baseball' | 'enemy'; readonly projectileSpeed: number; readonly attackInterval: number; readonly telegraphSeconds: number; readonly preferredRange: number }
 export interface EnemyDefinition { readonly kind: EnemyKind; readonly health: number; readonly speed: number; readonly damage: number; readonly radius: number; readonly xp: number; readonly animation?: AnimationClipDefinition; readonly attackAnimation?: AnimationClipDefinition; readonly prototypeAnimation?: EnemyPrototypeAnimationDefinition; readonly ranged?: RangedAttackDefinition }
-export const DR_SMILE_BOSS_ANIMATION: AnimationClipDefinition = { asset: '/assets/milestone010/dr-smile/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 };
+export const DR_SMILE_BOSS_ANIMATION: AnimationClipDefinition = { asset: GAME_ASSETS.bosses.drSmile.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 };
 export interface AttackDefinition { readonly id: string; readonly name: string; readonly projectileShape?: 'ring'; readonly damage: number; readonly cooldown: number; readonly projectileSpeed: number; readonly lifetime: number; readonly targetRange: number; readonly pierce?: number; readonly rankDamage?: readonly number[]; readonly rankCooldown?: readonly number[]; readonly rankPierce?: readonly number[] }
 export const ATTACKS: Readonly<Record<'pinwheel' | 'orbitGuard' | 'piercingThrow' | 'special', AttackDefinition>> = {
   pinwheel: { id: 'pinwheel-prototype', name: 'Starter Ring Throw (Prototype)', projectileShape: 'ring', damage: 18, cooldown: 0.76, projectileSpeed: 410, lifetime: 1.5, targetRange: 520, rankDamage: [1, 1.18, 1.36, 1.55, 1.8], rankCooldown: [1, 1, 0.84, 0.84, 0.78], rankPierce: [0, 0, 0, 1, 1] },
@@ -157,16 +159,16 @@ export const PINWHEEL_EVOLUTION: PinwheelEvolutionAttackBonus = { bonusPierce: 2
 export interface BossDefinition { readonly name: string; readonly health: number; readonly speed: number; readonly contactDamage: number; readonly radius: number; readonly xp: number; readonly phaseLength: number; readonly approachUntil: number; readonly rangedTelegraphStart: number; readonly rangedTelegraphEnd: number; readonly rangedDamage: number; readonly rangedSpeed: number; readonly chargeStart: number; readonly chargeEnd: number; readonly chargeActiveEnd: number; readonly recoveryEnd: number; readonly chargeRange: number; readonly chargeSpeed: number }
 export const GANG_LEADER: BossDefinition = { name: 'Gang Leader · Prototype', health: 460, speed: 45, contactDamage: 18, radius: 31, xp: 120, phaseLength: 6.2, approachUntil: 1.0, rangedTelegraphStart: 1.0, rangedTelegraphEnd: 1.65, rangedDamage: 16, rangedSpeed: 280, chargeStart: 3.15, chargeEnd: 3.85, chargeActiveEnd: 4.4, recoveryEnd: 5.4, chargeRange: 320, chargeSpeed: 430 };
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
-  thug: { kind: 'thug', health: 34, speed: 55, damage: 5, radius: 15, xp: 12, animation: { asset: '/assets/enemies/thug-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
-  fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 4, radius: 13, xp: 16, animation: { asset: '/assets/enemies/fast-thug-bat-walk-cycle.png', frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
-  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, animation: { asset: '/assets/enemies/street-pitcher-walk-cycle.png', frameWidth: 418, frameHeight: 941, frameCount: 4, frameDurationMs: 150 }, attackAnimation: { asset: '/assets/enemies/street-pitcher-throw-pose.png', frameWidth: 1024, frameHeight: 1536, frameCount: 1, frameDurationMs: 140 }, ranged: { projectile: 'baseball', projectileSpeed: 260, attackInterval: 3.2, telegraphSeconds: 0.62, preferredRange: 265 } },
+  thug: { kind: 'thug', health: 34, speed: 55, damage: 5, radius: 15, xp: 12, animation: { asset: GAME_ASSETS.enemies.thug.walk, frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 150 } },
+  fastThug: { kind: 'fastThug', health: 24, speed: 92, damage: 4, radius: 13, xp: 16, animation: { asset: GAME_ASSETS.enemies.fastThug.walk, frameWidth: 543, frameHeight: 724, frameCount: 4, frameDurationMs: 110 } },
+  gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, animation: { asset: GAME_ASSETS.enemies.streetPitcher.walk, frameWidth: 418, frameHeight: 941, frameCount: 4, frameDurationMs: 150 }, attackAnimation: { asset: GAME_ASSETS.enemies.streetPitcher.attack, frameWidth: 1024, frameHeight: 1536, frameCount: 1, frameDurationMs: 140 }, ranged: { projectile: 'baseball', projectileSpeed: 260, attackInterval: 3.2, telegraphSeconds: 0.62, preferredRange: 265 } },
   bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30, prototypeAnimation },
-  yoYoPunk: { kind: 'yoYoPunk', health: 44, speed: 46, damage: 13, radius: 15, xp: 28, animation: { asset: '/assets/milestone010/yo-yo-punk/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
+  yoYoPunk: { kind: 'yoYoPunk', health: 44, speed: 46, damage: 13, radius: 15, xp: 28, animation: { asset: GAME_ASSETS.enemies.yoYoPunk.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
   // Processed sheets are 1024×341: four 256×341 frames. Using 170px clipped
   // each frame through the body and made the walk cycle appear malformed.
-  smiler: { kind: 'smiler', health: 47, speed: 48, damage: 6, radius: 15, xp: 18, animation: { asset: '/assets/milestone010/smiler/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 140 } },
-  molar: { kind: 'molar', health: 24, speed: 86, damage: 4, radius: 11, xp: 15, animation: { asset: '/assets/milestone010/molar/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 90 } },
-  boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp, prototypeAnimation, animation: { asset: '/assets/milestone010/gang-boss/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
+  smiler: { kind: 'smiler', health: 47, speed: 48, damage: 6, radius: 15, xp: 18, animation: { asset: GAME_ASSETS.enemies.smiler.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 140 } },
+  molar: { kind: 'molar', health: 24, speed: 86, damage: 4, radius: 11, xp: 15, animation: { asset: GAME_ASSETS.enemies.molar.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 90 } },
+  boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp, prototypeAnimation, animation: { asset: GAME_ASSETS.bosses.gangBoss.walk, frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
 };
 
 export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: string }> = [
@@ -199,8 +201,13 @@ export const UPGRADES: ReadonlyArray<{ id: UpgradeId; title: string; detail: str
 export type HordeEntrySide = 'left' | 'right' | 'top' | 'bottom';
 export interface HordeConfig { readonly targetCounts: readonly { readonly at: number; readonly count: number }[]; readonly batchMin: number; readonly batchMax: number; readonly baseBatchInterval: number; readonly maxSpawnPerSecond: number; readonly maxSpawnPerUpdate: number; readonly surgeEvery: number; readonly surgeDuration: number; readonly surgeBonus: number; readonly maxActive: number; readonly spawnMarginX: number; readonly spawnMarginY: number; readonly recycleAfter: number }
 export interface RunConfig { readonly duration: number; readonly bossAt: number; readonly overtimeLimit: number; readonly seed: number; readonly arenaWidth: number; readonly arenaHeight: number; readonly maxEnemies: number; readonly testMode: boolean; readonly difficulty: DifficultyId; readonly horde: HordeConfig; readonly gameMode?: 'endless' | 'finite' }
-export interface StageDefinition { readonly id: string; readonly name: string; readonly run: RunConfig; readonly visualStyle: 'kenney-city-grid' }
+export type StageId = 'seoulumbus-downtown';
+export interface StageDefinition { readonly id: StageId; readonly name: string; readonly description: string; readonly available: true; readonly run: RunConfig; readonly visualStyle: 'kenney-city-grid'; readonly factions: readonly FactionId[] }
 const standardHorde: HordeConfig = { targetCounts: [{ at: 0, count: 8 }, { at: 15, count: 24 }, { at: 30, count: 40 }, { at: 60, count: 64 }, { at: 90, count: 82 }, { at: 120, count: 104 }, { at: 150, count: 120 }], batchMin: 3, batchMax: 5, baseBatchInterval: 0.95, maxSpawnPerSecond: 14, maxSpawnPerUpdate: 4, surgeEvery: 35, surgeDuration: 10, surgeBonus: 12, maxActive: 128, spawnMarginX: 84, spawnMarginY: 74, recycleAfter: 4.5 };
 export const standardRun: RunConfig = { duration: 180, bossAt: 150, overtimeLimit: 60, seed: 1741, arenaWidth: 1800, arenaHeight: 1200, maxEnemies: 128, testMode: false, difficulty: 'normal', gameMode: 'endless', horde: standardHorde };
 export const testRun: RunConfig = { ...standardRun, duration: 36, bossAt: 20, overtimeLimit: 12, seed: 1741, maxEnemies: 56, testMode: true, gameMode: 'finite', horde: { ...standardHorde, targetCounts: [{ at: 0, count: 5 }, { at: 5, count: 12 }, { at: 15, count: 22 }, { at: 25, count: 32 }], batchMin: 2, batchMax: 3, baseBatchInterval: 0.65, surgeEvery: 10, surgeDuration: 4, surgeBonus: 8, maxActive: 56 } };
-export const CITY_STREET_STAGE: StageDefinition = { id: 'city-street', name: 'City Street (Prototype)', run: standardRun, visualStyle: 'kenney-city-grid' };
+export const STAGE_REGISTRY: Readonly<Record<StageId, StageDefinition>> = {
+  'seoulumbus-downtown': { id: 'seoulumbus-downtown', name: 'Seoulumbus — Downtown', description: 'The connected downtown streets and open intersections.', available: true, run: standardRun, visualStyle: 'kenney-city-grid', factions: ['street-gang', 'dr-smile'] },
+};
+export const CITY_STREET_STAGE = STAGE_REGISTRY['seoulumbus-downtown'];
+export const FUTURE_STAGE_SLOTS = 2;

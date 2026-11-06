@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, HEROES, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
-import { acquireTarget, applyEnemyDamage, chooseBossReward, chooseUpgrade, createGame, damagePlayer, eligibleWeaponEvolutions, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { acquireTarget, applyEnemyDamage, chooseBossReward, chooseUpgrade, createGame, damageBreakableProp, damagePlayer, eligibleWeaponEvolutions, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { BREAKABLE_CITY_PROPS } from '../src/game/city-props';
 import { isWalkable } from '../src/game/stage';
 import { getUpgradeRankProgress } from '../src/game/upgrade-ranks';
+import { getOrbitRingAngles } from '../src/game/orbit-formation';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
 function steps(state: ReturnType<typeof createGame>, count: number, input = idle, cfg = testRun): void { for (let i = 0; i < count; i++) updateGame(state, 1 / 60, input, cfg); }
@@ -671,6 +673,54 @@ describe('deterministic gameplay simulation', () => {
     const afterFirstContact = enemy.health;
     steps(s, 1, idle, cfg);
     expect(enemy.health).toBe(afterFirstContact);
+  });
+
+  it('keeps Orbit Guard evenly spaced through every rank, multiplicity, and Eternal Halo transition', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const expectedByRank = [1, 2, 2, 3, 4];
+    for (let rank = 1; rank <= 5; rank++) {
+      const state = createGame(22121 + rank, cfg);
+      state.spawnTimer = 10_000; state.player.attackTimer = 10_000; state.player.piercingTimer = 10_000;
+      state.player.orbit = true; state.player.weaponRanks.orbitGuard = rank;
+      steps(state, 1, idle, cfg);
+      expect(state.player.orbitRings).toHaveLength(expectedByRank[rank - 1]!);
+      expect(state.player.orbitRings.map(ring => ring.angle)).toEqual(getOrbitRingAngles(state.player.orbitPhase, expectedByRank[rank - 1]!));
+    }
+
+    const state = createGame(22127, cfg); state.spawnTimer = 10_000; state.player.attackTimer = 10_000;
+    state.player.piercingTimer = 10_000; state.player.orbit = true; state.player.weaponRanks.orbitGuard = 2;
+    steps(state, 1, idle, cfg);
+    expect(state.player.orbitRings).toHaveLength(2);
+    const previousPhase = state.player.orbitPhase;
+    state.player.passiveRanks.multiplicity = 1; steps(state, 1, idle, cfg);
+    expect(state.player.orbitRings).toHaveLength(3);
+    expect(state.player.orbitPhase).toBeGreaterThan(previousPhase);
+    expect(state.player.orbitRings.map(ring => ring.angle)).toEqual(getOrbitRingAngles(state.player.orbitPhase, 3));
+    state.player.passiveRanks.multiplicity = 2; state.player.evolutions.push('eternal-halo'); steps(state, 1, idle, cfg);
+    expect(state.player.orbitRings).toHaveLength(6);
+    expect(state.player.orbitRings.map(ring => ring.angle)).toEqual(getOrbitRingAngles(state.player.orbitPhase, 6));
+  });
+
+  it('generates equal angular gaps for all supported Orbit Guard formations', () => {
+    for (let count = 1; count <= 6; count++) {
+      const angles = getOrbitRingAngles(5.7, count);
+      expect(angles).toHaveLength(count);
+      for (let index = 1; index < count; index++) expect(angles[index]! - angles[index - 1]!).toBeCloseTo(Math.PI * 2 / count, 12);
+    }
+    expect(getOrbitRingAngles(0, 0)).toEqual([]);
+  });
+
+  it('creates deterministic walkable breakables and permits each prop to drop rewards only once', () => {
+    const first = createGame(22128, testRun); const same = createGame(22128, testRun);
+    expect(first.props).toEqual(same.props);
+    expect(first.props.map(prop => prop.kind)).toEqual(['supply-box', 'supply-box', 'supply-box', 'supply-box', 'delivery-box', 'delivery-box', 'utility-container']);
+    for (const prop of first.props) expect(isWalkable(first.stage, prop.x, prop.y)).toBe(true);
+    expect(Object.values(BREAKABLE_CITY_PROPS).map(prop => prop.dropTable)).toEqual(['urban-utility', 'urban-utility', 'urban-utility']);
+    const prop = first.props[0]!; const broke = damageBreakableProp(first, prop, prop.maxHealth, 'normal');
+    expect(broke).toBe(true); expect(prop.destroyed).toBe(true);
+    const pickupCount = first.pickups.length; const seedAfterBreak = first.seed;
+    expect(damageBreakableProp(first, prop, 10_000, 'normal')).toBe(false);
+    expect(first.pickups).toHaveLength(pickupCount); expect(first.seed).toBe(seedAfterBreak);
   });
 
   it('applies passive ranks to incoming damage and XP gain', () => {

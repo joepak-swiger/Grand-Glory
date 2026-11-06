@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCityMapDefinition, CITY_ATLAS_COLUMNS, CITY_ATLAS_ROWS, CITY_TILE_SIZE, validateCityMap } from '../src/render/city-map';
 import { getTerrain, type BuildingStyle } from '../src/game/stage';
+import { BREAKABLE_CITY_PROPS } from '../src/game/city-props';
 
 describe('city map semantics', () => {
   it('builds valid in-bounds layers from the shared stage geometry', () => {
@@ -42,5 +43,16 @@ describe('city map semantics', () => {
     const invalid = { ...map, layers: [...map.layers, { id: 'road' as const, tile: { column: CITY_ATLAS_COLUMNS, row: 0 }, cells: [{ x: 100, y: 100 }] }] };
     expect(validateCityMap(invalid)).toContain('Layer road uses an invalid atlas tile.');
     expect(validateCityMap(invalid)).toContain('Layer road contains an out-of-bounds cell.');
+  });
+
+  it('places the authored vending machine and pojangmacha on checked decorative sidewalks', () => {
+    const map = buildCityMapDefinition(1800, 1200);
+    expect(getTerrain(map, 12, 13)).toBe('sidewalk');
+    expect(getTerrain(map, 33, 29)).toBe('sidewalk');
+    for (const prop of Object.values(BREAKABLE_CITY_PROPS)) {
+      expect(prop.collision).toBe('none');
+      expect(prop.spawnZone).toBe('walkable');
+      expect(prop.dropTable).toBe('urban-utility');
+    }
   });
 });
