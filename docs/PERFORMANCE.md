@@ -222,4 +222,20 @@ The seeded `scripts/benchmark-sim.mjs` fixture was run on Windows x64 with Node 
 | 150 | 0.2428 / 0.3938 / 0.7533 | 0.2060 / 0.2574 / 0.2936 |
 | 200 | 0.3685 / 0.5906 / 0.8501 | 0.2872 / 0.3492 / 0.4762 |
 
-The current sample is lower than the Assignment 010 recorded baseline at all five target counts (about 22% lower median at 200). The benchmark is deterministic and the runtime/harness match the recorded baseline, but this is not a browser A/B test; do not infer a frame-rate increase from it. No new browser renderer result or Windows GPU measurement is available yet for this implementation.
+The current sample is lower than the Assignment 010 recorded baseline at all five target counts (about 22% lower median at 200). The benchmark is deterministic and the runtime/harness match the recorded baseline, but this is not a browser A/B test; do not infer a frame-rate increase from it. A separate hosted Chromium sample is reported below; no Windows GPU measurement is available for this implementation.
+
+### Consolidated Assignment 011 — hosted Chromium measurements
+
+GitHub Actions run [42165501840](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42165501840) recorded the natural standard-config segment and a separate synthetic renderer sweep in headless Chromium 156 on Ubuntu, 1365×900, WebGL preferred through ANGLE/Vulkan SwiftShader (software rendering, four reported CPU cores). The natural scenario reached 27 active / 13 visible enemies at 15s, 42/41 at 30s, 51/51 during the first surge near 35s, and 66/66 at 60s. It later ended in defeat at 84.62 simulated seconds, level 7, 184 defeats, and 88 peak active enemies, before the first boss. This is scripted browser play, not a balance win or owner playtest.
+
+The distinct synthetic paused-scene sweep used 25–200 visible enemies. Scene-update performance stayed small, while SwiftShader frame pacing remained slow:
+
+| Synthetic visible enemies | Scene update median / p95 / worst ms | Whole-frame average / p95 / worst ms | Sampled FPS |
+|---:|---:|---:|---:|
+| 25 | 0.3 / 0.9 / 2.7 | 64.1 / 100 / 100 | 15 |
+| 50 | 0.7 / 1.2 / 2.7 | 67.5 / 83.4 / 100 | 12 |
+| 100 | 0.6 / 1.4 / 2.7 | 73.0 / 100 / 100 | 12 |
+| 150 | 0.6 / 1.4 / 2.7 | 78.2 / 100 / 100 | 10 |
+| 200 | 1.2 / 1.7 / 4.4 | 81.7 / 100 / 100 | 7 |
+
+The synthetic browser's sampled memory was about 22.0 MiB, with no dropped simulation updates reported. The FPS and whole-frame timing are specific to SwiftShader and must not be treated as desktop GPU performance. The scene-update results do not include all game simulation costs and are not a paired browser comparison against Assignment 010. The hosted screenshots and trace are retained in [browser-evidence artifact 13479210371](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42165501840/artifacts/13479210371). No local browser capture or ordinary Windows GPU run was available.
