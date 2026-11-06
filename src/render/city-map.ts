@@ -265,4 +265,28 @@ function drawStreetDetails(context: CanvasRenderingContext2D, map: CityStage): v
       context.fillStyle = '#17232c'; context.fillRect(x + 6, y + 18, 3, 3); context.fillRect(x + 16, y + 18, 3, 3);
     }
   }
+
+  // A small authored Korean-American streetscape: a drink vending machine and a
+  // low pojangmacha stall. Both sit on checked sidewalk cells and are decorative.
+  if (getTerrain(map, 12, 13) === 'sidewalk') {
+    const x = 12 * cell + 7; const y = 13 * cell + 2;
+    context.fillStyle = '#17232c'; context.fillRect(x + 3, y + 26, 22, 4);
+    context.fillStyle = '#24475a'; context.fillRect(x + 4, y + 2, 20, 25);
+    context.fillStyle = '#6eb3c0'; context.fillRect(x + 6, y + 4, 16, 11);
+    context.fillStyle = '#bf554b'; context.fillRect(x + 6, y + 5, 16, 2);
+    context.fillStyle = '#dce9cf'; context.fillRect(x + 7, y + 8, 4, 5); context.fillRect(x + 13, y + 8, 4, 5);
+    context.fillStyle = '#23343a'; context.fillRect(x + 6, y + 17, 16, 7);
+    context.fillStyle = '#8fe3d3'; context.fillRect(x + 18, y + 18, 2, 2);
+    context.fillStyle = '#f2e6c9'; context.font = 'bold 6px monospace'; context.fillText('음료', x + 7, y + 16);
+  }
+  if (getTerrain(map, 33, 29) === 'sidewalk') {
+    const x = 33 * cell - 7; const y = 29 * cell + 4;
+    context.fillStyle = '#17232c'; context.fillRect(x + 3, y + 25, 40, 4);
+    context.fillStyle = '#493d39'; context.fillRect(x + 6, y + 14, 34, 12);
+    context.fillStyle = '#c34e45'; context.fillRect(x + 3, y + 5, 40, 8);
+    context.fillStyle = '#edc56b'; context.fillRect(x + 3, y + 5, 7, 8); context.fillRect(x + 19, y + 5, 7, 8); context.fillRect(x + 35, y + 5, 8, 8);
+    context.fillStyle = '#27343a'; context.fillRect(x + 8, y + 16, 30, 7);
+    context.fillStyle = '#e9a45d'; context.fillRect(x + 12, y + 18, 4, 3); context.fillRect(x + 20, y + 18, 4, 3); context.fillRect(x + 28, y + 18, 4, 3);
+    context.fillStyle = '#fff0c9'; context.font = 'bold 7px monospace'; context.fillText('포장마차', x + 5, y + 4);
+  }
 }

@@ -1,5 +1,11 @@
 # Prototype gameplay
 
+## Assignment 014 stage, props, and Orbit Guard
+
+The title screen supports stage selection after hero selection. Only **Seoulumbus — Downtown** is active; future slots are disabled. Stage metadata lives in `STAGE_REGISTRY`, while shared walkability, collision, spawns, and city visuals continue to derive from the existing stage geometry. The stage selection does not create a second map or alter run balance.
+
+Downtown now includes a sparse authored vending machine and 포장마차 on sidewalk cells. Seven small nonblocking breakables (four supply boxes, two delivery packages, one utility container) are placed at deterministic walkable points and use the established utility pickup table. Orbit Guard now computes every angle from a common rotation phase and evenly spaced rank slot, and its render positions match its collision positions. Detailed design and limitations: [CITY_PROPS.md](CITY_PROPS.md), [STAGE_ARCHITECTURE.md](STAGE_ARCHITECTURE.md), and [ART_LIBRARY.md](ART_LIBRARY.md).
+
 ## Visual stage
 
 The `City Street (Prototype)` stage is an 1800×1200 neighborhood with a broad east-west boulevard, a second cross street, two north-south avenues, sidewalks, four marked intersections, and six coherent building footprints. Shared geometry in `src/game/stage.ts` drives the rendered map, walkability, bounds, spawning, collision, projectiles, and enemy route field. Asphalt and road paint are authored separately from the atlas because its road crops contain repeated baked lane lines. Building roofs use consistent original brick, glass, and industrial palettes; the CC0 atlas supplies pavement and sidewalk textures.

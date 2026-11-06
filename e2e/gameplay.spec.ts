@@ -19,6 +19,8 @@ test('real browser vertical slice and gameplay evidence', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.goto('/?test=1');
   await expect(page.getByRole('heading', { name: 'GRAND GLORY' })).toBeVisible();
+  await expect(page.locator('[data-stage="seoulumbus-downtown"]')).toBeVisible();
+  await expect(page.locator('.stage-choice:disabled')).toHaveCount(2);
   await expect(page.getByLabel('Sound effects volume')).toHaveValue('0.55');
   await page.getByLabel('Difficulty').selectOption('heroic');
   await page.getByLabel('Difficulty').selectOption('normal');

@@ -4,6 +4,8 @@ import { BLUE_PINWHEEL, DR_SMILE_BOSS_ANIMATION, ENEMIES, GANG_LEADER, HEROES, t
 import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-map';
 import { getTerrain } from '../game/stage';
 import { heroicStatMultiplier } from '../game/heroic-traits';
+import { GAME_ASSETS, PROCEDURAL_ASSET_IDS } from '../game/assets';
+import { BREAKABLE_CITY_PROPS } from '../game/city-props';
 
 const W = 960; const H = 640;
 export type CameraPreset = 'wide' | 'standard' | 'close';
@@ -82,7 +84,7 @@ export class GameRenderer {
 
   private async loadCityAssets(): Promise<void> {
     try {
-      this.cityAtlas = await Assets.load<Texture>('/assets/city/kenney-city.png');
+      this.cityAtlas = await Assets.load<Texture>(GAME_ASSETS.stages.seoulumbus.cityAtlas);
       this.cityAtlas.source.scaleMode = 'nearest';
     } catch (error) {
       console.warn('Unable to load city atlas; using the original street placeholder.', error);
@@ -211,7 +213,9 @@ export class GameRenderer {
     this.primitiveTextures.set('curry', this.textureFromGraphics(g => { g.ellipse(18,23,14,7).fill(0x7c2930).stroke({ color: 0xffb05a, width: 2 }); g.ellipse(18,18,12,8).fill(0xe9692d).stroke({ color: 0xffd36b, width: 2 }); g.circle(13,17,2).fill(0x61a851); g.circle(22,19,2).fill(0xffefb0); g.arc(18,10,4,-2.8,-0.7).stroke({ color: 0xff8e3d, width: 2 }); }));
     this.primitiveTextures.set('field-cache', this.textureFromGraphics(g => { g.roundRect(3,8,30,20,4).fill(0x276b9c).stroke({ color: 0xa9ecff, width: 2 }); g.rect(5,15,26,4).fill(0x9bc3d3); g.rect(15,13,6,8).fill(0xe8f4e8); g.circle(18,17,2).fill(0x35aef0); }));
     this.primitiveTextures.set('hero-cache', this.textureFromGraphics(g => { g.roundRect(3,8,30,20,4).fill(0x75602f).stroke({ color: 0xffdf75, width: 2.5 }); g.rect(5,15,26,4).fill(0xe9c35b); g.rect(15,13,6,8).fill(0xfff1bc); g.star(18,17,4,3,4).fill(0xffdf75); }));
-    this.primitiveTextures.set('supply-box', this.textureFromGraphics(g => { g.roundRect(3,7,34,28,3).fill(0x46576a).stroke({ color: 0xb4cfdf, width: 2 }); g.rect(5,12,30,5).fill(0x2c93bb); g.rect(5,27,30,4).fill(0x283440); g.rect(17,13,6,16).fill(0xd7e8e8); g.rect(18,18,4,5).fill(0x53dddf); }));
+    this.primitiveTextures.set(PROCEDURAL_ASSET_IDS.props.supplyBox, this.textureFromGraphics(g => { g.roundRect(3,7,34,28,3).fill(0x46576a).stroke({ color: 0xb4cfdf, width: 2 }); g.rect(5,12,30,5).fill(0x2c93bb); g.rect(5,27,30,4).fill(0x283440); g.rect(17,13,6,16).fill(0xd7e8e8); g.rect(18,18,4,5).fill(0x53dddf); }));
+    this.primitiveTextures.set(PROCEDURAL_ASSET_IDS.props.deliveryBox, this.textureFromGraphics(g => { g.roundRect(4,7,26,20,2).fill(0x9a6840).stroke({ color: 0xd6a86b, width: 2 }); g.rect(14,8,5,18).fill(0xc99b5e); g.rect(9,13,15,7).fill(0xf0dfb7).stroke({ color: 0x625142, width: 1 }); g.rect(12,15,8,1).fill(0x465968); g.rect(12,17,5,1).fill(0x7a8d93); }));
+    this.primitiveTextures.set(PROCEDURAL_ASSET_IDS.props.utilityContainer, this.textureFromGraphics(g => { g.roundRect(4,4,24,28,3).fill(0x46584d).stroke({ color: 0xb4c29a, width: 2 }); g.rect(7,9,18,3).fill(0x81917c); g.rect(8,15,16,10).fill(0x344139); g.rect(10,18,12,2).fill(0xe0c45f); g.circle(8,7,1).fill(0xe5d7a1); g.circle(24,7,1).fill(0xe5d7a1); }));
     for (const kind of ['bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
     this.primitiveTextures.set('bruiser', this.proceduralEnemyFrames.get('bruiser')![0]!);
     this.primitiveTextures.set('boss', this.proceduralEnemyFrames.get('boss')![0]!);
@@ -438,9 +442,10 @@ export class GameRenderer {
     }
     for (const prop of state.props) {
       if (prop.destroyed || !this.isVisible(prop.x, prop.y, 28)) continue;
+      const definition = BREAKABLE_CITY_PROPS[prop.kind];
       let sprite = this.pickupViews[used];
-      if (!sprite) { sprite = new Sprite(this.primitiveTextures.get('supply-box')!); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
-      sprite.texture = this.primitiveTextures.get('supply-box')!; sprite.renderable = true; sprite.alpha = 1; sprite.rotation = 0; sprite.position.set(prop.x, prop.y); sprite.width = 34; sprite.height = 28; sprite.tint = 0xffffff;
+      if (!sprite) { sprite = new Sprite(this.primitiveTextures.get(definition.assetId)!); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
+      sprite.texture = this.primitiveTextures.get(definition.assetId)!; sprite.renderable = true; sprite.alpha = 1; sprite.rotation = 0; sprite.position.set(prop.x, prop.y); sprite.width = definition.width; sprite.height = definition.height; sprite.tint = 0xffffff;
       used++;
     }
     this.pickupViewCount = used;

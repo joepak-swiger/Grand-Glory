@@ -192,6 +192,18 @@ button { font: inherit; color: inherit; pointer-events: auto; cursor: pointer; b
 .hero-choice small { color: #9db3ca; font-size: 9px; }
 .hero-choice span { color: #d0dceb; font-size: 9px; }
 .hero-choice i { justify-self: end; color: #77d5ff; font-size: 8px; font-style: normal; }
+.stage-select { margin: 10px 0 7px; padding: 8px; border: 1px solid #6c8190; border-top: 2px solid #e0bd68; background: #081522d9; }
+.stage-select > div:first-child { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.stage-select > div:first-child strong { color: #f2d485; font-size: 9px; letter-spacing: 1.2px; }
+.stage-select > div:first-child small { color: #93a9b8; font-size: 8px; }
+.stage-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.stage-choice { display: grid; gap: 3px; min-width: 0; padding: 7px; border: 1px solid #43586a; background: #101f2c; color: #e7f2f5; text-align: left; }
+.stage-choice:not(:disabled) { cursor: pointer; }
+.stage-choice.selected { border-color: #63c9ed; background: linear-gradient(135deg, #16374a, #142334); box-shadow: inset 0 0 0 1px #6ad9f333; }
+.stage-choice strong { font-size: 9px; }
+.stage-choice span { color: #a9bbc4; font-size: 8px; line-height: 1.35; }
+.stage-choice i { color: #80d4ee; font-size: 7px; font-style: normal; letter-spacing: .6px; }
+.stage-choice.unavailable { opacity: .48; border-style: dashed; }
 .hero-select-screen .title-copy > p { margin: 5px 0; }
 .restart-pause { margin: 8px; }
 .build-overview { width: min(680px, calc(100% - 32px)); margin: 12px auto; padding: 14px 18px; border: 1px solid #597086; background: #091725eF; color: #e4eff8; text-align: center; }
@@ -203,4 +215,9 @@ button { font: inherit; color: inherit; pointer-events: auto; cursor: pointer; b
   .hero-choices { grid-template-columns: 1fr; }
   .hero-choice { grid-template-columns: 38px 1fr; }
   .hero-choice img { width: 38px; height: 48px; }
+  .stage-choices { grid-template-columns: 1fr; }
+  .stage-select > div:first-child { align-items: start; flex-direction: column; gap: 3px; }
+}
+@media (max-height: 700px) and (min-width: 761px) {
+  .hero-select-screen { max-height: calc(100vh - 16px); overflow-y: auto; align-items: start; }
 }

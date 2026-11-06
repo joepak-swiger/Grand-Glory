@@ -2,6 +2,8 @@ import { ATTACKS, DIFFICULTIES, ENEMIES, GANG_LEADER, HEROES, HEROIC_TRAITS, PAS
 import { SpatialGrid } from './spatial-grid';
 import { buildNavigationField, createCityStage, isWalkable, moveOnStage, navigationDirection, nearestWalkablePoint, segmentHitsBuilding, type CityStage, type NavigationField } from './stage';
 import { heroicStatMultiplier } from './heroic-traits';
+import { getOrbitRingAngles } from './orbit-formation';
+import { BREAKABLE_CITY_PROPS, createCityProp, type CityPropState } from './city-props';
 import { PICKUPS, cacheTierForFortune, rollUtilityDrop, type PickupId } from './pickups';
 
 export interface Vec { x: number; y: number }
@@ -11,12 +13,12 @@ export type DamageSource = 'thug-contact' | 'fast-contact' | 'bruiser-contact' |
 export type DamageBreakdown = Record<DamageSource, number>;
 export const DAMAGE_SOURCES: readonly DamageSource[] = ['thug-contact', 'fast-contact', 'bruiser-contact', 'ranged-projectile', 'boss-contact', 'boss-projectile', 'boss-charge', 'yoyo-line', 'boss-chain', 'dr-smile-melee', 'dr-smile-zone'];
 function emptyDamageBreakdown(): DamageBreakdown { return { 'thug-contact': 0, 'fast-contact': 0, 'bruiser-contact': 0, 'ranged-projectile': 0, 'boss-contact': 0, 'boss-projectile': 0, 'boss-charge': 0, 'yoyo-line': 0, 'boss-chain': 0, 'dr-smile-melee': 0, 'dr-smile-zone': 0 }; }
-export interface Player extends Vec { heroId: HeroId; health: number; maxHealth: number; speed: number; healthRegen: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; orbitRings: OrbitRing[]; damageDealt: number; weaponRanks: Record<WeaponId, number>; passiveRanks: Record<PassiveId, number>; evolvedPinwheel: boolean; evolutions: WeaponEvolutionId[]; piercingTimer: number; ricochetTimer: number; groundSlamTimer: number; spearSweepTimer: number; followupStrike: { kind: 'club' | 'spear'; direction: Vec; rank: number } | null; followupStrikeTimer: number; tempestStrikesRemaining: number; tempestStrikeIndex: number; tempestStrikeTimer: number; tempestAim: Vec; attackVisual: 'club-sweep' | 'spear-thrust' | 'ground-slam' | 'spear-sweep' | null; attackVisualTimer: number; infernoCurryTimer?: number }
+export interface Player extends Vec { heroId: HeroId; health: number; maxHealth: number; speed: number; healthRegen: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; orbitPhase: number; orbitRings: OrbitRing[]; damageDealt: number; weaponRanks: Record<WeaponId, number>; passiveRanks: Record<PassiveId, number>; evolvedPinwheel: boolean; evolutions: WeaponEvolutionId[]; piercingTimer: number; ricochetTimer: number; groundSlamTimer: number; spearSweepTimer: number; followupStrike: { kind: 'club' | 'spear'; direction: Vec; rank: number } | null; followupStrikeTimer: number; tempestStrikesRemaining: number; tempestStrikeIndex: number; tempestStrikeTimer: number; tempestAim: Vec; attackVisual: 'club-sweep' | 'spear-thrust' | 'ground-slam' | 'spear-sweep' | null; attackVisualTimer: number; infernoCurryTimer?: number }
 export type BossAttackState = 'idle' | 'ranged-telegraph' | 'charge-telegraph' | 'charging' | 'recovering' | 'melee-telegraph' | 'melee-swing' | 'yoyo-telegraph' | 'yoyo-extension' | 'yoyo-hold' | 'yoyo-retract' | 'chain-telegraph' | 'chain-swing' | 'chain-throw' | 'hazard-telegraph' | 'hazard-active';
 export interface Enemy extends Vec { id: number; kind: EnemyKind; elite?: boolean; bossId: 'gang-boss' | 'dr-smile' | null; attackTarget: Vec; attackCooldown: number; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; horizontalFacing: HorizontalFacing; animationTime: number; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number; rangedTimer: number; distantTime: number }
 export interface Projectile extends Vec { id: number; vx: number; vy: number; damage: number; life: number; pierce: number; hitIds: number[]; special: boolean; owner: 'player' | 'enemy'; spin: number; arcHeight?: number; arcDuration?: number; arcElapsed?: number; bouncesRemaining?: number; splashRadius?: number; weaponId?: WeaponId | 'special' | 'enemy' | 'baseball' | 'boulder' | 'spear' | 'chainball'; damageSource?: DamageSource; sourceEnemyId?: number; maxRange?: number; returning?: boolean }
 export interface Pickup extends Vec { id: number; value: number; pullSpeed?: number; kind?: PickupId; consumed?: boolean; age?: number; recalling?: boolean; recallBlocked?: boolean; recallElapsed?: number }
-export interface BreakableProp extends Vec { id: number; kind: 'supply-box'; health: number; maxHealth: number; destroyed: boolean }
+export type BreakableProp = CityPropState;
 export interface GroundWave extends Vec { id: number; radius: number; maxRadius: number; life: number; duration?: number; damage: number; hitIds: number[]; direction: Vec; halfAngle: number }
 export interface FloatText extends Vec { id: number; text: string; life: number }
 export interface SimState {
@@ -47,14 +49,17 @@ function distanceToSegment(point: Vec, start: Vec, end: Vec): number {
 export function createGame(seed = standardRun.seed, config: RunConfig = standardRun, heroId: HeroId = 'blue-pinwheel'): SimState {
   const stage = createCityStage(config.arenaWidth, config.arenaHeight);
   const hero = HEROES[heroId];
-  const player = { heroId, x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: hero.maxHealth, maxHealth: hero.maxHealth, speed: hero.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right' as const, damageBonus: 0, extraShots: 0, pickupRadius: 72, orbit: false, orbitTimer: 0, orbitRings: [], damageDealt: 0, weaponRanks: { pinwheel: heroId === 'blue-pinwheel' ? 1 : 0, orbitGuard: 0, piercingThrow: 0, ricochetRing: 0, clubSweep: heroId === 'bok-goo' ? 1 : 0, boulderToss: 0, groundSlam: 0, spearThrust: heroId === 'da-ri' ? 1 : 0, spearToss: 0, spearSweep: 0 }, passiveRanks: Object.fromEntries(PASSIVE_IDS.map(id => [id, 0])) as Record<PassiveId, number>, evolvedPinwheel: false, evolutions: [], piercingTimer: 0.6, ricochetTimer: 0.9, groundSlamTimer: 2.4, spearSweepTimer: 2.1, followupStrike: null as Player['followupStrike'], followupStrikeTimer: 0, tempestStrikesRemaining: 0, tempestStrikeIndex: 0, tempestStrikeTimer: 0, tempestAim: { x: 1, y: 0 }, attackVisual: null as Player['attackVisual'], attackVisualTimer: 0 };
+  const player = { heroId, x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: hero.maxHealth, maxHealth: hero.maxHealth, speed: hero.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right' as const, damageBonus: 0, extraShots: 0, pickupRadius: 72, orbit: false, orbitTimer: 0, orbitPhase: 0, orbitRings: [], damageDealt: 0, weaponRanks: { pinwheel: heroId === 'blue-pinwheel' ? 1 : 0, orbitGuard: 0, piercingThrow: 0, ricochetRing: 0, clubSweep: heroId === 'bok-goo' ? 1 : 0, boulderToss: 0, groundSlam: 0, spearThrust: heroId === 'da-ri' ? 1 : 0, spearToss: 0, spearSweep: 0 }, passiveRanks: Object.fromEntries(PASSIVE_IDS.map(id => [id, 0])) as Record<PassiveId, number>, evolvedPinwheel: false, evolutions: [], piercingTimer: 0.6, ricochetTimer: 0.9, groundSlamTimer: 2.4, spearSweepTimer: 2.1, followupStrike: null as Player['followupStrike'], followupStrikeTimer: 0, tempestStrikesRemaining: 0, tempestStrikeIndex: 0, tempestStrikeTimer: 0, tempestAim: { x: 1, y: 0 }, attackVisual: null as Player['attackVisual'], attackVisualTimer: 0 };
   return {
     status: 'playing', player,
     enemies: [], projectiles: [], pickups: [], props: [
-      { id: -1, ...nearestWalkablePoint(stage, 580, 205), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
-      { id: -2, ...nearestWalkablePoint(stage, 1230, 205), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
-      { id: -3, ...nearestWalkablePoint(stage, 580, 995), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
-      { id: -4, ...nearestWalkablePoint(stage, 1230, 995), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
+      createCityProp('supply-box', -1, nearestWalkablePoint(stage, 580, 205)),
+      createCityProp('supply-box', -2, nearestWalkablePoint(stage, 1230, 205)),
+      createCityProp('supply-box', -3, nearestWalkablePoint(stage, 580, 995)),
+      createCityProp('supply-box', -4, nearestWalkablePoint(stage, 1230, 995)),
+      createCityProp('delivery-box', -5, nearestWalkablePoint(stage, 350, 435)),
+      createCityProp('delivery-box', -6, nearestWalkablePoint(stage, 1450, 755)),
+      createCityProp('utility-container', -7, nearestWalkablePoint(stage, 915, 1060)),
     ], waves: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossesDefeated: 0, completedWaves: 0, currentBossId: null, lastBossId: null, factionsEncountered: ['street-gang'], nextBossAt: config.bossAt, endless: (config.gameMode ?? (config.testMode ? 'finite' : 'endless')) === 'endless', bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, xpSpawned: 0, xpCollected: 0, xpPilesMerged: 0, xpLost: 0, options: [], chosen: [], evolutionOptions: [], attacks: [hero.attackName], messages: [], toast: null, xpRecallTimer: 0, specialTimer: 0, damageTaken: emptyDamageBreakdown(),
     eliteSpawnTimer: 42, elitesSpawned: 0, elitesDefeated: 0, supplyCacheTier: null, infernoCooldowns: {},
   };
@@ -231,9 +236,10 @@ export function damageBreakableProp(state: SimState, prop: BreakableProp, damage
   prop.health = Math.max(0, prop.health - damage);
   if (prop.health > 0) return false;
   prop.destroyed = true;
-  const drop = rollUtilityDrop('prop', difficulty, state.player.passiveRanks.fortune, random(state));
+  const definition = BREAKABLE_CITY_PROPS[prop.kind];
+  const drop = rollUtilityDrop('prop', difficulty, state.player.passiveRanks.fortune, random(state) / definition.dropChanceScale);
   if (drop) spawnPickup(state, drop, prop);
-  announce(state, drop ? 'SUPPLY BOX · PICKUP FOUND' : 'SUPPLY BOX BROKEN');
+  announce(state, drop ? `${definition.displayName.toUpperCase()} · PICKUP FOUND` : `${definition.displayName.toUpperCase()} BROKEN`);
   return true;
 }
 
@@ -403,8 +409,10 @@ function orbitRingCount(rank: number): number { return rank <= 1 ? 1 : rank <= 3
 
 function syncOrbitRings(player: Player): void {
   const count = !player.orbit ? 0 : Math.min(6, (player.evolutions.includes('eternal-halo') ? 4 : orbitRingCount(Math.max(1, player.weaponRanks.orbitGuard))) + player.passiveRanks.multiplicity);
-  while (player.orbitRings.length < count) player.orbitRings.push({ angle: (Math.PI * 2 * player.orbitRings.length) / Math.max(1, count), active: true, hitCooldowns: {} });
-  player.orbitRings.length = count;
+  if (player.orbitRings.length > count) player.orbitRings.length = count;
+  while (player.orbitRings.length < count) player.orbitRings.push({ angle: player.orbitPhase, active: true, hitCooldowns: {} });
+  const angles = getOrbitRingAngles(player.orbitPhase, count);
+  for (let index = 0; index < count; index++) player.orbitRings[index]!.angle = angles[index]!;
 }
 
 function populateOptions(state: SimState): void {
@@ -844,8 +852,10 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
     const radius = (48 + Math.min(12, effectiveOrbitRank * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0)) * heroicStatMultiplier(p.passiveRanks, 'area');
     p.orbitTimer = (p.orbitTimer + step) % 3.2;
     const activeDuration = p.evolutions.includes('eternal-halo') ? 3.2 : Math.min(2.8, 1.8 * heroicStatMultiplier(p.passiveRanks, 'duration'));
+    p.orbitPhase = (p.orbitPhase + angularSpeed * step) % (Math.PI * 2);
+    syncOrbitRings(p);
     for (let ringIndex = 0; ringIndex < count; ringIndex++) {
-      const ring = p.orbitRings[ringIndex]!; ring.active = p.evolutions.includes('eternal-halo') || p.orbitTimer < activeDuration; ring.angle = (ring.angle + angularSpeed * step) % (Math.PI * 2);
+      const ring = p.orbitRings[ringIndex]!; ring.active = p.evolutions.includes('eternal-halo') || p.orbitTimer < activeDuration;
       const position = { x: p.x + Math.cos(ring.angle) * radius, y: p.y + Math.sin(ring.angle) * radius };
       for (const id of Object.keys(ring.hitCooldowns)) { ring.hitCooldowns[Number(id)] = Math.max(0, ring.hitCooldowns[Number(id)]! - step); if (ring.hitCooldowns[Number(id)] === 0) delete ring.hitCooldowns[Number(id)]; }
       for (const enemy of state.enemyGrid.queryRadius(position.x, position.y, 22, nearbyEnemies)) {

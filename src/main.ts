@@ -1,10 +1,11 @@
 import { applyEnemyDamage, createGame, damagePlayer, retireRun, spawnEnemy, spawnEliteEnemy, updateGame, chooseUpgrade, chooseBossReward, getUpgrade, type InputState, type SimState } from './game/simulation';
-import { ATTACKS, ENEMIES, HEROES, HEROIC_TRAITS, WEAPON_EVOLUTIONS, standardRun, testRun, type EnemyKind, type HeroId, type RunConfig, type UpgradeId, type WeaponEvolutionId, type WeaponId } from './game/definitions';
+import { ATTACKS, ENEMIES, HEROES, HEROIC_TRAITS, STAGE_REGISTRY, FUTURE_STAGE_SLOTS, WEAPON_EVOLUTIONS, testRun, type EnemyKind, type HeroId, type RunConfig, type StageId, type UpgradeId, type WeaponEvolutionId, type WeaponId } from './game/definitions';
 import { GameRenderer } from './render/renderer';
 import { nearestWalkablePoint } from './game/stage';
 import { GameAudio } from './game/audio';
 import { DIFFICULTIES, type DifficultyId } from './game/definitions';
 import { getUpgradeRankProgress } from './game/upgrade-ranks';
+import { HERO_PORTRAITS } from './game/assets';
 import './style.css';
 
 const ui = document.querySelector<HTMLDivElement>('#ui')!;
@@ -16,7 +17,8 @@ function savedChoice<T extends string>(key: string, values: readonly T[], fallba
 }
 let selectedDifficulty: DifficultyId = savedChoice('grand-glory-difficulty', ['normal', 'heroic'] as const, 'normal');
 let selectedHero: HeroId = savedChoice('grand-glory-hero', ['blue-pinwheel','bok-goo','da-ri'] as const, 'blue-pinwheel');
-let config: RunConfig = { ...(testConfiguration ? testRun : standardRun), difficulty: selectedDifficulty };
+let selectedStage: StageId = savedChoice('grand-glory-stage', ['seoulumbus-downtown'] as const, 'seoulumbus-downtown');
+let config: RunConfig = { ...(testConfiguration ? testRun : STAGE_REGISTRY[selectedStage].run), difficulty: selectedDifficulty };
 const audio = new GameAudio();
 let cameraPreset: 'wide' | 'standard' | 'close' = savedChoice('grand-glory-camera', ['wide', 'standard', 'close'] as const, 'standard');
 let reducedMotion = savedChoice('grand-glory-reduced-motion', ['on', 'off'] as const, 'off') === 'on';
@@ -46,7 +48,7 @@ function summarize(samples: number[]): { average: number; p95: number; worst: nu
   return { average: samples.reduce((sum, value) => sum + value, 0) / samples.length, p95: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0, worst: sorted[sorted.length - 1] ?? 0 };
 }
 
-function start(): void { held.clear(); setInput(); game = createGame(config.seed, config, selectedHero); accumulator = 0; lastTime = performance.now(); previousKills = 0; previousXp = 0; previousSpecial = false; previousBossArrival = false; previousMessageCount = game.messages.length; previousResult = null; previousHealth = game.player.health; previousDashTimer = 0; previousAttackTimer = 0; audio.play('menu'); renderUi(true); }
+function start(): void { config = { ...(testConfiguration ? testRun : STAGE_REGISTRY[selectedStage].run), difficulty: selectedDifficulty }; held.clear(); setInput(); game = createGame(config.seed, config, selectedHero); accumulator = 0; lastTime = performance.now(); previousKills = 0; previousXp = 0; previousSpecial = false; previousBossArrival = false; previousMessageCount = game.messages.length; previousResult = null; previousHealth = game.player.health; previousDashTimer = 0; previousAttackTimer = 0; audio.play('menu'); renderUi(true); }
 function title(): void { held.clear(); setInput(); game = null; renderUi(true); }
 function setInput(): void {
   input.x = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'));
@@ -60,12 +62,13 @@ function menu(titleText: string, body: string, action: string, label: string): s
 
 function renderTitle(debug: string): string {
   const chosen=HEROES[selectedHero];
-  const portrait=selectedHero==='blue-pinwheel'?'/assets/blue-pinwheel/select-portrait.png':'/assets/milestone010/'+selectedHero+'/portrait.png';
+  const portrait=HERO_PORTRAITS[selectedHero];
   const heroCards=(Object.values(HEROES) as Array<(typeof HEROES)[HeroId]>).map((hero,index)=>{
-    const src=hero.id==='blue-pinwheel'?'/assets/blue-pinwheel/select-portrait.png':'/assets/milestone010/'+hero.id+'/portrait.png';
+    const src=HERO_PORTRAITS[hero.id as HeroId];
     return '<button class="hero-choice '+(selectedHero===hero.id?'selected':'')+'" data-hero="'+hero.id+'" aria-pressed="'+(selectedHero===hero.id)+'"><img src="'+src+'" alt="" /><strong>'+hero.name+'</strong><small>'+(hero.title??'')+'</small><span>'+hero.startingWeapon+' · '+hero.maxHealth+' HP · '+hero.moveSpeed+' speed</span><i>KEY '+(index+1)+'</i></button>';
   }).join('');
-  return `<section class="screen-card title-screen title-screen-v2 hero-select-screen"><div class="portrait-frame"><span class="portrait-label">HERO FILE · ${String(Object.keys(HEROES).indexOf(selectedHero)+1).padStart(3,'0')}</span><div class="hero-portrait-wrap"><img class="hero-portrait" src="${portrait}" alt="${chosen.name} selection portrait" /></div><span class="portrait-status"><i></i> READY TO DEPLOY</span></div><div class="title-copy"><div class="eyebrow">A CITY UNDER PRESSURE · AN ORIGINAL SUPERHERO SURVIVOR</div><h1>GRAND<br><em>GLORY</em></h1><div class="title-rule"><i></i><span>ENDLESS SURVIVAL · PROTOTYPE</span><i></i></div><div class="selected-hero"><span>SELECTED HERO · ${chosen.role}</span><strong>${chosen.name} · ${chosen.title}</strong></div><p>${chosen.description}</p><div class="hero-choices">${heroCards}</div><div class="title-settings"><label>DIFFICULTY <select data-setting="difficulty" aria-label="Difficulty"><option value="normal" ${selectedDifficulty === 'normal' ? 'selected' : ''}>Normal · Recommended</option><option value="heroic" ${selectedDifficulty === 'heroic' ? 'selected' : ''}>Heroic · Advanced</option></select></label><label>CAMERA <select data-setting="camera" aria-label="Camera scale"><option value="wide" ${cameraPreset === 'wide' ? 'selected' : ''}>Wide</option><option value="standard" ${cameraPreset === 'standard' ? 'selected' : ''}>Standard</option><option value="close" ${cameraPreset === 'close' ? 'selected' : ''}>Close</option></select></label><button class="sound-toggle" data-action="sound" aria-pressed="${audio.isEnabled()}">SOUND ${audio.isEnabled() ? 'ON' : 'OFF'}</button><label>SFX <input data-setting="volume" aria-label="Sound effects volume" type="range" min="0" max="1" step="0.05" value="${audio.getVolume()}" /></label><button class="sound-toggle" data-action="reduced-motion" aria-pressed="${reducedMotion}">REDUCED MOTION ${reducedMotion ? 'ON' : 'OFF'}</button></div><button class="primary play-button" data-action="start"><span>▶</span> PLAY NOW · ENDLESS RUN <small>ENTER</small></button><div class="title-controls"><strong>FIELD CONTROLS</strong><span><b>MOVE</b> WASD / ARROWS <b>DASH</b> SHIFT / SPACE</span><span><b>SPECIAL</b> Q <b>PAUSE</b> ESC</span></div><small class="canon-note">Abilities are prototype mechanics · Canon remains owner-controlled</small></div></section>${debug}`;
+  const stageCards=Object.values(STAGE_REGISTRY).map(stage=>`<button class="stage-choice ${selectedStage===stage.id?'selected':''}" data-stage="${stage.id}" aria-pressed="${selectedStage===stage.id}"><strong>${stage.name}</strong><span>${stage.description}</span><i>AVAILABLE · ${stage.visualStyle.toUpperCase()}</i></button>`).join('')+Array.from({length:FUTURE_STAGE_SLOTS},(_,index)=>`<button class="stage-choice unavailable" disabled><strong>Additional stage ${index+1}</strong><span>Not yet available</span><i>COMING LATER</i></button>`).join('');
+  return `<section class="screen-card title-screen title-screen-v2 hero-select-screen"><div class="portrait-frame"><span class="portrait-label">HERO FILE · ${String(Object.keys(HEROES).indexOf(selectedHero)+1).padStart(3,'0')}</span><div class="hero-portrait-wrap"><img class="hero-portrait" src="${portrait}" alt="${chosen.name} selection portrait" /></div><span class="portrait-status"><i></i> READY TO DEPLOY</span></div><div class="title-copy"><div class="eyebrow">A CITY UNDER PRESSURE · AN ORIGINAL SUPERHERO SURVIVOR</div><h1>GRAND<br><em>GLORY</em></h1><div class="title-rule"><i></i><span>ENDLESS SURVIVAL · PROTOTYPE</span><i></i></div><div class="selected-hero"><span>SELECTED HERO · ${chosen.role}</span><strong>${chosen.name} · ${chosen.title}</strong></div><p>${chosen.description}</p><div class="hero-choices">${heroCards}</div><section class="stage-select" aria-label="Stage selection"><div><strong>STAGE SELECT</strong><small>Choose your route after selecting a hero</small></div><div class="stage-choices">${stageCards}</div></section><div class="title-settings"><label>DIFFICULTY <select data-setting="difficulty" aria-label="Difficulty"><option value="normal" ${selectedDifficulty === 'normal' ? 'selected' : ''}>Normal · Recommended</option><option value="heroic" ${selectedDifficulty === 'heroic' ? 'selected' : ''}>Heroic · Advanced</option></select></label><label>CAMERA <select data-setting="camera" aria-label="Camera scale"><option value="wide" ${cameraPreset === 'wide' ? 'selected' : ''}>Wide</option><option value="standard" ${cameraPreset === 'standard' ? 'selected' : ''}>Standard</option><option value="close" ${cameraPreset === 'close' ? 'selected' : ''}>Close</option></select></label><button class="sound-toggle" data-action="sound" aria-pressed="${audio.isEnabled()}">SOUND ${audio.isEnabled() ? 'ON' : 'OFF'}</button><label>SFX <input data-setting="volume" aria-label="Sound effects volume" type="range" min="0" max="1" step="0.05" value="${audio.getVolume()}" /></label><button class="sound-toggle" data-action="reduced-motion" aria-pressed="${reducedMotion}">REDUCED MOTION ${reducedMotion ? 'ON' : 'OFF'}</button></div><button class="primary play-button" data-action="start"><span>▶</span> PLAY NOW · ENDLESS RUN <small>ENTER</small></button><div class="title-controls"><strong>FIELD CONTROLS</strong><span><b>MOVE</b> WASD / ARROWS <b>DASH</b> SHIFT / SPACE</span><span><b>SPECIAL</b> Q <b>PAUSE</b> ESC</span></div><small class="canon-note">Abilities are prototype mechanics · Canon remains owner-controlled</small></div></section>${debug}`;
 }
 
 function renderUi(force = false): void {
@@ -159,7 +162,7 @@ ui.addEventListener('change', e => {
   if (target.dataset.setting === 'difficulty') {
     selectedDifficulty = target.value as DifficultyId;
     try { localStorage.setItem('grand-glory-difficulty', selectedDifficulty); } catch { /* Optional preference. */ }
-    config = { ...(testConfiguration ? testRun : standardRun), difficulty: selectedDifficulty };
+    config = { ...(testConfiguration ? testRun : STAGE_REGISTRY[selectedStage].run), difficulty: selectedDifficulty };
     audio.play('menu'); renderUi(true);
   } else if (target.dataset.setting === 'camera') {
     cameraPreset = target.value as 'wide' | 'standard' | 'close'; renderer?.setCameraPreset(cameraPreset);
@@ -174,6 +177,8 @@ ui.addEventListener('click', e => {
   const target = e.target as HTMLElement;
   const hero=target.closest<HTMLElement>('[data-hero]')?.dataset.hero as HeroId|undefined;
   if(hero&&!game){selectedHero=hero;try{localStorage.setItem('grand-glory-hero',hero);}catch{/* Optional preference. */}audio.play('menu');renderUi(true);return;}
+  const stage=target.closest<HTMLElement>('[data-stage]')?.dataset.stage as StageId|undefined;
+  if(stage&&!game&&STAGE_REGISTRY[stage]){selectedStage=stage;try{localStorage.setItem('grand-glory-stage',stage);}catch{/* Optional preference. */}audio.play('menu');renderUi(true);return;}
   const upgrade = target.closest<HTMLElement>('[data-upgrade]')?.dataset.upgrade as UpgradeId | undefined;
   if (upgrade && game) { if (chooseUpgrade(game, upgrade)) audio.play('upgrade'); renderUi(true); return; }
   const reward = target.closest<HTMLElement>('[data-reward]')?.dataset.reward as WeaponEvolutionId | 'field-cache' | undefined;

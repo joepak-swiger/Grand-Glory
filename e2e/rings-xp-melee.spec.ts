@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 const evidence = 'artifacts/evidence/rings-xp-and-melee';
+const orbitEvidence = 'artifacts/evidence/living-city/run/orbit';
 
 test('rings, persistent XP collection, skill ranks, and baseball pitcher render in the game', async ({ page }) => {
   mkdirSync(evidence, { recursive: true });
@@ -92,4 +93,34 @@ test('rings, persistent XP collection, skill ranks, and baseball pitcher render 
   await page.screenshot({ path: `${evidence}/bat-thug-melee-telegraph.png` });
   expect(errors).toEqual([]);
   expect(failedAssets).toEqual([]);
+});
+
+test('Orbit Guard formations render evenly spaced at one through maximum ring counts', async ({ page }) => {
+  mkdirSync(orbitEvidence, { recursive: true });
+  await page.setViewportSize({ width: 1365, height: 900 });
+  await page.goto('/?test=1');
+  await page.getByRole('button', { name: /PLAY NOW/i }).click();
+  await expect.poll(() => page.evaluate(() => window.__GG_TEST__?.getRendererState().cityMapLoaded ?? false)).toBe(true);
+
+  const formations = [
+    { name: 'one-ring', rank: 1, multiplicity: 0, eternal: false, count: 1 },
+    { name: 'two-rings', rank: 2, multiplicity: 0, eternal: false, count: 2 },
+    { name: 'three-rings', rank: 4, multiplicity: 0, eternal: false, count: 3 },
+    { name: 'four-rings', rank: 5, multiplicity: 0, eternal: false, count: 4 },
+    { name: 'maximum-six-rings', rank: 5, multiplicity: 2, eternal: true, count: 6 },
+  ] as const;
+
+  for (const formation of formations) {
+    const count = await page.evaluate(({ rank, multiplicity, eternal }) => {
+      const test = window.__GG_TEST__; const state = test?.getState(); if (!test || !state) return -1;
+      state.player.weaponRanks.orbitGuard = rank;
+      state.player.passiveRanks.multiplicity = multiplicity;
+      state.player.orbit = true;
+      if (eternal && !state.player.evolutions.includes('eternal-halo')) state.player.evolutions.push('eternal-halo');
+      test.advance(0.06);
+      return state.player.orbitRings.length;
+    }, formation);
+    expect(count).toBe(formation.count);
+    await page.screenshot({ path: `${orbitEvidence}/${formation.name}.png` });
+  }
 });

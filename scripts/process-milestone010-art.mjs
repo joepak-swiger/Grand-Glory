@@ -4,7 +4,12 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(import.meta.dirname, '..');
 const source = path.resolve(process.argv[2] ?? path.join(root, 'artifacts/milestone-010-work/originals'));
-const output = path.join(root, 'public/assets/milestone010');
+const output = path.join(root, 'public/assets/game');
+const outputDir = id => id === 'bok-goo' || id === 'da-ri'
+  ? path.join(output, 'heroes', id)
+  : id === 'gang-boss' || id === 'dr-smile'
+    ? path.join(output, 'bosses', id)
+    : path.join(output, 'enemies', id === 'smiler' || id === 'molar' ? 'dr-smile-faction' : 'street-gang', id);
 const entries = [
   ['bok-goo', 'Caveman Warrior Boulder Walk Cycle.png', 'Pixel-art Korean Caveman Champion.png', 'sprite-animation(14).gif'],
   ['da-ri', null, 'Pixel-Art Tribal Warrior with Spear.png', 'sprite-animation(15).gif'],
@@ -73,9 +78,9 @@ const save = async (data, destination) => { await mkdir(path.dirname(destination
 
 try {
   for (const [id, sheetName, portraitName, gifName] of entries) {
-    const dir = path.join(output, id);
+    const dir = outputDir(id);
     if (sheetName) await save(await prepare(path.join(source, id, sheetName), 'sheet', 512), path.join(dir, 'walk.png'));
     if (portraitName) await save(await prepare(path.join(source, id, portraitName), 'portrait', 0), path.join(dir, 'portrait.png'));
-    if (!sheetName) await save(await prepare(path.join(source, id, gifName), 'gif', 0), path.join(dir, 'walk-gif.png'));
+    if (!sheetName) await save(await prepare(path.join(source, id, gifName), 'gif', 0), path.join(dir, 'walk.png'));
   }
 } finally { await browser.close(); }
