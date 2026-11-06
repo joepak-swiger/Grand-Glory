@@ -254,3 +254,36 @@ The current local seeded simulation benchmark ran on Windows x64 with Node 24.22
 | 200 | 0.2872 / 0.3492 / 0.4762 | 0.4032 / 0.6017 / 0.9774 |
 
 The latest sample is slower at each population median from 50 enemies upward and has a noisy 5.75ms worst update at 100 enemies. All reported p95 values remain under the 16.7ms fixed-step budget, but the results do not demonstrate a performance improvement. These single-run samples cannot attribute the difference to crates, utilities, or runtime noise; run repeated paired trials and browser renderer comparisons before drawing a cause. Local Chromium could not reach its own Vite server because Windows denied localhost socket access, so no new local FPS, renderer, or memory result is available.
+
+## Assignment 013 matching simulation sample
+
+The same seeded 120-warm-up / 600-measured update benchmark was rerun with bundled Node 24.22.1 on Windows x64. Each target uses mixed enemy/projectile/pickup/effect state as above. Assignment 012 values are retained as the before sample. These are separate process runs, so they show observed variance rather than proving a code speedup; Assignment 013 changes are primarily UI feedback and do not alter the per-entity simulation workload.
+
+| Active enemies | Assignment 012 median / p95 / worst ms | Assignment 013 median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0480 / 0.1471 / 0.3406 | 0.0324 / 0.1319 / 0.9380 |
+| 50 | 0.0576 / 0.1024 / 0.6347 | 0.0500 / 0.0834 / 0.1949 |
+| 100 | 0.2023 / 0.4087 / 5.7489 | 0.1155 / 0.1733 / 0.5260 |
+| 150 | 0.2927 / 0.4818 / 1.3351 | 0.1949 / 0.2418 / 0.2852 |
+| 200 | 0.4032 / 0.6017 / 0.9774 | 0.2760 / 0.3589 / 0.4375 |
+
+This run had lower medians at every population but a higher isolated worst update at 25 enemies. Because the update code is essentially unchanged and this is one unpaired run per version, do not attribute the lower medians to the pickup presentation work. The new XP Recall pulse adds at most two simple ring strokes for roughly 1.35 seconds; the cache entrance is CSS-only while the simulation is paused. A fresh browser FPS/renderer comparison was not available locally because the managed Windows environment refused the Playwright localhost socket. Existing hosted Assignment 012 SwiftShader figures remain the only browser baseline and do not represent desktop GPU performance.
+# Assignment 014 performance and watcher notes
+
+Assignment 014 does not alter horde caps, enemy spawn targets, simulation cadence, or navigation algorithms. The local synthetic browser comparison below and preceding Assignment 013 baseline show no substantial regression in renderer-update time. Runtime registry paths are static images loaded/cached through existing PixiJS texture reuse. The two new procedural prop textures are created once by the renderer. Static map detail remains part of the cached city map; there is no per-frame full-scene rebuild introduced here.
+
+The Windows `EBUSY` hypothesis was excessive watching/serving of source artwork placed under `public/assets`, which also made Vite copy unused images into production. Assignment 014 moves 74 local untracked raster files out of `public/` to the ignored local source library and adds a narrow Vite watcher exclusion for that library. Normal project code/runtime assets remain watched; no polling mode or error suppression was enabled. The local `art-library/` is never a public build input. Production output and browser HMR still require the verification described in `docs/TESTING.md`; no hardware-GPU claim is made.
+
+### Assignment 014 browser comparison
+
+The local serial Playwright run used Windows x64, HeadlessChrome 156.0.8078.4, viewport 1365×900, 16 reported logical processors, WebGL preferred through ANGLE/Vulkan SwiftShader, and about 22.03 MiB reported JS heap. The synthetic scene pauses simulation and places all entities in view. It recorded the following current samples:
+
+| Visible enemies | Sampled FPS | Avg frame ms | p95 frame ms | Worst frame ms | Renderer update avg / p95 / worst ms |
+|---:|---:|---:|---:|---:|---:|
+| 25 | 60 | 22.59 | 33.4 | 100 | 0.2 / 0.4 / 2.5 |
+| 50 | 30 | 22.74 | 33.4 | 100 | 0.2 / 0.4 / 2.5 |
+| 100 | 60 | 23.86 | 33.4 | 100 | 0.3 / 0.5 / 2.6 |
+| 150 | 30 | 25.17 | 33.4 | 50 | 0.4 / 0.6 / 2.6 |
+| 200 | 20 | 27.61 | 33.4 | 50.1 | 0.7 / 0.7 / 2.6 |
+
+The preceding Assignment 013 local sweep used the same browser family, viewport, SwiftShader renderer, and synthetic paused-scene setup. It reported average frames 22.69 / 22.66 / 23.69 / 25.14 / 27.22 ms and renderer p95 0.6 / 0.5 / 0.6 / 0.6 / 0.7 ms at the same populations. The current averages are close (within 0.4 ms), with the same 33.4 ms p95 and renderer p95 no higher than 0.7 ms. This separate-run software-renderer comparison shows no substantial regression; it is not evidence of a GPU speedup. Sampled FPS is quantized/noisy (30 at 50 enemies, 20 at 200) despite the measured whole-frame averages; compare the frame-time distributions and CPU view-update costs, not the single FPS sample. Simulation is paused in this fixture, so its zero simulation cost/dropped updates cannot characterize a live horde. Owner desktop GPU performance remains unmeasured.

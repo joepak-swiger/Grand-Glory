@@ -131,7 +131,7 @@ describe('supply pickup registry and Dr. Smile art frames', () => {
     tick(s, 1, cfg);
     expect(box.destroyed).toBe(true);
     expect(s.projectiles).not.toContain(projectile);
-    expect(s.props).toHaveLength(4);
+    expect(s.props).toHaveLength(7);
   });
 
   it('keeps a cache choice paused and applies one valid upgrade before resuming', () => {
@@ -145,5 +145,43 @@ describe('supply pickup registry and Dr. Smile art frames', () => {
     expect(chooseUpgrade(s, upgrade)).toBe(true);
     expect(s.status).toBe('playing');
     expect(s.supplyCacheTier).toBeNull();
+  });
+
+  it('serializes a cache reward and queued XP level-up without losing the pickup or choice', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 0 } };
+    const s = createGame(1210, cfg); s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    s.player.xpNext = 30;
+    spawnPickup(s, 'field-cache', { x: s.player.x, y: s.player.y });
+    spawnPickup(s, 'xp', { x: s.player.x, y: s.player.y }, 30);
+
+    tick(s, 1, cfg);
+    expect(s.status).toBe('upgrade');
+    expect(s.supplyCacheTier).toBe('field-cache');
+    expect(s.xpCollected).toBe(0);
+    expect(s.pickups.some(pickup => pickup.kind === 'xp' && pickup.value === 30)).toBe(true);
+
+    expect(chooseUpgrade(s, s.options[0]!)).toBe(true);
+    tick(s, 1, cfg);
+    expect(s.xpCollected).toBe(30);
+    expect(s.player.level).toBe(2);
+    expect(s.status).toBe('upgrade');
+    expect(s.supplyCacheTier).toBeNull();
+    expect(s.options.length).toBeGreaterThan(0);
+  });
+
+  it('opens overlapping supply caches one at a time instead of discarding either reward', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 0 } };
+    const s = createGame(1211, cfg); s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    spawnPickup(s, 'field-cache', { x: s.player.x, y: s.player.y });
+    spawnPickup(s, 'hero-cache', { x: s.player.x, y: s.player.y });
+
+    tick(s, 1, cfg);
+    expect(s.supplyCacheTier).toBe('field-cache');
+    expect(s.pickups.some(pickup => pickup.kind === 'hero-cache')).toBe(true);
+    expect(chooseUpgrade(s, s.options[0]!)).toBe(true);
+    tick(s, 1, cfg);
+    expect(s.status).toBe('upgrade');
+    expect(s.supplyCacheTier).toBe('hero-cache');
+    expect(s.pickups.some(pickup => pickup.kind === 'hero-cache')).toBe(false);
   });
 });

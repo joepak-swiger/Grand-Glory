@@ -20,6 +20,11 @@ test('shared city geometry supports street travel, wall slides, dashes and enemy
   await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(600, 600));
   await page.screenshot({ path: `${evidence}/city-intersection.png` });
 
+  await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(520, 420));
+  await page.screenshot({ path: `${evidence}/vending-machine-sidewalk.png` });
+  await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(1100, 900));
+  await page.screenshot({ path: `${evidence}/pojangmacha-sidewalk.png` });
+
   await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(500, 220));
   await page.screenshot({ path: `${evidence}/brick-commercial-block.png` });
   await page.evaluate(() => window.__GG_TEST__?.setPlayerPosition(700, 220));

@@ -1,5 +1,11 @@
 # Prototype gameplay
 
+## Assignment 014 stage, props, and Orbit Guard
+
+The title screen supports stage selection after hero selection. Only **Seoulumbus — Downtown** is active; future slots are disabled. Stage metadata lives in `STAGE_REGISTRY`, while shared walkability, collision, spawns, and city visuals continue to derive from the existing stage geometry. The stage selection does not create a second map or alter run balance.
+
+Downtown now includes a sparse authored vending machine and 포장마차 on sidewalk cells. Seven small nonblocking breakables (four supply boxes, two delivery packages, one utility container) are placed at deterministic walkable points and use the established utility pickup table. Orbit Guard now computes every angle from a common rotation phase and evenly spaced rank slot, and its render positions match its collision positions. Detailed design and limitations: [CITY_PROPS.md](CITY_PROPS.md), [STAGE_ARCHITECTURE.md](STAGE_ARCHITECTURE.md), and [ART_LIBRARY.md](ART_LIBRARY.md).
+
 ## Visual stage
 
 The `City Street (Prototype)` stage is an 1800×1200 neighborhood with a broad east-west boulevard, a second cross street, two north-south avenues, sidewalks, four marked intersections, and six coherent building footprints. Shared geometry in `src/game/stage.ts` drives the rendered map, walkability, bounds, spawning, collision, projectiles, and enemy route field. Asphalt and road paint are authored separately from the atlas because its road crops contain repeated baked lane lines. Building roofs use consistent original brick, glass, and industrial palettes; the CC0 atlas supplies pavement and sidewalk textures.
@@ -61,6 +67,10 @@ Pause includes **Retire Run**. Endless results identify the hero, difficulty, su
 Choose Wide (0.94×), Standard (1.08×, default), or Close (1.2×) on the title screen. This scales only the world layer; screen-space UI and all collision radii remain unchanged. The camera setting is saved locally. Synthesized sound effects begin after the first user interaction; mute and SFX volume persist locally. First launch defaults to 55% volume; a saved zero remains silent. Cues cover menus, attacks, hits, defeats, pickups, dash, special, boss arrival, and run outcomes, with repeated hit/pickup/defeat sounds throttled. Reduced Motion suppresses rapid hit flashing, most special-ring movement, and UI transitions.
 
 Starter and Piercing Ring projectiles use blue metallic ring textures with hollow centers, bright highlights, and restrained blue trails; Piercing Ring uses an overlapping twin-ring silhouette. Orbit Guard uses the same blue-and-silver visual language. XP gems use small cyan-green, medium blue, and large violet crystals based on their accumulated value. The Street Pitcher appears in its supplied walk cycle and uses the still throwing pose during its readable baseball wind-up. Aim warnings and boss arrival cues remain visible without freezing the run.
+
+## Reward feedback — Assignment 013
+
+Recovery, XP Recall, Curry, supply-box, elite-cache, and boss-reward events use brief pickup toasts. Supply cache choices have a gold-accented opening presentation and remain paused until selection; after resuming, the toast is short and sits above the arena HUD. XP Recall adds an expanding cyan signal for about 1.35 seconds. It does not change the underlying XP value, Wisdom application, or blocked-building handling. The feedback is intentionally bounded and follows Reduced Motion.
 # Assignment 012 — Supply Drops and Elites
 
 The city now contains four nonblocking supply boxes that can be broken by player projectiles. Recovery Rations restore `max(35 HP, 20% max HP)` up to the health cap; they stay on the ground while the hero is at full health. Rare XP Recall calls all outstanding XP piles back to the hero and credits their exact stored value once per pile, with Wisdom applied at collection. Inferno Curry is an eight-second, forward-facing cone attack shared by every hero, with per-target damage cooldowns. These are generic pickups, not new canonical hero powers.

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, HEROES, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
-import { acquireTarget, applyEnemyDamage, chooseBossReward, chooseUpgrade, createGame, damagePlayer, eligibleWeaponEvolutions, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { acquireTarget, applyEnemyDamage, chooseBossReward, chooseUpgrade, createGame, damageBreakableProp, damagePlayer, eligibleWeaponEvolutions, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { BREAKABLE_CITY_PROPS } from '../src/game/city-props';
 import { isWalkable } from '../src/game/stage';
 import { getUpgradeRankProgress } from '../src/game/upgrade-ranks';
+import { getOrbitRingAngles } from '../src/game/orbit-formation';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
 function steps(state: ReturnType<typeof createGame>, count: number, input = idle, cfg = testRun): void { for (let i = 0; i < count; i++) updateGame(state, 1 / 60, input, cfg); }
@@ -562,6 +564,47 @@ describe('deterministic gameplay simulation', () => {
     console.info(`STANDARD_SEED_SIM ${JSON.stringify(observations)}`);
   }, 60_000);
 
+  it('checks three-hero offensive, defensive, and balanced Endless builds across fixed seeds', () => {
+    const plans = [
+      { hero: 'blue-pinwheel', style: 'offense', seed: 3101, picks: ['pinwheel', 'piercingThrow', 'orbit', 'might', 'tempo', 'ricochetRing', 'multiplicity'] },
+      { hero: 'blue-pinwheel', style: 'defense', seed: 3102, picks: ['vitality', 'regeneration', 'resilience', 'agility', 'orbit', 'pinwheel', 'attraction'] },
+      { hero: 'blue-pinwheel', style: 'balanced', seed: 3103, picks: ['pinwheel', 'vitality', 'piercingThrow', 'regeneration', 'orbit', 'might', 'agility'] },
+      { hero: 'bok-goo', style: 'offense', seed: 3201, picks: ['clubSweep', 'boulderToss', 'groundSlam', 'might', 'tempo', 'multiplicity'] },
+      { hero: 'bok-goo', style: 'defense', seed: 3202, picks: ['vitality', 'regeneration', 'resilience', 'agility', 'clubSweep', 'groundSlam'] },
+      { hero: 'bok-goo', style: 'balanced', seed: 3203, picks: ['clubSweep', 'vitality', 'boulderToss', 'regeneration', 'groundSlam', 'might'] },
+      { hero: 'da-ri', style: 'offense', seed: 3301, picks: ['spearThrust', 'spearToss', 'spearSweep', 'might', 'tempo', 'multiplicity'] },
+      { hero: 'da-ri', style: 'defense', seed: 3302, picks: ['vitality', 'regeneration', 'resilience', 'agility', 'spearThrust', 'spearSweep'] },
+      { hero: 'da-ri', style: 'balanced', seed: 3303, picks: ['spearThrust', 'vitality', 'spearToss', 'regeneration', 'spearSweep', 'might'] },
+    ] as const;
+    const results: Array<Record<string, unknown>> = [];
+    for (const plan of plans) {
+      const run = { ...standardRun, gameMode: 'endless' as const };
+      const state = createGame(plan.seed, run, plan.hero);
+      let guard = 0;
+      while ((state.status === 'playing' || state.status === 'upgrade' || state.status === 'boss-reward') && state.elapsed < 240) {
+        if (state.status === 'upgrade') {
+          const selected = plan.picks.find(id => state.options.includes(id as UpgradeId)) ?? state.options[0];
+          if (!selected || !chooseUpgrade(state, selected)) throw new Error(`${plan.hero}/${plan.style} had no valid level-up choice`);
+        } else if (state.status === 'boss-reward') {
+          const reward = state.evolutionOptions[0];
+          if (!reward || !chooseBossReward(state, reward)) throw new Error(`${plan.hero}/${plan.style} had no valid boss reward`);
+        } else {
+          const angle = state.elapsed * 0.43;
+          updateGame(state, 1 / 60, { x: Math.cos(angle), y: Math.sin(angle), dash: true, special: true }, run);
+        }
+        // Upgrade/cache choices intentionally pause elapsed time but still consume loop iterations.
+        if (++guard > 18_000) throw new Error(`${plan.hero}/${plan.style} exceeded the four-minute simulation bound at ${state.elapsed.toFixed(1)}s (${state.status})`);
+      }
+      const damageSources = Object.entries(state.damageTaken).sort((a, b) => b[1] - a[1]);
+      results.push({ hero: plan.hero, style: plan.style, seed: plan.seed, outcome: state.status, survivalSeconds: Math.round(state.elapsed), level: state.player.level, hp: Math.ceil(state.player.health), kills: state.kills, peakEnemies: state.peakEnemies, bossesDefeated: state.bossesDefeated, xpCollected: state.xpCollected, topDamageSource: damageSources[0]?.[0] ?? 'none', damageBySource: Object.fromEntries(damageSources.filter(([, value]) => value > 0).slice(0, 3)), weapons: Object.fromEntries(Object.entries(state.player.weaponRanks).filter(([, rank]) => rank > 0)) });
+      expect(state.elapsed).toBeGreaterThan(60);
+      expect(state.enemies.length).toBeLessThanOrEqual(run.horde.maxActive + 1);
+      expect(state.player.health).toBeGreaterThanOrEqual(0);
+      expect(state.xpSpawned).toBe(state.xpCollected + state.pickups.filter(pickup => pickup.kind === 'xp').reduce((sum, pickup) => sum + pickup.value, 0) + state.xpLost);
+    }
+    console.info(`ENDLESS_HERO_BUILD_MATRIX ${JSON.stringify(results)}`);
+  }, 60_000);
+
   it('measures 25/50/100/150/200 active-enemy loads and keeps entity totals bounded', () => {
     const measurements: Array<{ enemies: number; frames: number; medianMs: number }> = [];
     const performanceRun = { ...testRun, bossAt: 3_600, duration: 7_200 };
@@ -630,6 +673,54 @@ describe('deterministic gameplay simulation', () => {
     const afterFirstContact = enemy.health;
     steps(s, 1, idle, cfg);
     expect(enemy.health).toBe(afterFirstContact);
+  });
+
+  it('keeps Orbit Guard evenly spaced through every rank, multiplicity, and Eternal Halo transition', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const expectedByRank = [1, 2, 2, 3, 4];
+    for (let rank = 1; rank <= 5; rank++) {
+      const state = createGame(22121 + rank, cfg);
+      state.spawnTimer = 10_000; state.player.attackTimer = 10_000; state.player.piercingTimer = 10_000;
+      state.player.orbit = true; state.player.weaponRanks.orbitGuard = rank;
+      steps(state, 1, idle, cfg);
+      expect(state.player.orbitRings).toHaveLength(expectedByRank[rank - 1]!);
+      expect(state.player.orbitRings.map(ring => ring.angle)).toEqual(getOrbitRingAngles(state.player.orbitPhase, expectedByRank[rank - 1]!));
+    }
+
+    const state = createGame(22127, cfg); state.spawnTimer = 10_000; state.player.attackTimer = 10_000;
+    state.player.piercingTimer = 10_000; state.player.orbit = true; state.player.weaponRanks.orbitGuard = 2;
+    steps(state, 1, idle, cfg);
+    expect(state.player.orbitRings).toHaveLength(2);
+    const previousPhase = state.player.orbitPhase;
+    state.player.passiveRanks.multiplicity = 1; steps(state, 1, idle, cfg);
+    expect(state.player.orbitRings).toHaveLength(3);
+    expect(state.player.orbitPhase).toBeGreaterThan(previousPhase);
+    expect(state.player.orbitRings.map(ring => ring.angle)).toEqual(getOrbitRingAngles(state.player.orbitPhase, 3));
+    state.player.passiveRanks.multiplicity = 2; state.player.evolutions.push('eternal-halo'); steps(state, 1, idle, cfg);
+    expect(state.player.orbitRings).toHaveLength(6);
+    expect(state.player.orbitRings.map(ring => ring.angle)).toEqual(getOrbitRingAngles(state.player.orbitPhase, 6));
+  });
+
+  it('generates equal angular gaps for all supported Orbit Guard formations', () => {
+    for (let count = 1; count <= 6; count++) {
+      const angles = getOrbitRingAngles(5.7, count);
+      expect(angles).toHaveLength(count);
+      for (let index = 1; index < count; index++) expect(angles[index]! - angles[index - 1]!).toBeCloseTo(Math.PI * 2 / count, 12);
+    }
+    expect(getOrbitRingAngles(0, 0)).toEqual([]);
+  });
+
+  it('creates deterministic walkable breakables and permits each prop to drop rewards only once', () => {
+    const first = createGame(22128, testRun); const same = createGame(22128, testRun);
+    expect(first.props).toEqual(same.props);
+    expect(first.props.map(prop => prop.kind)).toEqual(['supply-box', 'supply-box', 'supply-box', 'supply-box', 'delivery-box', 'delivery-box', 'utility-container']);
+    for (const prop of first.props) expect(isWalkable(first.stage, prop.x, prop.y)).toBe(true);
+    expect(Object.values(BREAKABLE_CITY_PROPS).map(prop => prop.dropTable)).toEqual(['urban-utility', 'urban-utility', 'urban-utility']);
+    const prop = first.props[0]!; const broke = damageBreakableProp(first, prop, prop.maxHealth, 'normal');
+    expect(broke).toBe(true); expect(prop.destroyed).toBe(true);
+    const pickupCount = first.pickups.length; const seedAfterBreak = first.seed;
+    expect(damageBreakableProp(first, prop, 10_000, 'normal')).toBe(false);
+    expect(first.pickups).toHaveLength(pickupCount); expect(first.seed).toBe(seedAfterBreak);
   });
 
   it('applies passive ranks to incoming damage and XP gain', () => {
