@@ -2,11 +2,17 @@
 
 ## Environment and method
 
-Simulation timings were captured on Windows 11 x64, Node.js v24.21.0, AMD Ryzen 7 7800X3D (8 cores / 16 logical processors), 31 GiB RAM. `npm run benchmark:sim` uses a fixed seed derived from `0x475247 + enemy count`, 120 warm-up fixed updates, then 600 measured updates (about 10 simulated seconds) and reports median, p95, and worst single-update time. Each scene has mixed Thug, Fast Thug, Gangster, and Bruiser entities, actual moving player and enemy projectiles, XP pickups, and floating damage numbers. The fixture disables horde spawning, automatic player attacks, and XP collection to keep populations and upgrade state comparable. Timings are simulation-only and do not include Pixi rendering or browser compositing.
+Simulation timings were captured on Windows 11 x64, Node.js v24.21.0, AMD Ryzen 7 7800X3D (8 cores / 16 logical processors), 31 GiB RAM. `npm run benchmark:sim` uses a fixed seed derived from `0x475247 + enemy count`, 120 warm-up fixed updates, then 600 measured updates (about 10 simulated seconds) and reports median, p95, and worst single-update time. Each scene has mixed Thug, Fast Thug, Street Pitcher, and Bruiser entities, actual moving player and enemy projectiles, XP pickups, and floating damage numbers. The fixture disables horde spawning, automatic player attacks, and XP collection to keep populations and upgrade state comparable. Timings are simulation-only and do not include Pixi rendering or browser compositing. The internal `gangster` enemy kind is retained for compatibility but renders as the Street Pitcher in this build.
 
 The Playwright browser stress case uses Chromium headless at 1365 × 900 and the real PixiJS game. It separately records ticker frame deltas and `GameRenderer.draw` scene-update CPU time, along with visible/active entities, active sprites, projectiles, pickups, floating labels, and JS heap when Chromium exposes it. WebGL is preferred, but headless Chromium may use software rendering; see the captured browser renderer/vendor in the test output. `scene update` is CPU-side game-to-display-object work, not the GPU draw/composite cost. FPS from headless Chromium is not a claim about a normal Windows GPU browser.
 
 The earlier project report's 4.23 / 10.10 / 22.58 / 39.89 / 51.71 ms figures were summarized as multi-update simulation batches and cannot be compared directly to one-update percentiles. A prior controlled per-update fixture on this same Node/Windows environment is retained below. Browser FPS from the old renderer was sampled in standard-config play at low populations; it was not the same synthetic crowd test, so it is contextual rather than an apples-to-apples renderer delta.
+
+## Assignment 009 — persistent XP and ring/pitcher visuals
+
+The 300-kill pickup-heavy Vitest regression fixture leaves more than 100 separate or locally merged gems on the map after six simulated seconds and verifies `XP spawned = XP collected + XP remaining + XP lost`; no XP was discarded. This is an accounting/lifecycle stress check, not a wall-clock performance benchmark. Gems use one cached texture per value tier and renderer view reuse; attraction and collection remain simulated per pickup. A matching prior version with persistent drops was not available, so no before/after simulation speed claim is made for that workload.
+
+After the combat changes, the final serialized headless Chromium synthetic scenes measured renderer scene-update p95 at 0.7 / 0.6 / 0.7 / 0.7 / 1.0 ms for 25 / 50 / 100 / 150 / 200 visible enemies. Whole-frame samples varied 30–60 FPS, average 27.2–31.4 ms, p95 33.4–66.6 ms, with isolated 100 ms long frames. The browser reported HeadlessChrome 156 using ANGLE/Vulkan SwiftShader, 1365×900; these numbers characterize this software-rendered automated environment, not owner desktop GPU performance. Sprite counts included 39 / 78 / 155 / 232 / 309 entity views, and heap stayed near 20.7 MiB during the short sweep. The natural standard-config scripted run won at 161.17 simulated seconds, level 18, 819 defeats, 128 peak active foes; at 150.55 seconds it had 122 active (including the boss) and 26 visible. At 120 seconds it had 103 active and 31 visible. These are accelerated browser-automation observations, not human playtesting. The limited visible share in some checkpoints remains a camera/spawn/readability concern for future playtest review.
 
 ## Simulation benchmark (one update, milliseconds)
 
@@ -163,3 +169,73 @@ No simulation algorithm changed, so the lower medians should be treated as sampl
 The final Playwright crowd sweep used HeadlessChrome 156, Windows x64, 1365×900, WebGL via ANGLE/Vulkan SwiftShader, and 16 reported hardware threads. All entities and projectiles were visible in a paused synthetic scene. At 25/50/100/150/200 enemies, whole-frame average was 22.69/22.66/23.69/25.14/27.22 ms; frame p95 was 33.4 ms at each count; worst was 99.94/99.94/99.94/99.94/50.1 ms. Sampled FPS was 60/30/30/30/30. Renderer update current/p95/worst was 0.3/0.6/2.1, 0.2/0.5/2.1, 0.3/0.6/2.1, 0.5/0.6/2.1, and 0.6/0.7/2.0 ms respectively. JS heap was 22.03 MiB; browser-reported heap does not include GPU memory. Simulation and dropped updates are zero in this paused synthetic test and are not running-game measurements.
 
 The previous SwiftShader sweep in Assignment 007 measured average frame times 27.78/26.19/27.32/28.81/30.22 ms and renderer p95 0.6/0.6/0.6/0.6/0.7 ms. This is a similar software-rendered environment, but not a controlled same-process A/B comparison; the lower whole-frame averages here do not establish desktop GPU performance. The accelerated standard browser run during this pass sampled 60 FPS at 15/30 seconds, then 30/60 at several later checkpoints, and reached 127 active/73 visible (including boss) at 150.9 simulated seconds. It won at 161.57 seconds, level 22, with 881 kills. It is automated fast-forwarded gameplay, not a normal wall-clock run or owner human playtest. No desktop GPU session was available.
+
+## Assignment 010 — simulation measurement
+
+The seeded Node 24.22.1 Windows x64 mixed-scene benchmark was run with 120 warm-up updates and 600 measured simulation updates at each population. It includes enemies, projectiles, XP piles, damage labels, animation/AI, and collision paths; the reported distribution is per fixed update in milliseconds. This compares simulation CPU cost only. No renderer or browser A/B was possible in the local session because Chromium navigation to the local Vite URL returned `net::ERR_NETWORK_ACCESS_DENIED`.
+
+| Active enemies | Median ms/update | p95 ms/update | Worst ms/update |
+|---:|---:|---:|---:|
+| 25 | 0.0462 | 0.1626 | 0.7986 |
+| 50 | 0.0650 | 0.1208 | 0.2376 |
+| 100 | 0.1389 | 0.2462 | 1.6620 |
+| 150 | 0.2428 | 0.3938 | 0.7533 |
+| 200 | 0.3685 | 0.5906 | 0.8501 |
+
+At 200 enemies, the p95 is under 0.6ms, far below the 16.7ms fixed-step budget on this Node host. This does not establish GPU rendering performance or real-world framerate. The branch adds reusable character textures and effects to the existing cached renderer; no measured before/after browser frame claim is made.
+
+## Assignment 010 — hosted gameplay and renderer sample
+
+GitHub Actions run [42063274127](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127) passed all 8 Chromium scenarios and uploaded its actual screenshots/traces in the [browser evidence artifact](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42063274127/artifacts/13434440109). The standard-config accelerated run advanced to 228.9 simulated seconds, remained in Endless play after one Gang Boss defeat, introduced both Smiler and Molar, and recorded 112 active enemies at that checkpoint with a 128 active peak. Natural samples were: 15s 25 active / 14 visible; 30s 41/28; 60s 63/33; 90s 81/44; 120s 104/61; 150s 115/67 including the boss. It reached level 24 and 1,451 kills. This is deterministic automated accelerated gameplay, not wall-clock timing or human playtesting.
+
+The CI crowd sweep ran headless Chromium 156 at 1365×900 using WebGL through ANGLE/Vulkan SwiftShader on a four-core advertised runner. Synthetic crowd sizes were 25/50/100/150/200 visible enemies; measured whole-frame averages were approximately 98.6/99.2/99.4/99.5/99.6ms, with frame p95 around 100ms and sampled FPS 9/7/6/5/5. Renderer scene-update p95 stayed around 1.4/1.8/1.7/1.8/1.8ms (worst 3.6ms). This clearly shows software-rendered headless frame pacing is unsuitable as a desktop-GPU proxy; the scene-update sample remains small, while browser/compositor/software rasterization dominates the measured frame time. It is not a controlled before/after comparison and does not establish owner hardware performance. No normal Windows GPU play session occurred.
+
+## Assignment 011 — weapon and passive buildcraft simulation sample
+
+The same seeded `scripts/benchmark-sim.mjs` fixture was run on Windows x64 with Node 24.22.1: 120 warm-up fixed updates and 600 measured updates at each target enemy count. It reports simulation update CPU time only. The benchmark includes the game's mixed enemy/projectile/XP/effect state; it does not start the browser renderer.
+
+| Active enemies | Assignment 010 median / p95 / worst ms | Assignment 011 median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0462 / 0.1626 / 0.7986 | 0.0644 / 0.2010 / 1.3069 |
+| 50 | 0.0650 / 0.1208 / 0.2376 | 0.1018 / 0.2011 / 1.0589 |
+| 100 | 0.1389 / 0.2462 / 1.6620 | 0.2514 / 0.3776 / 2.1431 |
+| 150 | 0.2428 / 0.3938 / 0.7533 | 0.4066 / 0.6014 / 1.1270 |
+| 200 | 0.3685 / 0.5906 / 0.8501 | 0.5708 / 0.8943 / 5.8687 |
+
+This sample is slower at every population, with a 0.57 ms median and 0.89 ms p95 at 200 enemies. That remains under the 16.7 ms fixed-update budget on this Node host, but the 5.87 ms worst update is a noisy outlier and deserves follow-up profiling if gameplay grows more expensive. These are short, separate benchmark processes rather than a paired profiler run; treat the increase as a warning signal, not a precise attribution to one feature. The new multi-weapon and per-orbit collision work adds real simulation paths.
+
+### Assignment 011 — hosted browser sample
+
+Final push CI run [42127195430](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42127195430) measured the standard run and synthetic renderer stress on headless Chromium 156 at 1365×900, using WebGL through ANGLE/Vulkan SwiftShader on a four-core GitHub runner. Natural accelerated-play samples were 27/8 active/visible at 15s, 43/14 at 30s, 64/52 at 60s, 59/42 at 90s, 100/64 at 120s, and 118/118 at 150s (boss present). Reported ticker FPS ranged from 20 early to 8 at the 150s sample; ticker frame samples were quantized around 50–100ms. The run later defeated the Gang Boss, entered the Dr. Smile faction, and ended in player defeat at 185.07 simulated seconds. It reached level 17 and recorded 909 kills. This is scripted accelerated browser play, not an owner-controlled playthrough.
+
+The same CI run's separate synthetic crowd sweep was paused simulation with 25–200 visible entities; it is not natural horde evidence. Memory remained approximately 20.7MiB in the sampled Chromium API. Renderer scene-update p95/worst were 1.0/3.5ms at 25, 1.0/3.5ms at 50, 1.3/3.5ms at 100, 1.3/3.5ms at 150, and 1.2/3.5ms at 200. Whole-frame averages were 54.0/56.1/60.8/66.4/71.5ms, p95 100/66.7/83.4/100/100ms, and sampled FPS 20/20/15/10/9. These low FPS results are specific to the SwiftShader headless software renderer; they do not predict desktop GPU performance. No normal Windows GPU A/B measurement was available, and no before/after renderer comparison is claimed. The local browser was blocked by the sandbox's localhost socket policy, but CI uploaded real Chromium evidence in [browser-evidence-42127195430](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42127195430/artifacts/13461622729).
+
+## Consolidated Assignment 011 — Grand Arsenal simulation benchmark
+
+The seeded `scripts/benchmark-sim.mjs` fixture was run on Windows x64 with Node 24.22.1. It uses 120 warm-up updates and 600 measured fixed updates at each population with the benchmark's fixed seeds; timings cover simulation CPU work only, not Pixi rendering or browser frame pacing. The benchmark produces active mixed crowds with projectiles, XP pickups, damage text, and combat states.
+
+| Active enemies | Assignment 010 baseline median / p95 / worst ms | Grand Arsenal median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0462 / 0.1626 / 0.7986 | 0.0274 / 0.1063 / 0.4249 |
+| 50 | 0.0650 / 0.1208 / 0.2376 | 0.0517 / 0.1140 / 0.2758 |
+| 100 | 0.1389 / 0.2462 / 1.6620 | 0.1196 / 0.1716 / 0.3864 |
+| 150 | 0.2428 / 0.3938 / 0.7533 | 0.2060 / 0.2574 / 0.2936 |
+| 200 | 0.3685 / 0.5906 / 0.8501 | 0.2872 / 0.3492 / 0.4762 |
+
+The current sample is lower than the Assignment 010 recorded baseline at all five target counts (about 22% lower median at 200). The benchmark is deterministic and the runtime/harness match the recorded baseline, but this is not a browser A/B test; do not infer a frame-rate increase from it. A separate hosted Chromium sample is reported below; no Windows GPU measurement is available for this implementation.
+
+### Consolidated Assignment 011 — hosted Chromium measurements
+
+GitHub Actions run [42165501840](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42165501840) recorded the natural standard-config segment and a separate synthetic renderer sweep in headless Chromium 156 on Ubuntu, 1365×900, WebGL preferred through ANGLE/Vulkan SwiftShader (software rendering, four reported CPU cores). The natural scenario reached 27 active / 13 visible enemies at 15s, 42/41 at 30s, 51/51 during the first surge near 35s, and 66/66 at 60s. It later ended in defeat at 84.62 simulated seconds, level 7, 184 defeats, and 88 peak active enemies, before the first boss. This is scripted browser play, not a balance win or owner playtest.
+
+The distinct synthetic paused-scene sweep used 25–200 visible enemies. Scene-update performance stayed small, while SwiftShader frame pacing remained slow:
+
+| Synthetic visible enemies | Scene update median / p95 / worst ms | Whole-frame average / p95 / worst ms | Sampled FPS |
+|---:|---:|---:|---:|
+| 25 | 0.3 / 0.9 / 2.7 | 64.1 / 100 / 100 | 15 |
+| 50 | 0.7 / 1.2 / 2.7 | 67.5 / 83.4 / 100 | 12 |
+| 100 | 0.6 / 1.4 / 2.7 | 73.0 / 100 / 100 | 12 |
+| 150 | 0.6 / 1.4 / 2.7 | 78.2 / 100 / 100 | 10 |
+| 200 | 1.2 / 1.7 / 4.4 | 81.7 / 100 / 100 | 7 |
+
+The synthetic browser's sampled memory was about 22.0 MiB, with no dropped simulation updates reported. The FPS and whole-frame timing are specific to SwiftShader and must not be treated as desktop GPU performance. The scene-update results do not include all game simulation costs and are not a paired browser comparison against Assignment 010. The hosted screenshots and trace are retained in [browser-evidence artifact 13479210371](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42165501840/artifacts/13479210371). No local browser capture or ordinary Windows GPU run was available.

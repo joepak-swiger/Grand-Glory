@@ -1,15 +1,16 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { Enemy, SimState, Vec } from '../game/simulation';
-import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, type AnimationClipDefinition, type EnemyAnimationState, type EnemyKind, type RunConfig } from '../game/definitions';
+import { BLUE_PINWHEEL, DR_SMILE_BOSS_ANIMATION, ENEMIES, GANG_LEADER, HEROES, type AnimationClipDefinition, type EnemyAnimationState, type EnemyKind, type RunConfig } from '../game/definitions';
 import { buildCityMapDefinition, renderCityMap, validateCityMap } from './city-map';
 import { getTerrain } from '../game/stage';
+import { heroicStatMultiplier } from '../game/heroic-traits';
 
 const W = 960; const H = 640;
 export type CameraPreset = 'wide' | 'standard' | 'close';
 const CAMERA_ZOOM: Record<CameraPreset, number> = { wide: 0.94, standard: 1.08, close: 1.2 };
 const COLORS = { ink: 0x101923, blue: 0x36a9f4, cyan: 0x8ae5ff, thug: 0xe35c55, fast: 0xffad55, gangster: 0xe7df67, bruiser: 0x9d6979, boss: 0x9e55d7, xp: 0x7cf2b0 };
 const DAMAGE_STYLE = new TextStyle({ fontFamily: 'Arial, sans-serif', fontSize: 13, fill: '#fff2c6', fontWeight: '700' });
-interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number }
+interface EnemyView { sprite: Sprite; shadow: Sprite; barBack: Sprite; barFill: Sprite; kind: EnemyKind; frameSeen: number; displayedFrame: number; displayedClip: string }
 
 function drawDashedRay(graphics: Graphics, x1: number, y1: number, x2: number, y2: number, dashLength: number, gap: number, width: number, color: number, alpha: number): void {
   const dx = x2 - x1; const dy = y2 - y1; const length = Math.hypot(dx, dy) || 1;
@@ -51,6 +52,7 @@ export class GameRenderer {
   private playerSprite?: Sprite;
   private playerFrame = -1;
   private playerTextureLoaded = false;
+  private displayedHero = 'blue-pinwheel';
   private lastPlayerPosition?: Vec;
   private playerIsMoving = false;
   private playerMotion: Vec = { x: 0, y: 0 };
@@ -166,14 +168,45 @@ export class GameRenderer {
   private createPrimitiveTextures(): void {
     this.primitiveTextures.set('pixel', this.textureFromGraphics(g => g.rect(0, 0, 1, 1).fill(0xffffff)));
     this.primitiveTextures.set('shadow', this.textureFromGraphics(g => g.ellipse(24, 10, 22, 8).fill(0xffffff)));
-    this.primitiveTextures.set('xp', this.textureFromGraphics(g => g.poly([8, 0, 16, 8, 8, 16, 0, 8]).fill(0xffffff)));
-    this.primitiveTextures.set('pinwheel', this.textureFromGraphics(g => {
-      for (let blade = 0; blade < 4; blade++) { const a = blade * Math.PI / 2; g.poly([12 + Math.cos(a) * 11, 12 + Math.sin(a) * 11, 12 + Math.cos(a + 0.65) * 3, 12 + Math.sin(a + 0.65) * 3, 12 + Math.cos(a + 1.4) * 8, 12 + Math.sin(a + 1.4) * 8]).fill(0xffffff); }
-      g.circle(12, 12, 3).fill(0xffffff);
+    const ring = (double: boolean) => this.textureFromGraphics(g => {
+      const centers = double ? [[13, 16], [25, 16]] : [[20, 20]];
+      for (const [x, y] of centers) {
+        g.circle(x!, y!, 11).stroke({ color: 0x122d5c, width: 9 });
+        g.circle(x!, y!, 11).stroke({ color: 0x1269d1, width: 6 });
+        g.arc(x!, y!, 10, Math.PI * 1.08, Math.PI * 1.8).stroke({ color: 0x9decff, width: 2.5 });
+        g.arc(x!, y!, 10, Math.PI * 0.08, Math.PI * 0.8).stroke({ color: 0x244f90, width: 2 });
+        for (let blade = 0; blade < 4; blade++) {
+          const a = blade * Math.PI / 2 + Math.PI / 4;
+          const ox = Math.cos(a) * 11; const oy = Math.sin(a) * 11;
+          g.poly([x! + ox * 0.55, y! + oy * 0.55, x! + ox * 1.55 - Math.sin(a) * 2, y! + oy * 1.55 + Math.cos(a) * 2, x! + ox * 1.3 + Math.sin(a) * 2, y! + oy * 1.3 - Math.cos(a) * 2]).fill(0xd9f7ff);
+        }
+      }
+      if (double) g.circle(19, 16, 2.5).fill(0x9ceaff);
+      else g.circle(20, 20, 2).fill(0x9ceaff);
+    });
+    this.primitiveTextures.set('pinwheel', ring(false));
+    this.primitiveTextures.set('piercing', ring(true));
+    this.primitiveTextures.set('baseball', this.textureFromGraphics(g => {
+      g.circle(16, 16, 11).fill(0x101923); g.circle(16, 16, 9).fill(0xfff5e8);
+      g.arc(11, 16, 5, -Math.PI / 2, Math.PI / 2).stroke({ color: 0xd84443, width: 1.6 });
+      g.arc(21, 16, 5, Math.PI / 2, Math.PI * 1.5).stroke({ color: 0xd84443, width: 1.6 });
+      for (let i = 0; i < 3; i++) { const y = 12 + i * 4; g.rect(10, y, 2, 1).fill(0xd84443); g.rect(20, y, 2, 1).fill(0xd84443); }
     }));
-    this.primitiveTextures.set('piercing', this.textureFromGraphics(g => g.poly([0, 10, 17, 10, 17, 5, 28, 14, 17, 23, 17, 18, 0, 18]).fill(0xffffff)));
+    this.primitiveTextures.set('boulder', this.textureFromGraphics(g => { g.poly([4,20,9,7,19,3,29,9,35,21,26,31,12,29]).fill(0x77808a).stroke({color:0x252f3c,width:3});g.poly([10,10,19,5,16,14]).fill(0xc5d0d2); }));
+    this.primitiveTextures.set('spear', this.textureFromGraphics(g => { g.rect(5,14,25,4).fill(0x3d2522);g.poly([30,9,39,16,30,23,25,16]).fill(0xa8bac1).stroke({color:0xe1f8ff,width:1}); }));
+    this.primitiveTextures.set('chainball', this.textureFromGraphics(g => { g.circle(20,20,10).fill(0x59616b).stroke({color:0xd5e0e5,width:2});for(let i=0;i<8;i++){const a=i*Math.PI/4;g.moveTo(20+Math.cos(a)*8,20+Math.sin(a)*8).lineTo(20+Math.cos(a)*17,20+Math.sin(a)*17).stroke({color:0x343b45,width:3});} }));
+    for (const [key, color, size] of [['xp-small', 0x63efd1, 8], ['xp-medium', 0x48a9ff, 10], ['xp-large', 0xd889ff, 12]] as const) {
+      this.primitiveTextures.set(key, this.textureFromGraphics(g => {
+        g.poly([16, 2, 26, 11, 22, 27, 16, 31, 8, 26, 5, 12]).fill(color);
+        g.poly([16, 2, 16, 23, 8, 26, 5, 12]).fill(0xc6fff2);
+        g.poly([16, 2, 26, 11, 16, 23]).fill(0xffffff);
+        g.poly([16, 23, 22, 27, 16, 31]).fill(0x244a8e);
+        g.circle(16, 16, size / 5).fill(0xffffff);
+      }));
+    }
     this.primitiveTextures.set('enemy-shot', this.textureFromGraphics(g => { g.circle(16, 16, 7).fill(0xffffff); g.circle(16, 16, 12).stroke({ color: 0xffffff, width: 2, alpha: 0.65 }); }));
-    for (const kind of ['gangster', 'bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
+    this.primitiveTextures.set('evolution', this.textureFromGraphics(g => { g.star(18, 18, 8, 15, 8).fill(0xffd467).stroke({ color: 0xfff3bd, width: 2 }); g.circle(18, 18, 4).fill(0x68cfff); }));
+    for (const kind of ['bruiser', 'boss'] as const) this.proceduralEnemyFrames.set(kind, Array.from({ length: 4 }, (_, frame) => this.createPrototypeEnemyTexture(kind, frame)));
     this.primitiveTextures.set('bruiser', this.proceduralEnemyFrames.get('bruiser')![0]!);
     this.primitiveTextures.set('boss', this.proceduralEnemyFrames.get('boss')![0]!);
   }
@@ -193,7 +226,7 @@ export class GameRenderer {
   }
 
   private async loadCharacterAssets(): Promise<void> {
-    const clips = [BLUE_PINWHEEL.animation.idle, BLUE_PINWHEEL.animation.move, BLUE_PINWHEEL.animation.damage, BLUE_PINWHEEL.animation.defeat, BLUE_PINWHEEL.animation.ability, ENEMIES.thug.animation, ENEMIES.fastThug.animation].filter((clip): clip is AnimationClipDefinition => clip !== undefined);
+    const clips = [...Object.values(HEROES).flatMap(hero => [hero.animation.idle, hero.animation.move, hero.animation.damage, hero.animation.defeat, hero.animation.ability]), ...Object.values(ENEMIES).flatMap(enemy => [enemy.animation, enemy.attackAnimation]), DR_SMILE_BOSS_ANIMATION].filter((clip): clip is AnimationClipDefinition => clip !== undefined);
     await Promise.all(clips.map(clip => this.loadClip(clip)));
   }
 
@@ -232,17 +265,45 @@ export class GameRenderer {
     this.updateDamageLabels(state);
     const g = this.entities; g.clear();
     for (const shot of state.projectiles) {
-      if (shot.owner !== 'player' || !this.isVisible(shot.x, shot.y, 36)) continue;
-      const speed = Math.hypot(shot.vx, shot.vy) || 1; const piercing = shot.weaponId === 'piercingThrow'; const length = piercing ? 38 : 23;
+      if (!this.isVisible(shot.x, shot.y, 36)) continue;
+      if(shot.weaponId==='chainball'&&shot.sourceEnemyId!==undefined){const boss=state.enemies.find(enemy=>enemy.id===shot.sourceEnemyId&&!enemy.dead);if(boss)g.moveTo(boss.x,boss.y).lineTo(shot.x,shot.y).stroke({color:0xafa0a0,width:4,alpha:0.92});continue;}
+      if(shot.owner!=='player')continue;
+      const speed = Math.hypot(shot.vx, shot.vy) || 1; const piercing = shot.weaponId === 'piercingThrow'; const length = piercing ? 35 : 25;
       const tailX = shot.x - shot.vx / speed * length; const tailY = shot.y - shot.vy / speed * length;
-      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xffd56f : 0x4bbdff, width: piercing ? 5 : 4, alpha: 0.28 });
-      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing ? 0xfff0a5 : 0xd4faff, width: 1.5, alpha: 0.78 });
+      const boulder=shot.weaponId==='boulder',spear=shot.weaponId==='spear';
+      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: boulder?0xd6b678:spear?0xe0c19c:piercing ? 0x318fff : 0x4bbdff, width: piercing||spear ? 6 : 4, alpha: 0.28 });
+      g.moveTo(tailX, tailY).lineTo(shot.x, shot.y).stroke({ color: piercing||spear ? 0xbdeaff : 0xd4faff, width: 1.5, alpha: 0.78 });
     }
     for (const enemy of state.enemies) {
       if (enemy.dead || !this.isVisible(enemy.x, enemy.y, 80)) continue;
       if (enemy.kind === 'gangster' && enemy.attackState === 'ranged-telegraph') {
-        const tx = enemy.x + enemy.attackDirection.x * 380; const ty = enemy.y + enemy.attackDirection.y * 380;
-        drawDashedRay(g, enemy.x, enemy.y, tx, ty, 13, 10, 3, 0xffcf67, 0.78);
+        const tx = enemy.x + enemy.attackDirection.x * 210; const ty = enemy.y + enemy.attackDirection.y * 210;
+        drawDashedRay(g, enemy.x, enemy.y, tx, ty, 9, 13, 2.5, 0xff8b76, 0.68);
+        g.circle(tx, ty, 7).stroke({ color: 0xffd9ab, width: 2, alpha: 0.8 });
+      }
+      if (enemy.kind === 'fastThug' && (enemy.attackState === 'melee-telegraph' || enemy.attackState === 'melee-swing')) {
+        const center = Math.atan2(enemy.attackDirection.y, enemy.attackDirection.x);
+        const reach = enemy.radius + 32;
+        const points = [enemy.x, enemy.y];
+        const slices = 8;
+        for (let index = 0; index <= slices; index++) {
+          const angle = center - 0.52 + index / slices * 1.04;
+          points.push(enemy.x + Math.cos(angle) * reach, enemy.y + Math.sin(angle) * reach);
+        }
+        g.poly(points).fill({ color: enemy.attackState === 'melee-swing' ? 0xff8d59 : 0xffcc66, alpha: enemy.attackState === 'melee-swing' ? 0.34 : 0.16 });
+        g.poly(points).stroke({ color: enemy.attackState === 'melee-swing' ? 0xffd6a0 : 0xffd982, width: enemy.attackState === 'melee-swing' ? 2.5 : 1.4, alpha: 0.85 });
+      }
+      if(enemy.kind==='yoYoPunk'&&['yoyo-telegraph','yoyo-extension','yoyo-hold','yoyo-retract'].includes(enemy.attackState)){
+        const active=enemy.attackState==='yoyo-hold';
+        if(active){g.moveTo(enemy.x,enemy.y).lineTo(enemy.attackTarget.x,enemy.attackTarget.y).stroke({color:0xff496e,width:12,alpha:0.28});g.moveTo(enemy.x,enemy.y).lineTo(enemy.attackTarget.x,enemy.attackTarget.y).stroke({color:0xffd3e1,width:2.5,alpha:0.95});}
+        else drawDashedRay(g,enemy.x,enemy.y,enemy.attackTarget.x,enemy.attackTarget.y,9,7,2.4,0xff92bd,0.78);
+        g.circle(enemy.attackTarget.x,enemy.attackTarget.y,9).fill(active?0xff6c93:0xffc9dc);
+      }
+      if(enemy.kind==='boss'&&enemy.bossId==='gang-boss'&&(enemy.attackState==='chain-telegraph'||enemy.attackState==='chain-swing')){
+        const active=enemy.attackState==='chain-swing';g.circle(enemy.x,enemy.y,116).fill({color:active?0xff4b43:0xffbb60,alpha:active?0.16:0.08}).stroke({color:active?0xff7661:0xffd48c,width:active?3:2,alpha:0.9});
+      }
+      if(enemy.kind==='boss'&&enemy.bossId==='dr-smile'&&(enemy.attackState==='hazard-telegraph'||enemy.attackState==='hazard-active')){
+        const active=enemy.attackState==='hazard-active';g.circle(enemy.attackTarget.x,enemy.attackTarget.y,92).fill({color:active?0xd3496b:0xf0c257,alpha:active?0.2:0.08}).stroke({color:active?0xff7892:0xffe5a3,width:active?3:2,alpha:0.94});
       }
       if (enemy.kind === 'boss' && enemy.attackState === 'ranged-telegraph') {
         const tx = enemy.x + enemy.attackDirection.x * 620; const ty = enemy.y + enemy.attackDirection.y * 620;
@@ -267,10 +328,27 @@ export class GameRenderer {
         g.moveTo(startX, startY).lineTo(startX - this.playerMotion.x * 0.04, startY - this.playerMotion.y * 0.04).stroke({ color: 0x8be4ff, width: 4 - streak * 0.6, alpha: 0.24 });
       }
     }
+    for (const wave of state.waves) {
+      const color = 0xe7c681; const alpha = Math.max(0.12, wave.life * 1.2);
+      if (wave.halfAngle >= Math.PI) g.circle(wave.x, wave.y, Math.max(2, wave.radius)).stroke({ color, width: 4, alpha });
+      else { const angle = Math.atan2(wave.direction.y, wave.direction.x); g.arc(wave.x, wave.y, Math.max(2, wave.radius), angle - wave.halfAngle, angle + wave.halfAngle).stroke({ color, width: 4, alpha }); }
+    }
+    if(p.attackVisualTimer>0&&p.attackVisual && p.attackVisual !== 'ground-slam'){
+      const angle=Math.atan2(p.facing.y,p.facing.x);const reach=p.attackVisual==='club-sweep'?88:p.attackVisual==='spear-sweep'?122:170;const width=p.attackVisual==='club-sweep'?0.95:p.attackVisual==='spear-sweep'?1.28:0.15;
+      const points=[p.x,p.y];for(let i=0;i<=10;i++){const a=angle-width+i/10*(width*2);points.push(p.x+Math.cos(a)*reach,p.y+Math.sin(a)*reach);}
+      const color=p.attackVisual==='club-sweep'?0xd0a266:0xbfeeff;
+      g.poly(points).fill({color,alpha:0.22});g.poly(points).stroke({color:p.attackVisual==='club-sweep'?0xf5d18b:0xf1fcff,width:3,alpha:0.75});
+    }
     if (p.orbit) {
-      const spin = this.reducedMotion ? 0 : state.elapsed * 5.2;
-      g.circle(p.x, p.y, 37).stroke({ color: 0x66c9ff, width: 1.5, alpha: 0.22 });
-      for (let blade = 0; blade < 4; blade++) { const angle = spin + blade * Math.PI / 2; const x = p.x + Math.cos(angle) * 39; const y = p.y + Math.sin(angle) * 39; g.poly([x, y - 8, x + 3, y - 2, x + 9, y, x + 3, y + 2, x, y + 8, x - 3, y + 2, x - 9, y, x - 3, y - 2]).fill(blade % 2 ? 0xb8f2ff : 0x55baff); }
+      const radius = (48 + Math.min(12, p.weaponRanks.orbitGuard * 2) + (p.evolutions.includes('eternal-halo') ? 18 : 0)) * heroicStatMultiplier(p.passiveRanks, 'area');
+      for (const ring of p.orbitRings) {
+        const x = p.x + Math.cos(ring.angle) * radius; const y = p.y + Math.sin(ring.angle) * radius;
+        // The hollow center and bright metal edge keep orbit weapons legible over both road and sidewalk.
+        const alpha = ring.active ? 1 : 0.2;
+        g.circle(x, y, 11).stroke({ color: 0x168ce0, width: 5, alpha: 0.96 * alpha });
+        g.circle(x - 1, y - 1, 8).stroke({ color: 0xb8f2ff, width: 1.5, alpha: 0.94 * alpha });
+        g.circle(x + 3, y - 4, 2).fill({ color: 0xffffff, alpha: 0.98 * alpha });
+      }
     }
     if (!this.playerSprite) {
       const color = flash ? 0xffffff : COLORS.blue;
@@ -311,14 +389,14 @@ export class GameRenderer {
     for (const shot of state.projectiles) {
       if (!this.isVisible(shot.x, shot.y, 28)) continue;
       let sprite = this.projectileViews[used];
-      const textureKey = shot.owner === 'enemy' ? 'enemy-shot' : shot.weaponId === 'piercingThrow' ? 'piercing' : 'pinwheel';
+      const textureKey = shot.weaponId==='baseball'?'baseball':shot.weaponId==='boulder'?'boulder':shot.weaponId==='spear'?'spear':shot.weaponId==='chainball'?'chainball':shot.owner==='enemy'?'enemy-shot':['piercingThrow','ricochetRing'].includes(shot.weaponId??'')?'piercing':'pinwheel';
       const texture = this.primitiveTextures.get(textureKey)!;
       if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.projectileViews.push(sprite); }
-      sprite.texture = texture; sprite.renderable = true; sprite.position.set(shot.x, shot.y); sprite.rotation = shot.owner === 'enemy' ? 0 : shot.spin;
+      sprite.texture = texture; sprite.renderable = true; sprite.position.set(shot.x, shot.y - (shot.arcHeight ?? 0)); sprite.rotation = shot.owner === 'enemy' && shot.weaponId!=='chainball' ? 0 : shot.spin;
       const rank = shot.weaponId === 'piercingThrow' ? state.player.weaponRanks.piercingThrow : state.player.weaponRanks.pinwheel;
-      const size = shot.owner === 'enemy' ? 23 : shot.weaponId === 'piercingThrow' ? 27 + Math.min(5, rank) : 22 + Math.min(8, rank * 1.5) + (state.player.evolvedPinwheel ? 3 : 0);
+      const size = shot.weaponId==='baseball'?17:shot.weaponId==='chainball'?29:shot.weaponId==='boulder'?28:shot.weaponId==='spear'?34:shot.owner==='enemy'?23:shot.weaponId==='ricochetRing'?30:shot.weaponId==='piercingThrow'?30+Math.min(5,rank):27+Math.min(8,rank*1.5)+(state.player.evolvedPinwheel?3:0);
       sprite.width = size; sprite.height = size;
-      sprite.tint = shot.owner === 'enemy' ? (shot.weaponId === 'enemy' ? 0xff715f : 0xffc65f) : shot.weaponId === 'piercingThrow' ? 0xffdc70 : state.player.evolvedPinwheel ? 0xf8e391 : COLORS.cyan;
+      sprite.tint = ['baseball','boulder','spear','chainball'].includes(shot.weaponId??'')?0xffffff:shot.owner==='enemy'?0xff715f:state.player.evolvedPinwheel?0xf8e391:COLORS.cyan;
       used++;
     }
     this.projectileViewCount = used;
@@ -326,11 +404,13 @@ export class GameRenderer {
     for (let i = 0; i < this.pickupViewCount; i++) this.pickupViews[i]!.renderable = false;
     used = 0;
     for (const pickup of state.pickups) {
+      if (pickup.consumed) continue;
       if (!this.isVisible(pickup.x, pickup.y, 20)) continue;
       let sprite = this.pickupViews[used];
-      if (!sprite) { sprite = new Sprite(this.primitiveTextures.get('xp')!); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
+      const texture = this.primitiveTextures.get(pickup.kind === 'boss-evolution' ? 'evolution' : pickup.value >= 80 ? 'xp-large' : pickup.value >= 32 ? 'xp-medium' : 'xp-small')!;
+      if (!sprite) { sprite = new Sprite(texture); sprite.anchor.set(0.5); sprite.roundPixels = true; this.effects.addChild(sprite); this.pickupViews.push(sprite); }
       const glint = this.reducedMotion ? 0 : 1 + Math.sin(state.elapsed * 8 + pickup.id) * 0.12;
-      sprite.renderable = true; sprite.position.set(pickup.x, pickup.y); sprite.rotation = Math.PI / 4; sprite.width = 12 * glint; sprite.height = 12 * glint; sprite.tint = COLORS.xp;
+      sprite.renderable = true; sprite.texture = texture; sprite.position.set(pickup.x, pickup.y); sprite.rotation = this.reducedMotion ? 0 : pickup.kind === 'boss-evolution' ? state.elapsed * 0.7 : Math.sin(state.elapsed * 2.5 + pickup.id) * 0.12; const size = pickup.kind === 'boss-evolution' ? 30 : pickup.value >= 80 ? 21 : pickup.value >= 32 ? 16 : 12; sprite.width = size * glint; sprite.height = size * glint; sprite.tint = 0xffffff;
       used++;
     }
     this.pickupViewCount = used;
@@ -366,14 +446,16 @@ export class GameRenderer {
     }
 
     if (this.playerSprite) {
-      const anim = BLUE_PINWHEEL.animation;
+      const anim = HEROES[p.heroId].animation;
+      if(this.displayedHero!==p.heroId){this.displayedHero=p.heroId;this.playerSprite.anchor.set(anim.anchor.x,anim.anchor.y);this.playerFrame=-1;}
       const clip = state.status === 'defeat' ? anim.defeat : state.specialTimer > 0 ? anim.ability : p.invulnerable > 0.45 ? anim.damage : this.playerIsMoving ? anim.move : anim.idle;
       const frames = this.framesFor(clip);
       if (frames.length) {
         this.playerFrame = state.status === 'defeat' ? 0 : Math.floor(state.elapsed * 1000 / clip.frameDurationMs) % frames.length;
         this.playerSprite.texture = frames[this.playerFrame] ?? frames[0]!;
-        if (this.playerSprite.width !== 68) this.playerSprite.width = 68;
-        if (this.playerSprite.height !== 91) this.playerSprite.height = 91;
+        const [heroWidth,heroHeight]=p.heroId==='bok-goo'?[78,104]:p.heroId==='da-ri'?[84,84]:[68,91];
+        if (this.playerSprite.width !== heroWidth) this.playerSprite.width = heroWidth;
+        if (this.playerSprite.height !== heroHeight) this.playerSprite.height = heroHeight;
         const bob = this.reducedMotion ? 0 : Math.sin(state.elapsed * (this.playerIsMoving ? 18 : 3)) * (this.playerIsMoving ? 1.25 : 0.6);
         this.playerSprite.position.set(p.x, p.y + 28 + bob);
         const flip = anim.mirrorLeft && p.horizontalFacing === 'left';
@@ -392,20 +474,24 @@ export class GameRenderer {
       if (enemy.dead) continue;
       if (!view && this.isVisible(enemy.x, enemy.y, 72)) {
         view = this.freeEnemyViews.pop() ?? this.createEnemyView(enemy);
-        if (view.kind !== enemy.kind) { view.kind = enemy.kind; view.sprite.texture = this.enemyTexture(enemy); this.setEnemySpriteSize(view.sprite, enemy); view.displayedFrame = -1; }
+        if (view.kind !== enemy.kind) { view.kind = enemy.kind; view.sprite.texture = this.enemyTexture(enemy); this.setEnemySpriteSize(view.sprite, enemy); view.displayedFrame = -1; view.displayedClip = ''; }
         this.enemyViews.set(enemy.id, view); needsSort = true;
       }
       if (!view) continue;
       view.frameSeen = this.renderFrame;
       const visible = this.isVisible(enemy.x, enemy.y, 72);
-      const showHealth = enemy.kind === 'boss' || enemy.kind === 'bruiser' || enemy.hitFlash > 0;
+      const showHealth = enemy.kind === 'boss' || enemy.kind === 'bruiser' || enemy.kind==='yoYoPunk' || enemy.hitFlash > 0;
       view.sprite.renderable = visible; view.shadow.renderable = visible; view.barBack.renderable = visible && showHealth; view.barFill.renderable = visible && showHealth;
       if (!visible) continue;
-      const clip = ENEMIES[enemy.kind].animation;
+      const baseClip = enemy.kind === 'boss' && enemy.bossId === 'dr-smile' ? DR_SMILE_BOSS_ANIMATION : ENEMIES[enemy.kind].animation;
+      const throwing = enemy.attackState === 'ranged-telegraph' && Boolean(ENEMIES[enemy.kind].attackAnimation);
+      const clip = throwing ? ENEMIES[enemy.kind].attackAnimation : baseClip;
       if (clip) {
+        if (view.displayedClip !== clip.asset) { view.displayedClip = clip.asset; view.displayedFrame = -1; }
         const frames = this.framesFor(clip);
-        const frame = Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % Math.max(1, frames.length);
+        const frame = throwing ? 0 : Math.floor(enemy.animationTime * 1000 / clip.frameDurationMs) % Math.max(1, frames.length);
         if (frames[frame] && frame !== view.displayedFrame) { view.sprite.texture = frames[frame]!; view.displayedFrame = frame; }
+        if (enemy.kind === 'gangster') { view.sprite.width = throwing ? 63 : 47; view.sprite.height = throwing ? 95 : 106; }
       } else {
         const frames = this.proceduralEnemyFrames.get(enemy.kind);
         if (frames?.length) {
@@ -446,7 +532,7 @@ export class GameRenderer {
   }
 
   private setEnemySpriteSize(sprite: Sprite, enemy: Enemy): void {
-    const size = enemy.kind === 'boss' ? [126, 142] : enemy.kind === 'bruiser' ? [60, 64] : enemy.kind === 'fastThug' ? [43, 58] : [41, 55];
+    const size = enemy.kind === 'boss' ? [110, 148] : enemy.kind === 'bruiser' ? [60, 64] : enemy.kind === 'gangster' ? [47, 106] : enemy.kind==='yoYoPunk'?[58,78]:enemy.kind==='smiler'?[56,76]:enemy.kind==='molar'?[51,40]:enemy.kind === 'fastThug' ? [43, 58] : [41, 55];
     sprite.width = size[0]!; sprite.height = size[1]!;
   }
 
@@ -455,7 +541,7 @@ export class GameRenderer {
     const shadow = new Sprite(this.primitiveTextures.get('shadow')!); shadow.anchor.set(0.5); shadow.alpha = 0.42; this.decals.addChild(shadow);
     const barBack = new Sprite(this.primitiveTextures.get('pixel')!); barBack.anchor.set(0, 0); barBack.tint = 0x161c24; this.bars.addChild(barBack);
     const barFill = new Sprite(this.primitiveTextures.get('pixel')!); barFill.anchor.set(0, 0); this.bars.addChild(barFill);
-    return { sprite, shadow, barBack, barFill, kind: enemy.kind, frameSeen: this.renderFrame, displayedFrame: -1 } as EnemyView;
+    return { sprite, shadow, barBack, barFill, kind: enemy.kind, frameSeen: this.renderFrame, displayedFrame: -1, displayedClip: '' };
   }
 
   getAnimationDiagnostics(state?: SimState): { playerTextureLoaded: boolean; cityMapLoaded: boolean; cityMapSize: { width: number; height: number } | null; playerFrame: number; moving: boolean; playerFacing: string; cameraZoom: number; enemySprites: number; renderFps: number; renderFrameMs: number; enemies: Array<{ id: number; kind: EnemyKind; facing: string; frame: number; scaleX: number; hasSprite: boolean }> } {

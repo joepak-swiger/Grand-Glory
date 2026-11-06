@@ -1,13 +1,86 @@
 import { describe, expect, it } from 'vitest';
-import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
-import { acquireTarget, chooseUpgrade, createGame, damagePlayer, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
+import { BLUE_PINWHEEL, ENEMIES, GANG_LEADER, HEROES, standardRun, testRun, type UpgradeId } from '../src/game/definitions';
+import { acquireTarget, applyEnemyDamage, chooseBossReward, chooseUpgrade, createGame, damagePlayer, eligibleWeaponEvolutions, mergeNearbyPickups, movePlayer, random, spawnEnemy, updateGame, type InputState } from '../src/game/simulation';
 import { isWalkable } from '../src/game/stage';
+import { getUpgradeRankProgress } from '../src/game/upgrade-ranks';
 
 const idle: InputState = { x: 0, y: 0, dash: false, special: false };
 function steps(state: ReturnType<typeof createGame>, count: number, input = idle, cfg = testRun): void { for (let i = 0; i < count; i++) updateGame(state, 1 / 60, input, cfg); }
 function choice(state: ReturnType<typeof createGame>): UpgradeId { const first = state.options[0]; if (!first) throw new Error('Missing upgrade choice'); return first; }
 
 describe('deterministic gameplay simulation', () => {
+  it('initializes each selected hero with its own health, movement speed, and starter weapon', () => {
+    const blue = createGame(10, testRun, 'blue-pinwheel');
+    const bok = createGame(10, testRun, 'bok-goo');
+    const dari = createGame(10, testRun, 'da-ri');
+    expect([blue.player.maxHealth, blue.player.speed, blue.player.weaponRanks.pinwheel]).toEqual([HEROES['blue-pinwheel'].maxHealth, HEROES['blue-pinwheel'].moveSpeed, 1]);
+    expect([bok.player.maxHealth, bok.player.speed, bok.player.weaponRanks.clubSweep]).toEqual([225, 180, 1]);
+    expect([dari.player.maxHealth, dari.player.speed, dari.player.weaponRanks.spearThrust]).toEqual([145, 225, 1]);
+    expect([bok.player.weaponRanks.pinwheel, dari.player.weaponRanks.clubSweep]).toEqual([0, 0]);
+    expect(blue.attacks[0]).toContain('Ring'); expect(bok.attacks[0]).toContain('Club'); expect(dari.attacks[0]).toContain('Spear');
+  });
+
+  it('keeps endless mode playing after the Gang Boss and schedules Dr. Smile next', () => {
+    const cfg = { ...testRun, gameMode: 'endless' as const, bossAt: 0, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(1010, cfg);
+    s.spawnTimer = 10_000;
+    steps(s, 1, idle, cfg);
+    const first = s.enemies.find(enemy => enemy.kind === 'boss');
+    expect(first?.bossId).toBe('gang-boss');
+    expect(first).toBeDefined();
+    applyEnemyDamage(s, first!, first!.health, { x: -1, y: 0 }, cfg);
+    expect(s.status).toBe('playing');
+    expect(s.bossesDefeated).toBe(1);
+    expect(s.completedWaves).toBe(1);
+    expect(s.pickups.some(pickup => pickup.value === GANG_LEADER.xp)).toBe(true);
+    s.elapsed = s.nextBossAt;
+    steps(s, 1, idle, cfg);
+    expect(s.enemies.find(enemy => enemy.kind === 'boss')?.bossId).toBe('dr-smile');
+  });
+
+  it('uses a telegraphed Yo-Yo line hazard with damage limited to its active window and cooldown', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(1012, cfg); s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    const punk = spawnEnemy(s, 'yoYoPunk', cfg, { x: s.player.x - 100, y: s.player.y }); punk.speed = 0;
+    punk.attackState = 'yoyo-telegraph'; punk.phase = 0.02; punk.attackDirection = { x: 1, y: 0 }; punk.attackTarget = { x: s.player.x + 120, y: s.player.y };
+    s.enemies.push(punk);
+    steps(s, 3, idle, cfg);
+    expect(s.damageTaken['yoyo-line']).toBe(0);
+    expect(punk.attackState).toBe('yoyo-extension');
+    punk.attackState = 'yoyo-hold'; punk.phase = 1.2; punk.attackCooldown = 0;
+    const before = s.player.health;
+    steps(s, 1, idle, cfg);
+    expect(s.damageTaken['yoyo-line']).toBeGreaterThan(0);
+    expect(before - s.player.health).toBeCloseTo(s.damageTaken['yoyo-line']);
+    const hitCount = s.damageTaken['yoyo-line'];
+    steps(s, 20, idle, cfg);
+    expect(s.damageTaken['yoyo-line']).toBe(hitCount);
+  });
+
+  it('offers bounded repeatable mastery when endless builds exhaust normal upgrade ranks', () => {
+    const s = createGame(1013, { ...testRun, gameMode: 'endless' });
+    s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    s.player.weaponRanks = { pinwheel: 5, orbitGuard: 5, piercingThrow: 5, ricochetRing: 5, clubSweep: 5, boulderToss: 5, groundSlam: 5, spearThrust: 5, spearToss: 5, spearSweep: 5 };
+    s.player.evolvedPinwheel = true;
+    s.player.passiveRanks = { might: 5, tempo: 5, reach: 5, momentum: 5, persistence: 5, multiplicity: 2, resilience: 5, vitality: 5, regeneration: 5, agility: 5, attraction: 5, fortune: 5, wisdom: 5 };
+    s.chosen = [...Array(5).fill('might'), ...Array(5).fill('tempo'), ...Array(2).fill('multiplicity'), ...Array(5).fill('agility'), ...Array(5).fill('vitality'), ...Array(5).fill('regeneration'), ...Array(5).fill('attraction'), ...Array(19).fill('mastery')] as UpgradeId[];
+    s.player.xp = s.player.xpNext;
+    steps(s, 1, idle, { ...testRun, gameMode: 'endless' });
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('mastery');
+    expect(s.options).not.toContain('pinwheel');
+  });
+
+  it('does not let melee-only ordinary enemies launch enemy projectiles', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 12 } };
+    const s = createGame(1011, cfg); s.spawnTimer = 10_000; s.player.attackTimer = 10_000;
+    for (const [index, kind] of (['thug', 'fastThug', 'bruiser', 'smiler', 'molar'] as const).entries()) {
+      s.enemies.push(spawnEnemy(s, kind, cfg, { x: s.player.x + 300 + index * 30, y: s.player.y }));
+    }
+    steps(s, 180, idle, cfg);
+    expect(s.projectiles.filter(projectile => projectile.owner === 'enemy')).toHaveLength(0);
+  });
+
   it('normalizes diagonal movement and preserves facing', () => {
     const a = createGame(1, testRun); const b = createGame(1, testRun);
     movePlayer(a.player, 1, 1, 1, testRun); movePlayer(b.player, 1, 0, 1, testRun);
@@ -142,6 +215,20 @@ describe('deterministic gameplay simulation', () => {
     steps(s, 1); expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - thug.damage * 2);
   });
 
+  it('gives the bat-wielding fast thug a short warned melee swing instead of contact damage', () => {
+    const s = createGame(130, testRun); s.player.attackTimer = 10;
+    const batThug = spawnEnemy(s, 'fastThug', testRun, { x: s.player.x + 42, y: s.player.y }); batThug.speed = 0; s.enemies.push(batThug);
+    steps(s, 1);
+    expect(batThug.attackState).toBe('melee-telegraph');
+    expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth);
+    expect(s.projectiles.filter(projectile => projectile.owner === 'enemy')).toHaveLength(0);
+    steps(s, 20);
+    expect(batThug.attackState).toBe('melee-swing');
+    expect(s.player.health).toBe(BLUE_PINWHEEL.maxHealth - batThug.damage);
+    steps(s, 8);
+    expect(batThug.attackState).toBe('recovering');
+  });
+
   it('lets only one of multiple simultaneous contacts damage the player during invulnerability', () => {
     const s = createGame(122, testRun); s.player.attackTimer = 10;
     for (let i = 0; i < 4; i++) { const thug = spawnEnemy(s, i % 2 ? 'fastThug' : 'thug', testRun, { x: s.player.x, y: s.player.y }); thug.health = 1000; thug.maxHealth = 1000; s.enemies.push(thug); }
@@ -194,11 +281,19 @@ describe('deterministic gameplay simulation', () => {
     expect(a.enemies.filter(enemy => enemy.kind !== 'boss').length).toBeLessThanOrEqual(run.horde.maxActive);
   });
 
-  it('introduces ranged Gangsters with a visible aimed windup and real projectile volley', () => {
+  it('introduces the Street Pitcher with a visible windup and one baseball projectile', () => {
     const s = createGame(331, testRun); s.player.attackTimer = 100;
     const gangster = spawnEnemy(s, 'gangster', testRun, { x: s.player.x - 240, y: s.player.y }); gangster.rangedTimer = 0.05; s.enemies.push(gangster);
     steps(s, 1); expect(gangster.attackState).toBe('ranged-telegraph');
-    steps(s, 4); expect(s.projectiles.filter(projectile => projectile.owner === 'enemy')).toHaveLength(3);
+    steps(s, 40); const balls = s.projectiles.filter(projectile => projectile.weaponId === 'baseball');
+    expect(balls).toHaveLength(1); expect(balls[0]?.owner).toBe('enemy');
+  });
+
+  it('keeps all current non-pitcher ordinary enemies melee-only', () => {
+    expect(ENEMIES.thug.ranged).toBeUndefined(); expect(ENEMIES.fastThug.ranged).toBeUndefined(); expect(ENEMIES.bruiser.ranged).toBeUndefined();
+    const s = createGame(3311, testRun); s.player.attackTimer = 100; s.spawnTimer = 1000;
+    for (const kind of ['thug', 'fastThug', 'bruiser'] as const) { const enemy = spawnEnemy(s, kind, testRun, { x: s.player.x - 210, y: s.player.y }); enemy.rangedTimer = 0; s.enemies.push(enemy); }
+    steps(s, 240); expect(s.projectiles.filter(projectile => projectile.owner === 'enemy' && projectile.damageSource !== 'boss-projectile')).toHaveLength(0);
   });
 
   it('uses the bruiser as a slower, more durable enemy archetype', () => {
@@ -206,10 +301,14 @@ describe('deterministic gameplay simulation', () => {
     expect(bruiser.health).toBeGreaterThan(thug.health * 2); expect(bruiser.speed).toBeLessThan(thug.speed); expect(bruiser.damage).toBeGreaterThan(thug.damage);
   });
 
-  it('offers ranked attacks and applies a once-only qualifying Pinwheel evolution', () => {
-    const s = createGame(333, testRun); s.player.weaponRanks.pinwheel = 5; s.player.powerRank = 2;
-    s.status = 'upgrade'; s.levelChoices = 1; s.options = ['evolvePinwheel', 'speed', 'vitality'];
-    expect(chooseUpgrade(s, 'evolvePinwheel')).toBe(true); expect(s.player.evolvedPinwheel).toBe(true); expect(s.attacks).toContain('Pinwheel Evolution (Prototype)');
+  it('offers a qualifying weapon evolution from a persistent boss reward, not an ordinary level-up', () => {
+    const s = createGame(333, testRun); s.endless = true; s.player.weaponRanks.pinwheel = 5; s.player.passiveRanks.might = 1;
+    const boss = spawnEnemy(s, 'boss', testRun, { x: s.player.x, y: s.player.y }); boss.speed = 0; s.enemies.push(boss);
+    applyEnemyDamage(s, boss, boss.health, { x: 1, y: 0 }, testRun);
+    expect(s.pickups.some(pickup => pickup.kind === 'boss-evolution')).toBe(true);
+    steps(s, 1);
+    expect(s.status).toBe('boss-reward'); expect(s.evolutionOptions).toContain('typhoon-rings');
+    expect(chooseBossReward(s, 'typhoon-rings')).toBe(true); expect(s.player.evolvedPinwheel).toBe(true); expect(s.attacks).toContain('Typhoon Rings');
     s.player.attackTimer = 0; s.player.x = 900; s.player.y = 500;
     s.enemies.push(spawnEnemy(s, 'thug', testRun, { x: 1030, y: 500 })); steps(s, 1);
     expect(s.projectiles.find(projectile => projectile.weaponId === 'pinwheel')?.pierce).toBe(3);
@@ -262,23 +361,49 @@ describe('deterministic gameplay simulation', () => {
     expect(a.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)])).toEqual(b.enemies.map(enemy => [enemy.kind, Math.round(enemy.x), Math.round(enemy.y)]));
   });
 
-  it('drops XP on death, collects it, and removes the dead enemy', () => {
-    const s = createGame(15, testRun); const e = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 35, y: s.player.y }); e.health = 1; s.enemies.push(e);
-    steps(s, 70); expect(e.dead).toBe(true); expect(s.kills).toBe(1); expect(s.pickups.length).toBe(0); expect(s.player.xp).toBeGreaterThan(0);
+  it('drops persistent XP at a defeat location and awards it only after close collection', () => {
+    const s = createGame(15, testRun); s.spawnTimer = 1000; s.player.attackTimer = 1000;
+    const e = spawnEnemy(s, 'thug', testRun, { x: s.player.x + 220, y: s.player.y }); e.health = 1; s.enemies.push(e);
+    applyEnemyDamage(s, e, 1, { x: 1, y: 0 }, testRun); const drop = s.pickups[0]!;
+    expect(e.dead).toBe(true); expect(s.kills).toBe(1); expect(s.player.xp).toBe(0); expect(drop.value).toBe(e.xp); expect(s.xpSpawned).toBe(e.xp);
+    const droppedAt = { x: drop.x, y: drop.y }; steps(s, 1); expect(drop.x).toBe(droppedAt.x); expect(drop.y).toBe(droppedAt.y); expect(s.xpCollected).toBe(0);
+    s.player.x = drop.x - 28; s.player.y = drop.y; steps(s, 30);
+    expect(s.pickups).toHaveLength(0); expect(s.player.xp).toBe(e.xp); expect(s.xpCollected).toBe(e.xp);
   });
 
   it('merges nearby XP pickups while preserving their total value', () => {
     const s = createGame(151, testRun); s.pickupMergeTimer = 0;
     s.pickups.push({ id: 800, x: s.player.x + 190, y: s.player.y, value: 12 }, { id: 801, x: s.player.x + 205, y: s.player.y + 4, value: 16 });
-    steps(s, 1);
-    expect(s.pickups).toHaveLength(1); expect(s.pickups[0]?.value).toBe(28);
+    mergeNearbyPickups(s);
+    expect(s.pickups).toHaveLength(1); expect(s.pickups[0]?.value).toBe(28); expect(s.xpPilesMerged).toBe(1); expect(s.xpLost).toBe(0);
   });
+
+  it('keeps distant XP stationary and blocks attraction across buildings', () => {
+    const s = createGame(152, testRun); s.spawnTimer = 1000; s.player.attackTimer = 1000;
+    const pickup = { id: 802, x: s.player.x + 140, y: s.player.y, value: 20, pullSpeed: 0 }; s.pickups.push(pickup);
+    steps(s, 1); expect(pickup.x).toBe(s.player.x + 140); expect(s.player.xp).toBe(0);
+    expect(s.player.pickupRadius).toBe(72);
+  });
+
+  it('conserves XP through a pickup-heavy run while distant piles remain on the map', () => {
+    const s = createGame(153, testRun); s.spawnTimer = 10_000; s.player.attackTimer = 10_000;
+    for (let i = 0; i < 300; i++) {
+      const enemy = spawnEnemy(s, i % 3 === 0 ? 'bruiser' : 'thug', testRun, { x: 120 + (i % 20) * 78, y: 100 + Math.floor(i / 20) * 58 });
+      applyEnemyDamage(s, enemy, enemy.health, { x: 1, y: 0 }, testRun);
+    }
+    const spawned = s.xpSpawned;
+    expect(s.pickups.length).toBeGreaterThan(100);
+    steps(s, 360);
+    const remaining = s.pickups.reduce((sum, pile) => sum + pile.value, 0);
+    expect(s.xpCollected + remaining + s.xpLost).toBe(spawned);
+    expect(s.pickups.length).toBeGreaterThan(100);
+  }, 10_000);
 
   it('levels up and pauses until a valid upgrade is selected', () => {
     const s = createGame(16, testRun); s.pickups.push({ id: 90, x: s.player.x, y: s.player.y, value: 30 }); steps(s, 1);
     expect(s.status).toBe('upgrade'); expect(s.player.level).toBe(2); expect(s.options).toHaveLength(3); expect(new Set(s.options).size).toBe(3);
-    expect(s.options.some(id => ['vitality', 'speed', 'magnet'].includes(id))).toBe(true);
-    expect(s.options.some(id => ['damage', 'tempo', 'extra', 'power'].includes(id))).toBe(true);
+    expect(s.options.some(id => ['vitality', 'agility', 'attraction'].includes(id))).toBe(true);
+    expect(s.options.some(id => ['might', 'tempo', 'multiplicity', 'fortune'].includes(id))).toBe(true);
     expect(s.options).not.toContain('evolvePinwheel');
     const selected = choice(s); expect(chooseUpgrade(s, selected)).toBe(true); expect(s.status).toBe('playing');
   });
@@ -298,11 +423,27 @@ describe('deterministic gameplay simulation', () => {
   });
 
   it('applies upgrade effects and unlocks the second prototype attack', () => {
-    const s = createGame(18, testRun); s.levelChoices = 1; s.options = ['orbit', 'speed', 'vitality']; s.status = 'upgrade';
-    const previous = s.player.speed; expect(chooseUpgrade(s, 'speed')).toBe(true); expect(s.player.speed).toBeGreaterThan(previous);
-    s.levelChoices = 1; s.options = ['orbit', 'damage', 'magnet']; s.status = 'upgrade'; chooseUpgrade(s, 'orbit');
+    const s = createGame(18, testRun); s.levelChoices = 1; s.options = ['orbit', 'agility', 'vitality']; s.status = 'upgrade';
+    const previous = s.player.speed; expect(chooseUpgrade(s, 'agility')).toBe(true); expect(s.player.speed).toBeGreaterThan(previous);
+    s.levelChoices = 1; s.options = ['orbit', 'might', 'attraction']; s.status = 'upgrade'; chooseUpgrade(s, 'orbit');
     expect(s.player.orbit).toBe(true); expect(s.attacks).toContain('Orbit Guard (Prototype)');
-    s.levelChoices = 1; s.options = ['recovery', 'damage', 'magnet']; s.status = 'upgrade'; chooseUpgrade(s, 'recovery'); expect(s.player.healthRegen).toBe(0.45);
+    s.levelChoices = 1; s.options = ['regeneration', 'might', 'attraction']; s.status = 'upgrade'; chooseUpgrade(s, 'regeneration'); expect(s.player.healthRegen).toBe(0.2);
+  });
+
+  it('raises the short XP attraction range by a capped 14 units per Attraction rank', () => {
+    const s = createGame(181, testRun); expect(s.player.pickupRadius).toBe(72);
+    s.status = 'upgrade'; s.levelChoices = 1; s.options = ['attraction', 'agility', 'vitality'];
+    expect(chooseUpgrade(s, 'attraction')).toBe(true); expect(s.player.pickupRadius).toBe(86);
+    s.player.pickupRadius = 155; s.status = 'upgrade'; s.levelChoices = 1; s.options = ['attraction', 'agility', 'vitality'];
+    chooseUpgrade(s, 'attraction'); expect(s.player.pickupRadius).toBe(160);
+  });
+
+  it('calculates explicit current and next skill ranks for weapons and passives', () => {
+    const s = createGame(182, testRun); s.chosen.push('attraction', 'attraction', 'might');
+    expect(getUpgradeRankProgress('pinwheel', s.player, s.chosen).label).toBe('LEVEL 1 → LEVEL 2');
+    expect(getUpgradeRankProgress('attraction', s.player, s.chosen).label).toBe('LEVEL 2 → LEVEL 3');
+    expect(getUpgradeRankProgress('piercingThrow', s.player, s.chosen).label).toBe('NEW · LEVEL 1');
+    expect(getUpgradeRankProgress('multiplicity', s.player, ['multiplicity', 'multiplicity', 'multiplicity', 'multiplicity']).label).toBe('MAX LEVEL');
   });
 
   it('damages and defeats the boss through actual attacks', () => {
@@ -390,13 +531,13 @@ describe('deterministic gameplay simulation', () => {
   it('compares Normal and Heroic horde outcomes across reproducible seeds', () => {
     const observations: Array<Record<string, unknown>> = [];
     const strategies: Array<{ seed: number; strategy: UpgradeId[] }> = [
-      { seed: 1741, strategy: ['piercingThrow', 'orbit', 'damage', 'tempo', 'power', 'pinwheel', 'vitality', 'recovery', 'speed', 'extra', 'magnet'] },
-      { seed: 42, strategy: ['vitality', 'recovery', 'speed', 'orbit', 'piercingThrow', 'power', 'damage', 'tempo', 'pinwheel', 'extra', 'magnet'] },
-      { seed: 2026, strategy: ['orbit', 'piercingThrow', 'vitality', 'recovery', 'power', 'pinwheel', 'damage', 'tempo', 'speed', 'extra', 'magnet'] },
+      { seed: 1741, strategy: ['piercingThrow', 'orbit', 'might', 'tempo', 'fortune', 'pinwheel', 'vitality', 'regeneration', 'agility', 'multiplicity', 'attraction'] },
+      { seed: 42, strategy: ['vitality', 'regeneration', 'agility', 'orbit', 'piercingThrow', 'fortune', 'might', 'tempo', 'pinwheel', 'multiplicity', 'attraction'] },
+      { seed: 2026, strategy: ['orbit', 'piercingThrow', 'vitality', 'regeneration', 'fortune', 'pinwheel', 'might', 'tempo', 'agility', 'multiplicity', 'attraction'] },
     ];
     const scenarios = strategies.flatMap(scenario => (['normal', 'heroic'] as const).map(difficulty => ({ ...scenario, difficulty })));
     for (const { seed, strategy, difficulty } of scenarios) {
-      const run = { ...standardRun, difficulty };
+      const run = { ...standardRun, difficulty, gameMode: 'finite' as const };
       const s = createGame(seed, run);
       const hordeSamples: Array<Record<string, unknown>> = []; const sampleTimes = [15, 30, 60, 90, 120, 150]; let nextSample = 0;
       let guard = 0;
@@ -461,5 +602,158 @@ describe('deterministic gameplay simulation', () => {
     steps(s, 1);
     expect(enemy.dead).toBe(true);
     expect(s.player.damageDealt).toBe(5);
+  });
+
+  it('applies Split Pattern to Bok-Goo tosses as real, bounded projectiles', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(2211, cfg, 'bok-goo');
+    s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.weaponRanks.boulderToss = 1;
+    s.player.extraShots = 2; s.player.passiveRanks.multiplicity = 2; s.player.piercingTimer = 0.001;
+    const enemy = spawnEnemy(s, 'thug', cfg, { x: s.player.x + 120, y: s.player.y + 24 }); enemy.speed = 0; s.enemies.push(enemy);
+    steps(s, 1, idle, cfg);
+    expect(s.projectiles.filter(shot => shot.weaponId === 'boulder')).toHaveLength(3);
+    s.player.extraShots = 99; s.player.piercingTimer = 0.001; s.projectiles.length = 0;
+    steps(s, 1, idle, cfg);
+    expect(s.projectiles.filter(shot => shot.weaponId === 'boulder')).toHaveLength(3);
+  });
+
+  it('uses the same orbit-ring positions for persistent weapon collision and display state', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(2212, cfg);
+    s.spawnTimer = 10_000; s.player.attackTimer = 10_000; s.player.piercingTimer = 10_000;
+    s.player.weaponRanks.orbitGuard = 1; s.player.orbit = true;
+    const enemy = spawnEnemy(s, 'thug', cfg, { x: s.player.x + 51, y: s.player.y + 3 }); enemy.speed = 0; s.enemies.push(enemy);
+    const before = enemy.health;
+    steps(s, 1, idle, cfg);
+    expect(s.player.orbitRings).toHaveLength(1);
+    expect(enemy.health).toBeLessThan(before);
+    const afterFirstContact = enemy.health;
+    steps(s, 1, idle, cfg);
+    expect(enemy.health).toBe(afterFirstContact);
+  });
+
+  it('applies passive ranks to incoming damage and XP gain', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const base = createGame(2213, cfg); const plated = createGame(2213, cfg);
+    plated.player.passiveRanks.resilience = 2;
+    expect(damagePlayer(base, 50, 'thug-contact', cfg)).toBe(true);
+    expect(damagePlayer(plated, 50, 'thug-contact', cfg)).toBe(true);
+    expect(plated.player.health - base.player.health).toBeCloseTo(5);
+    plated.player.passiveRanks.wisdom = 2;
+    plated.pickups.push({ id: plated.nextId++, x: plated.player.x, y: plated.player.y, value: 10 });
+    steps(plated, 1, idle, cfg);
+    expect(plated.player.xp).toBeCloseTo(11.6);
+    expect(plated.xpCollected).toBe(10);
+  });
+
+  it('creates a finite ricochet ring projectile and timed ground waves that hit once', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const blue = createGame(2214, cfg); blue.player.attackTimer = 10_000; blue.player.piercingTimer = 10_000; blue.player.weaponRanks.ricochetRing = 1; blue.player.ricochetTimer = 0.001;
+    const target = spawnEnemy(blue, 'thug', cfg, { x: blue.player.x + 180, y: blue.player.y + 20 }); target.speed = 0; blue.enemies.push(target);
+    steps(blue, 1, idle, cfg);
+    const ricochet = blue.projectiles.find(shot => shot.weaponId === 'ricochetRing');
+    expect(ricochet?.bouncesRemaining).toBe(1);
+    ricochet!.x = 1; ricochet!.y = blue.player.y; ricochet!.vx = -100; ricochet!.vy = 0;
+    steps(blue, 1, idle, cfg);
+    expect(ricochet!.bouncesRemaining).toBe(0); expect(ricochet!.vx).toBeGreaterThan(0);
+
+    const bok = createGame(2215, cfg, 'bok-goo'); bok.player.attackTimer = 10_000; bok.player.groundSlamTimer = 0.001; bok.player.weaponRanks.groundSlam = 1;
+    const nearby = spawnEnemy(bok, 'thug', cfg, { x: bok.player.x + 56, y: bok.player.y }); nearby.speed = 0; bok.enemies.push(nearby);
+    steps(bok, 20, idle, cfg);
+    expect(bok.waves.length).toBeGreaterThan(0);
+    expect(bok.player.damageDealt).toBeGreaterThan(0);
+  });
+
+  it('limits a build to six distinct passive slots while allowing ranks in owned slots', () => {
+    const s = createGame(2216, testRun); s.chosen = ['might', 'tempo', 'multiplicity', 'agility', 'vitality', 'regeneration'];
+    s.player.xp = s.player.xpNext; steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options.some(id => ['attraction', 'reach', 'momentum', 'persistence', 'resilience', 'wisdom'].includes(id))).toBe(false);
+    expect(s.options.some(id => ['might', 'tempo', 'multiplicity', 'agility', 'vitality', 'regeneration'].includes(id))).toBe(true);
+  });
+
+  it('offers a recovery passive when a level-up happens at critical health', () => {
+    const s = createGame(22191, testRun); s.player.health = 40; s.player.xp = s.player.xpNext;
+    steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('vitality');
+    expect(chooseUpgrade(s, 'vitality')).toBe(true);
+    expect(s.player.maxHealth).toBe(184);
+    expect(s.player.health).toBe(64);
+    s.pickups.push({ id: 22192, x: s.player.x, y: s.player.y, value: s.player.xpNext });
+    steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('regeneration');
+    expect(chooseUpgrade(s, 'regeneration')).toBe(true);
+    s.player.passiveRanks.resilience = 1;
+    s.player.health = 30; s.player.xp = s.player.xpNext;
+    steps(s, 1);
+    expect(s.status).toBe('upgrade');
+    expect(s.options).toContain('regeneration');
+  });
+
+  it('registers only the selected hero’s eligible boss-cache evolutions', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const blue = createGame(2219, cfg);
+    blue.player.weaponRanks.pinwheel = 5; blue.player.weaponRanks.orbitGuard = 5; blue.player.weaponRanks.ricochetRing = 5;
+    blue.player.passiveRanks.might = 1; blue.player.passiveRanks.persistence = 1; blue.player.passiveRanks.resilience = 1;
+    expect(eligibleWeaponEvolutions(blue).sort()).toEqual(['eternal-halo', 'shatterstorm', 'typhoon-rings']);
+
+    const bok = createGame(2220, cfg, 'bok-goo');
+    bok.player.weaponRanks.clubSweep = 5; bok.player.weaponRanks.boulderToss = 5;
+    bok.player.passiveRanks.reach = 1; bok.player.passiveRanks.multiplicity = 1;
+    expect(eligibleWeaponEvolutions(bok).sort()).toEqual(['avalanche-toss', 'earthbreaker']);
+
+    const dari = createGame(2221, cfg, 'da-ri');
+    dari.player.weaponRanks.spearThrust = 5; dari.player.weaponRanks.spearToss = 5;
+    dari.player.passiveRanks.tempo = 1; dari.player.passiveRanks.momentum = 1;
+    expect(eligibleWeaponEvolutions(dari).sort()).toEqual(['obsidian-tempest', 'returning-lance']);
+    dari.evolutionOptions = eligibleWeaponEvolutions(dari); dari.status = 'boss-reward';
+    expect(chooseBossReward(dari, 'returning-lance')).toBe(true);
+    expect(dari.player.evolutions).toContain('returning-lance');
+  });
+
+  it('schedules real follow-up hits for rank-four Club Sweep and Spear Thrust', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const bok = createGame(2217, cfg, 'bok-goo'); bok.spawnTimer = 10_000; bok.player.attackTimer = 0.001; bok.player.weaponRanks.clubSweep = 4;
+    const thug = spawnEnemy(bok, 'thug', cfg, { x: bok.player.x + 52, y: bok.player.y }); thug.speed = 0; thug.health = thug.maxHealth = 1000; bok.enemies.push(thug);
+    steps(bok, 1, idle, cfg); const firstClubHit = bok.player.damageDealt;
+    steps(bok, 15, idle, cfg); expect(bok.player.damageDealt).toBeGreaterThan(firstClubHit);
+
+    const dari = createGame(2218, cfg, 'da-ri'); dari.spawnTimer = 10_000; dari.player.attackTimer = 0.001; dari.player.weaponRanks.spearThrust = 4;
+    const target = spawnEnemy(dari, 'thug', cfg, { x: dari.player.x + 80, y: dari.player.y }); target.speed = 0; target.health = target.maxHealth = 1000; dari.enemies.push(target);
+    steps(dari, 1, idle, cfg); const firstThrustHit = dari.player.damageDealt;
+    steps(dari, 12, idle, cfg); expect(dari.player.damageDealt).toBeGreaterThan(firstThrustHit);
+  });
+
+  it('turns Obsidian Tempest into a bounded three-strike forward fan', () => {
+    const cfg = { ...testRun, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const dari = createGame(2230, cfg, 'da-ri'); dari.spawnTimer = 10_000; dari.player.attackTimer = 0.001; dari.player.weaponRanks.spearThrust = 5; dari.player.evolutions.push('obsidian-tempest');
+    const target = spawnEnemy(dari, 'thug', cfg, { x: dari.player.x + 80, y: dari.player.y }); target.speed = 0; target.health = target.maxHealth = 2000; dari.enemies.push(target);
+    steps(dari, 1, idle, cfg); const firstStrikeDamage = dari.player.damageDealt;
+    expect(dari.player.tempestStrikesRemaining).toBe(2);
+    steps(dari, 18, idle, cfg);
+    expect(dari.player.damageDealt).toBeGreaterThan(firstStrikeDamage);
+    expect(dari.player.tempestStrikesRemaining).toBe(0);
+  });
+
+  it('makes Typhoon Rings visibly add a volley and Earthbreaker create its follow-up wave', () => {
+    const cfg = { ...testRun, bossAt: 10_000, duration: 10_000, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const blue = createGame(2231, cfg); blue.spawnTimer = 10_000; blue.player.attackTimer = 0.001; blue.player.weaponRanks.pinwheel = 5; blue.player.evolvedPinwheel = true;
+    const target = spawnEnemy(blue, 'thug', cfg, { x: blue.player.x + 100, y: blue.player.y }); target.speed = 0; blue.enemies.push(target);
+    steps(blue, 1, idle, cfg);
+    expect(blue.projectiles.filter(projectile => projectile.weaponId === 'pinwheel')).toHaveLength(2);
+
+    const bok = createGame(2232, cfg, 'bok-goo'); bok.spawnTimer = 10_000; bok.player.attackTimer = 0.001; bok.player.weaponRanks.clubSweep = 5; bok.player.evolutions.push('earthbreaker');
+    steps(bok, 1, idle, cfg);
+    expect(bok.waves.some(wave => wave.maxRadius >= 150 && wave.duration !== undefined)).toBe(true);
+  });
+
+  it('creates a bounded Shatterstorm burst when a ricochet hits the world edge', () => {
+    const cfg = { ...testRun, bossAt: 10_000, duration: 10_000, horde: { ...testRun.horde, targetCounts: [{ at: 0, count: 0 }], maxActive: 8 } };
+    const s = createGame(2233, cfg); s.player.weaponRanks.ricochetRing = 5; s.player.evolutions.push('shatterstorm'); s.spawnTimer = 10_000;
+    s.projectiles.push({ id: s.nextId++, x: cfg.arenaWidth - 3, y: s.player.y, vx: 600, vy: 0, damage: 30, life: 1, pierce: 0, hitIds: [], special: false, owner: 'player', spin: 0, weaponId: 'ricochetRing', bouncesRemaining: 2 });
+    steps(s, 1, idle, cfg);
+    expect(s.waves.some(wave => wave.maxRadius === 68 && wave.duration === 0.24)).toBe(true);
   });
 });
