@@ -1,5 +1,11 @@
 # Project status
 
+## Assignment 012 — Supply Drop! (in progress)
+
+Development is on `feature/supply-drop`, based on the verified `feature/rings-xp-and-melee` head containing merged PRs #11 and #12. This change corrects Smiler/Molar clips from 256×170 to their verified 256×341 frames and anchors each on its measured feet; adds a typed pickup registry, Recovery Rations, XP Recall, temporary directional Inferno Curry, capped Field/Hero Caches, deterministic Fortune-aware utility drops, and bounded elites; and places four nonblocking breakable supply boxes in the city. Boss evolution rewards continue using the existing boss-cache flow. Pickup and elite behavior is documented in `docs/PICKUPS.md` and `docs/ELITES.md`.
+
+Focused tests now cover actual processed image dimensions, pickup tables, healing persistence/clamping, XP Recall/Wisdom accounting, Curry targeting/cooldowns, elite cache rewards, cache pause/choice, and supply-box destruction. Full test/build/E2E, visual capture, performance comparison, publication, and CI verification are pending. Do not interpret automated simulation outcomes as human balance evidence.
+
 ## Milestone 001 — first playable slice
 
 Published in the official repository at <https://github.com/joepak-swiger/Grand-Glory>. PR #1 is open and unmerged. `main` preserves the initial baseline; gameplay foundation corrections are on `feature/first-playable`.

@@ -2,6 +2,7 @@ import { ATTACKS, DIFFICULTIES, ENEMIES, GANG_LEADER, HEROES, HEROIC_TRAITS, PAS
 import { SpatialGrid } from './spatial-grid';
 import { buildNavigationField, createCityStage, isWalkable, moveOnStage, navigationDirection, nearestWalkablePoint, segmentHitsBuilding, type CityStage, type NavigationField } from './stage';
 import { heroicStatMultiplier } from './heroic-traits';
+import { PICKUPS, cacheTierForFortune, rollUtilityDrop, type PickupId } from './pickups';
 
 export interface Vec { x: number; y: number }
 export type HorizontalFacing = 'left' | 'right';
@@ -10,15 +11,16 @@ export type DamageSource = 'thug-contact' | 'fast-contact' | 'bruiser-contact' |
 export type DamageBreakdown = Record<DamageSource, number>;
 export const DAMAGE_SOURCES: readonly DamageSource[] = ['thug-contact', 'fast-contact', 'bruiser-contact', 'ranged-projectile', 'boss-contact', 'boss-projectile', 'boss-charge', 'yoyo-line', 'boss-chain', 'dr-smile-melee', 'dr-smile-zone'];
 function emptyDamageBreakdown(): DamageBreakdown { return { 'thug-contact': 0, 'fast-contact': 0, 'bruiser-contact': 0, 'ranged-projectile': 0, 'boss-contact': 0, 'boss-projectile': 0, 'boss-charge': 0, 'yoyo-line': 0, 'boss-chain': 0, 'dr-smile-melee': 0, 'dr-smile-zone': 0 }; }
-export interface Player extends Vec { heroId: HeroId; health: number; maxHealth: number; speed: number; healthRegen: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; orbitRings: OrbitRing[]; damageDealt: number; weaponRanks: Record<WeaponId, number>; passiveRanks: Record<PassiveId, number>; evolvedPinwheel: boolean; evolutions: WeaponEvolutionId[]; piercingTimer: number; ricochetTimer: number; groundSlamTimer: number; spearSweepTimer: number; followupStrike: { kind: 'club' | 'spear'; direction: Vec; rank: number } | null; followupStrikeTimer: number; tempestStrikesRemaining: number; tempestStrikeIndex: number; tempestStrikeTimer: number; tempestAim: Vec; attackVisual: 'club-sweep' | 'spear-thrust' | 'ground-slam' | 'spear-sweep' | null; attackVisualTimer: number }
+export interface Player extends Vec { heroId: HeroId; health: number; maxHealth: number; speed: number; healthRegen: number; level: number; xp: number; xpNext: number; invulnerable: number; attackTimer: number; dashTimer: number; dashCooldown: number; special: number; facing: Vec; horizontalFacing: HorizontalFacing; damageBonus: number; extraShots: number; pickupRadius: number; orbit: boolean; orbitTimer: number; orbitRings: OrbitRing[]; damageDealt: number; weaponRanks: Record<WeaponId, number>; passiveRanks: Record<PassiveId, number>; evolvedPinwheel: boolean; evolutions: WeaponEvolutionId[]; piercingTimer: number; ricochetTimer: number; groundSlamTimer: number; spearSweepTimer: number; followupStrike: { kind: 'club' | 'spear'; direction: Vec; rank: number } | null; followupStrikeTimer: number; tempestStrikesRemaining: number; tempestStrikeIndex: number; tempestStrikeTimer: number; tempestAim: Vec; attackVisual: 'club-sweep' | 'spear-thrust' | 'ground-slam' | 'spear-sweep' | null; attackVisualTimer: number; infernoCurryTimer?: number }
 export type BossAttackState = 'idle' | 'ranged-telegraph' | 'charge-telegraph' | 'charging' | 'recovering' | 'melee-telegraph' | 'melee-swing' | 'yoyo-telegraph' | 'yoyo-extension' | 'yoyo-hold' | 'yoyo-retract' | 'chain-telegraph' | 'chain-swing' | 'chain-throw' | 'hazard-telegraph' | 'hazard-active';
-export interface Enemy extends Vec { id: number; kind: EnemyKind; bossId: 'gang-boss' | 'dr-smile' | null; attackTarget: Vec; attackCooldown: number; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; horizontalFacing: HorizontalFacing; animationTime: number; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number; rangedTimer: number; distantTime: number }
+export interface Enemy extends Vec { id: number; kind: EnemyKind; elite?: boolean; bossId: 'gang-boss' | 'dr-smile' | null; attackTarget: Vec; attackCooldown: number; health: number; maxHealth: number; speed: number; damage: number; radius: number; xp: number; knockback: Vec; hitFlash: number; attackState: BossAttackState; attackDirection: Vec; horizontalFacing: HorizontalFacing; animationTime: number; chargeReady: boolean; chargeConnected: boolean; dead: boolean; phase: number; rangedTimer: number; distantTime: number }
 export interface Projectile extends Vec { id: number; vx: number; vy: number; damage: number; life: number; pierce: number; hitIds: number[]; special: boolean; owner: 'player' | 'enemy'; spin: number; arcHeight?: number; arcDuration?: number; arcElapsed?: number; bouncesRemaining?: number; splashRadius?: number; weaponId?: WeaponId | 'special' | 'enemy' | 'baseball' | 'boulder' | 'spear' | 'chainball'; damageSource?: DamageSource; sourceEnemyId?: number; maxRange?: number; returning?: boolean }
-export interface Pickup extends Vec { id: number; value: number; pullSpeed?: number; kind?: 'xp' | 'boss-evolution'; consumed?: boolean }
+export interface Pickup extends Vec { id: number; value: number; pullSpeed?: number; kind?: PickupId; consumed?: boolean; age?: number; recalling?: boolean; recallBlocked?: boolean; recallElapsed?: number }
+export interface BreakableProp extends Vec { id: number; kind: 'supply-box'; health: number; maxHealth: number; destroyed: boolean }
 export interface GroundWave extends Vec { id: number; radius: number; maxRadius: number; life: number; duration?: number; damage: number; hitIds: number[]; direction: Vec; halfAngle: number }
 export interface FloatText extends Vec { id: number; text: string; life: number }
 export interface SimState {
-  status: GameStatus; player: Player; enemies: Enemy[]; projectiles: Projectile[]; pickups: Pickup[]; waves: GroundWave[]; numbers: FloatText[];
+  status: GameStatus; player: Player; enemies: Enemy[]; projectiles: Projectile[]; pickups: Pickup[]; props: BreakableProp[]; waves: GroundWave[]; numbers: FloatText[];
   readonly enemyGrid: SpatialGrid<Enemy>;
   readonly enemyQueryScratch: Enemy[];
   readonly pickupGrid: SpatialGrid<Pickup>;
@@ -26,7 +28,7 @@ export interface SimState {
   readonly stage: CityStage;
   navigation: NavigationField;
   navigationTargetCell: number;
-  elapsed: number; kills: number; bossDefeated: boolean; bossesDefeated: number; completedWaves: number; currentBossId: 'gang-boss' | 'dr-smile' | null; lastBossId: 'gang-boss' | 'dr-smile' | null; factionsEncountered: FactionId[]; nextBossAt: number; endless: boolean; bossArrivalAt: number | null; bossFightDuration: number | null; endReason: 'player-down' | 'boss-escaped' | 'retired' | null; seed: number; nextId: number; spawnTimer: number; spawnBudget: number; levelChoices: number; surgeRemaining: number; surgeCount: number; surgeDirection: HordeEntrySide; pickupMergeTimer: number;
+  elapsed: number; kills: number; bossDefeated: boolean; bossesDefeated: number; completedWaves: number; currentBossId: 'gang-boss' | 'dr-smile' | null; lastBossId: 'gang-boss' | 'dr-smile' | null; factionsEncountered: FactionId[]; nextBossAt: number; endless: boolean; bossArrivalAt: number | null; bossFightDuration: number | null; endReason: 'player-down' | 'boss-escaped' | 'retired' | null; seed: number; nextId: number; spawnTimer: number; spawnBudget: number; levelChoices: number; surgeRemaining: number; surgeCount: number; surgeDirection: HordeEntrySide; pickupMergeTimer: number; eliteSpawnTimer: number; elitesSpawned: number; elitesDefeated: number; supplyCacheTier: 'field-cache' | 'hero-cache' | null; infernoCooldowns: Record<number, number>;
   peakEnemies: number; enemiesSpawned: number; spawnWindowCount: number; spawnWindowSeconds: number; spawnRate: number; killWindowCount: number; killWindowSeconds: number; killRate: number; hordeTarget: number; hordeDeficit: number; timeBelowHordeTarget: number; spawnPlacementFallbacks: number; recycledEnemies: number; xpSpawned: number; xpCollected: number; xpPilesMerged: number; xpLost: number;
   options: UpgradeId[]; chosen: UpgradeId[]; evolutionOptions: Array<WeaponEvolutionId | 'field-cache' | 'arsenal-cache'>; attacks: string[]; messages: string[]; specialTimer: number;
   damageTaken: DamageBreakdown;
@@ -48,7 +50,13 @@ export function createGame(seed = standardRun.seed, config: RunConfig = standard
   const player = { heroId, x: config.arenaWidth / 2, y: config.arenaHeight / 2, health: hero.maxHealth, maxHealth: hero.maxHealth, speed: hero.moveSpeed, healthRegen: 0, level: 1, xp: 0, xpNext: 30, invulnerable: 0, attackTimer: 0.25, dashTimer: 0, dashCooldown: 0, special: 0, facing: { x: 1, y: 0 }, horizontalFacing: 'right' as const, damageBonus: 0, extraShots: 0, pickupRadius: 72, orbit: false, orbitTimer: 0, orbitRings: [], damageDealt: 0, weaponRanks: { pinwheel: heroId === 'blue-pinwheel' ? 1 : 0, orbitGuard: 0, piercingThrow: 0, ricochetRing: 0, clubSweep: heroId === 'bok-goo' ? 1 : 0, boulderToss: 0, groundSlam: 0, spearThrust: heroId === 'da-ri' ? 1 : 0, spearToss: 0, spearSweep: 0 }, passiveRanks: Object.fromEntries(PASSIVE_IDS.map(id => [id, 0])) as Record<PassiveId, number>, evolvedPinwheel: false, evolutions: [], piercingTimer: 0.6, ricochetTimer: 0.9, groundSlamTimer: 2.4, spearSweepTimer: 2.1, followupStrike: null as Player['followupStrike'], followupStrikeTimer: 0, tempestStrikesRemaining: 0, tempestStrikeIndex: 0, tempestStrikeTimer: 0, tempestAim: { x: 1, y: 0 }, attackVisual: null as Player['attackVisual'], attackVisualTimer: 0 };
   return {
     status: 'playing', player,
-    enemies: [], projectiles: [], pickups: [], waves: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossesDefeated: 0, completedWaves: 0, currentBossId: null, lastBossId: null, factionsEncountered: ['street-gang'], nextBossAt: config.bossAt, endless: (config.gameMode ?? (config.testMode ? 'finite' : 'endless')) === 'endless', bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, xpSpawned: 0, xpCollected: 0, xpPilesMerged: 0, xpLost: 0, options: [], chosen: [], evolutionOptions: [], attacks: [hero.attackName], messages: [], specialTimer: 0, damageTaken: emptyDamageBreakdown(),
+    enemies: [], projectiles: [], pickups: [], props: [
+      { id: -1, ...nearestWalkablePoint(stage, 580, 205), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
+      { id: -2, ...nearestWalkablePoint(stage, 1230, 205), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
+      { id: -3, ...nearestWalkablePoint(stage, 580, 995), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
+      { id: -4, ...nearestWalkablePoint(stage, 1230, 995), kind: 'supply-box', health: 48, maxHealth: 48, destroyed: false },
+    ], waves: [], numbers: [], enemyGrid: new SpatialGrid<Enemy>(config.arenaWidth, config.arenaHeight), enemyQueryScratch: [], pickupGrid: new SpatialGrid<Pickup>(config.arenaWidth, config.arenaHeight, 32), pickupQueryScratch: [], stage, navigation: buildNavigationField(stage, player.x, player.y), navigationTargetCell: Math.floor(player.y / stage.cellSize) * stage.columns + Math.floor(player.x / stage.cellSize), elapsed: 0, kills: 0, bossDefeated: false, bossesDefeated: 0, completedWaves: 0, currentBossId: null, lastBossId: null, factionsEncountered: ['street-gang'], nextBossAt: config.bossAt, endless: (config.gameMode ?? (config.testMode ? 'finite' : 'endless')) === 'endless', bossArrivalAt: null, bossFightDuration: null, endReason: null, seed: seed >>> 0, nextId: 1, spawnTimer: 0.25, spawnBudget: config.horde.batchMin, levelChoices: 0, surgeRemaining: 0, surgeCount: 0, surgeDirection: 'right', pickupMergeTimer: 0.5, peakEnemies: 0, enemiesSpawned: 0, spawnWindowCount: 0, spawnWindowSeconds: 0, spawnRate: 0, killWindowCount: 0, killWindowSeconds: 0, killRate: 0, hordeTarget: 0, hordeDeficit: 0, timeBelowHordeTarget: 0, spawnPlacementFallbacks: 0, recycledEnemies: 0, xpSpawned: 0, xpCollected: 0, xpPilesMerged: 0, xpLost: 0, options: [], chosen: [], evolutionOptions: [], attacks: [hero.attackName], messages: [], specialTimer: 0, damageTaken: emptyDamageBreakdown(),
+    eliteSpawnTimer: 42, elitesSpawned: 0, elitesDefeated: 0, supplyCacheTier: null, infernoCooldowns: {},
   };
 }
 
@@ -191,16 +199,88 @@ function moveEnemy(state: SimState, enemy: Enemy, direction: Vec, speed: number,
 }
 
 function float(state: SimState, text: string, x: number, y: number): void { state.numbers.push({ id: state.nextId++, text, x, y, life: 0.75 }); }
+export function spawnPickup(state: SimState, kind: PickupId, position: Vec, value = 0): Pickup | undefined {
+  const definition = PICKUPS[kind];
+  const active = state.pickups.reduce((count, pickup) => count + Number(!pickup.consumed && pickup.kind === kind), 0);
+  if (active >= definition.maxActive) return undefined;
+  const point = nearestWalkablePoint(state.stage, position.x, position.y, 0);
+  const pickup: Pickup = { id: state.nextId++, x: point.x, y: point.y, value, kind, age: 0 };
+  state.pickups.push(pickup);
+  return pickup;
+}
+
+export function spawnEliteEnemy(state: SimState, kind: EnemyKind, config: RunConfig = standardRun, position?: Vec): Enemy {
+  const enemy = spawnEnemy(state, kind, config, position);
+  enemy.elite = true;
+  enemy.maxHealth *= 2;
+  enemy.health = enemy.maxHealth;
+  enemy.damage *= 1.12;
+  enemy.xp = Math.round(enemy.xp * 1.5);
+  return enemy;
+}
+
+function dropEliteCache(state: SimState, position: Vec): void {
+  const preferred = cacheTierForFortune(state.player.passiveRanks.fortune, random(state));
+  const alternate = preferred === 'hero-cache' ? 'field-cache' : 'hero-cache';
+  if (!spawnPickup(state, preferred, position)) spawnPickup(state, alternate, position);
+}
+
+export function damageBreakableProp(state: SimState, prop: BreakableProp, damage: number, difficulty: RunConfig['difficulty'] = 'normal'): boolean {
+  if (prop.destroyed || damage <= 0) return false;
+  prop.health = Math.max(0, prop.health - damage);
+  if (prop.health > 0) return false;
+  prop.destroyed = true;
+  const drop = rollUtilityDrop('prop', difficulty, state.player.passiveRanks.fortune, random(state));
+  if (drop) spawnPickup(state, drop, prop);
+  state.messages.push(drop ? 'SUPPLY BOX · PICKUP FOUND' : 'SUPPLY BOX BROKEN');
+  return true;
+}
+
+function awardCollectedXp(state: SimState, pickup: Pickup): void {
+  const value = pickup.value;
+  if (value <= 0) return;
+  state.player.xp += value * heroicStatMultiplier(state.player.passiveRanks, 'xp');
+  state.player.special = Math.min(100, state.player.special + value * 0.42);
+  state.xpCollected += value;
+  float(state, `+${value} XP`, pickup.x, pickup.y);
+  pickup.value = 0;
+  pickup.consumed = true;
+}
+
+function openSupplyCache(state: SimState, tier: 'field-cache' | 'hero-cache'): void {
+  state.supplyCacheTier = tier;
+  state.levelChoices = 1;
+  state.status = 'upgrade';
+  populateOptions(state);
+  if (!state.options.length) {
+    const heal = tier === 'hero-cache' ? Math.max(45, state.player.maxHealth * 0.28) : Math.max(25, state.player.maxHealth * 0.16);
+    state.player.health = Math.min(state.player.maxHealth, state.player.health + heal);
+    state.player.special = Math.min(100, state.player.special + (tier === 'hero-cache' ? 35 : 20));
+    state.supplyCacheTier = null;
+    state.levelChoices = 0;
+    state.status = 'playing';
+    float(state, 'CACHE RECOVERY', state.player.x, state.player.y - 36);
+  }
+}
+
 export function applyEnemyDamage(state: SimState, enemy: Enemy, damage: number, direction: Vec, config: RunConfig = standardRun): void {
   if (enemy.dead || enemy.health <= 0) return;
   const actualDamage = Math.min(enemy.health, damage);
   enemy.health = Math.max(0, enemy.health - actualDamage); enemy.hitFlash = 0.16;
-  enemy.knockback.x += direction.x * (enemy.kind === 'boss' ? 90 : 230);
-  enemy.knockback.y += direction.y * (enemy.kind === 'boss' ? 90 : 230);
+  const knockback = enemy.kind === 'boss' ? 90 : enemy.elite ? 115 : 230;
+  enemy.knockback.x += direction.x * knockback;
+  enemy.knockback.y += direction.y * knockback;
   state.player.damageDealt += actualDamage;
   if (enemy.health === 0) {
     enemy.dead = true; state.kills++; state.killWindowCount++;
-    const drop = nearestWalkablePoint(state.stage, enemy.x, enemy.y, 0); state.pickups.push({ id: state.nextId++, x: drop.x, y: drop.y, value: enemy.xp, pullSpeed: 0 }); state.xpSpawned += enemy.xp;
+    const drop = nearestWalkablePoint(state.stage, enemy.x, enemy.y, 0); state.pickups.push({ id: state.nextId++, x: drop.x, y: drop.y, value: enemy.xp, pullSpeed: 0, kind: 'xp' }); state.xpSpawned += enemy.xp;
+    if (enemy.elite) {
+      state.elitesDefeated++;
+      dropEliteCache(state, drop);
+    } else if (enemy.kind !== 'boss') {
+      const utility = rollUtilityDrop('ordinary', config.difficulty, state.player.passiveRanks.fortune, random(state));
+      if (utility) spawnPickup(state, utility, drop);
+    }
     if (enemy.kind === 'boss') {
       state.bossDefeated = true; state.bossFightDuration = Math.max(0, state.elapsed - (state.bossArrivalAt ?? state.elapsed));
       state.bossesDefeated++; state.completedWaves++; state.lastBossId = enemy.bossId; state.currentBossId = null;
@@ -274,6 +354,24 @@ function updateGroundWaves(state: SimState, step: number, nearbyEnemies: Enemy[]
     if (wave.life > 0) state.waves[write++] = wave;
   }
   state.waves.length = write;
+}
+
+function updateInfernoCurry(state: SimState, step: number, nearbyEnemies: Enemy[], config: RunConfig): void {
+  const player = state.player;
+  if ((player.infernoCurryTimer ?? 0) <= 0) return;
+  const aim = normalize(player.facing.x, player.facing.y);
+  const reach = 150 * heroicStatMultiplier(player.passiveRanks, 'area');
+  for (const id of Object.keys(state.infernoCooldowns)) {
+    state.infernoCooldowns[Number(id)] = Math.max(0, state.infernoCooldowns[Number(id)]! - step);
+    if (state.infernoCooldowns[Number(id)] === 0) delete state.infernoCooldowns[Number(id)];
+  }
+  for (const enemy of state.enemyGrid.queryRadius(player.x, player.y, reach, nearbyEnemies)) {
+    if (enemy.dead || (state.infernoCooldowns[enemy.id] ?? 0) > 0) continue;
+    const dx = enemy.x - player.x; const dy = enemy.y - player.y; const distance = Math.hypot(dx, dy) || 1;
+    if (distance > reach + enemy.radius || (dx * aim.x + dy * aim.y) / distance < 0.68 || segmentHitsBuilding(state.stage, player, enemy)) continue;
+    applyEnemyDamage(state, enemy, 11 * playerDamageMultiplier(player), aim, config);
+    state.infernoCooldowns[enemy.id] = 0.42;
+  }
 }
 
 function performClubStrike(state: SimState, aim: Vec, rank: number, nearby: Enemy[], config: RunConfig): void {
@@ -379,6 +477,9 @@ export function chooseUpgrade(state: SimState, id: UpgradeId): boolean {
   if (id === 'groundSlam') p.weaponRanks.groundSlam++;
   if (id === 'spearSweep') p.weaponRanks.spearSweep++;
   if (id === 'mastery') p.damageBonus = Math.min(2, p.damageBonus + 0.05);
+  const cacheTier = state.supplyCacheTier;
+  if (cacheTier === 'hero-cache') { p.health = Math.min(p.maxHealth, p.health + Math.max(12, p.maxHealth * 0.08)); p.special = Math.min(100, p.special + 20); }
+  state.supplyCacheTier = null;
   state.chosen.push(id); state.levelChoices--; state.options = [];
   if (state.levelChoices > 0) { state.status = 'upgrade'; populateOptions(state); } else { state.status = 'playing'; while (p.xp >= p.xpNext && state.status === 'playing') { p.xp -= p.xpNext; offerLevel(state); } }
   return true;
@@ -449,6 +550,22 @@ function spawnBatch(state: SimState, config: RunConfig, targetCount: number, bos
 
 function updateHordeDirector(state: SimState, step: number, config: RunConfig): void {
   const bossPhase = state.currentBossId !== null || (state.endless ? state.elapsed >= state.nextBossAt : state.elapsed >= config.bossAt);
+  state.eliteSpawnTimer -= step;
+  if (state.eliteSpawnTimer <= 0 && !bossPhase) {
+    const activeElites = state.enemies.reduce((count, enemy) => count + Number(!enemy.dead && enemy.elite), 0);
+    const uncollectedCaches = state.pickups.reduce((count, pickup) => count + Number(!pickup.consumed && (pickup.kind === 'field-cache' || pickup.kind === 'hero-cache')), 0);
+    // Reserve one bounded cache slot per active elite so every elite can leave its promised reward.
+    const reservedCacheCapacity = PICKUPS['field-cache'].maxActive + PICKUPS['hero-cache'].maxActive;
+    if (activeElites < 2 && state.enemies.length < config.maxEnemies && uncollectedCaches + activeElites < reservedCacheCapacity) {
+      const kinds: EnemyKind[] = state.bossesDefeated > 0
+        ? ['thug', 'fastThug', 'gangster', 'yoYoPunk', 'smiler', 'molar', 'bruiser']
+        : ['thug', 'fastThug', 'gangster', 'yoYoPunk', 'bruiser'];
+      const elite = spawnEliteEnemy(state, kinds[Math.floor(random(state) * kinds.length)]!, config, undefined);
+      state.enemies.push(elite); state.enemyGrid.insert(elite);
+      state.enemiesSpawned++; state.spawnWindowCount++; state.elitesSpawned++;
+    }
+    state.eliteSpawnTimer += 58;
+  }
   const surgeIndex = Math.floor(state.elapsed / config.horde.surgeEvery);
   if (surgeIndex > state.surgeCount && !bossPhase) {
     state.surgeCount = surgeIndex;
@@ -523,12 +640,12 @@ function separateEnemies(state: SimState): void {
 
 export function mergeNearbyPickups(state: SimState): void {
   const grid = state.pickupGrid; const nearby = state.pickupQueryScratch;
-  grid.rebuild(state.pickups, pickup => pickup.value > 0 && pickup.kind !== 'boss-evolution');
+  grid.rebuild(state.pickups, pickup => pickup.value > 0 && (pickup.kind === undefined || pickup.kind === 'xp') && !pickup.recalling);
   const mergeRadius = 20;
   for (const pickup of state.pickups) {
-    if (pickup.value <= 0 || pickup.kind === 'boss-evolution') continue;
+    if (pickup.value <= 0 || (pickup.kind !== undefined && pickup.kind !== 'xp') || pickup.recalling) continue;
     for (const other of grid.queryRadius(pickup.x, pickup.y, mergeRadius, nearby)) {
-      if (other.id <= pickup.id || other.value <= 0 || dist2(pickup, other) > mergeRadius ** 2 || segmentHitsBuilding(state.stage, pickup, other)) continue;
+      if (other.id <= pickup.id || other.value <= 0 || (other.kind !== undefined && other.kind !== 'xp') || other.recalling || dist2(pickup, other) > mergeRadius ** 2 || segmentHitsBuilding(state.stage, pickup, other)) continue;
       const total = pickup.value + other.value;
       const merged = { x: (pickup.x * pickup.value + other.x * other.value) / total, y: (pickup.y * pickup.value + other.y * other.value) / total };
       if (!isWalkable(state.stage, merged.x, merged.y, 0)) continue;
@@ -536,7 +653,7 @@ export function mergeNearbyPickups(state: SimState): void {
     }
   }
   let write = 0;
-  for (const pickup of state.pickups) if (pickup.value > 0) state.pickups[write++] = pickup;
+  for (const pickup of state.pickups) if (!pickup.consumed && ((pickup.kind === undefined || pickup.kind === 'xp') ? pickup.value > 0 || pickup.recalling : true)) state.pickups[write++] = pickup;
   state.pickups.length = write;
 }
 
@@ -696,7 +813,7 @@ function updateNamedBoss(state: SimState, enemy: Enemy, toward: Vec, route: Vec,
 export function updateGame(state: SimState, dt: number, input: InputState, config: RunConfig = standardRun): void {
   if (state.status !== 'playing') return;
   const step = Math.min(dt, 0.05); const p = state.player;
-  state.elapsed += step; p.health = Math.min(p.maxHealth, p.health + p.healthRegen * step); p.invulnerable = Math.max(0, p.invulnerable - step); p.dashCooldown = Math.max(0, p.dashCooldown - step); p.dashTimer = Math.max(0, p.dashTimer - step); state.specialTimer = Math.max(0, state.specialTimer - step);
+  state.elapsed += step; p.health = Math.min(p.maxHealth, p.health + p.healthRegen * step); p.invulnerable = Math.max(0, p.invulnerable - step); p.dashCooldown = Math.max(0, p.dashCooldown - step); p.dashTimer = Math.max(0, p.dashTimer - step); p.infernoCurryTimer = Math.max(0, (p.infernoCurryTimer ?? 0) - step); state.specialTimer = Math.max(0, state.specialTimer - step);
   const startingDash = input.dash && p.dashCooldown === 0;
   if (startingDash) { p.dashTimer = 0.16; p.dashCooldown = DIFFICULTIES[config.difficulty].dashCooldownSeconds; p.invulnerable = Math.max(p.invulnerable, 0.22); }
   const dashX = input.x || (startingDash ? p.facing.x : 0); const dashY = input.y || (startingDash ? p.facing.y : 0);
@@ -714,6 +831,7 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   }
   updateHordeDirector(state, step, config);
   updateGroundWaves(state, step, nearbyEnemies, config);
+  updateInfernoCurry(state, step, nearbyEnemies, config);
   // Orbit Guard entities are both rendered and collision-tested at these exact positions.
   syncOrbitRings(p);
   const orbitRank = p.weaponRanks.orbitGuard;
@@ -796,6 +914,15 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
       if (shot.y <= 1 || shot.y >= config.arenaHeight - 1) { shot.vy *= -1; shot.y = clamp(shot.y, 2, config.arenaHeight - 2); }
       shot.bouncesRemaining!--;
       shatterBurst(state, shot);
+    }
+    if (shot.owner === 'player') {
+      for (const prop of state.props) {
+        if (prop.destroyed || dist2(shot, prop) > 24 ** 2) continue;
+        damageBreakableProp(state, prop, shot.damage, config.difficulty);
+        shot.life = 0;
+        break;
+      }
+      if (shot.life <= 0) continue;
     }
     if (shot.owner === 'player') for (const e of state.enemyGrid.queryRadius(shot.x, shot.y, GANG_LEADER.radius + 9, nearbyEnemies)) {
       if (e.dead || shot.hitIds.includes(e.id) || dist2(shot, e) >= (e.radius + 9) ** 2) continue;
@@ -904,8 +1031,13 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
   if (state.pickupMergeTimer <= 0) { mergeNearbyPickups(state); state.pickupMergeTimer = 0.5; }
   const directPickupRadius = 24;
   for (const pickup of state.pickups) {
-    if (pickup.kind === 'boss-evolution') {
-      const nearReward = dist2(p, pickup) < 34 ** 2 && !segmentHitsBuilding(state.stage, pickup, p);
+    const kind = pickup.kind ?? 'xp';
+    const definition = PICKUPS[kind];
+    pickup.age = (pickup.age ?? 0) + step;
+    if (definition.despawnSeconds !== null && pickup.age >= definition.despawnSeconds) { pickup.consumed = true; continue; }
+    if (pickup.consumed) continue;
+    if (kind === 'boss-evolution') {
+      const nearReward = dist2(p, pickup) < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p);
       if (nearReward) {
         const eligible = eligibleWeaponEvolutions(state);
         if (eligible.length) state.evolutionOptions = eligible.slice(0, 3);
@@ -920,12 +1052,54 @@ export function updateGame(state: SimState, dt: number, input: InputState, confi
       continue;
     }
     const dx = p.x - pickup.x; const dy = p.y - pickup.y; const d2 = dx * dx + dy * dy;
-    if (d2 < directPickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { p.xp += pickup.value * heroicStatMultiplier(p.passiveRanks, 'xp'); p.special = Math.min(100, p.special + pickup.value * 0.42); state.xpCollected += pickup.value; float(state, `+${pickup.value} XP`, pickup.x, pickup.y); pickup.value = 0; }
-    else if (d2 < p.pickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { const distance = Math.sqrt(d2) || 1; pickup.pullSpeed = Math.min(290, (pickup.pullSpeed ?? 0) + 720 * step); const pull = Math.min(distance, pickup.pullSpeed * step); const moved = moveOnStage(state.stage, pickup, { x: dx / distance * pull, y: dy / distance * pull }, 0); pickup.x = moved.x; pickup.y = moved.y; }
-    else pickup.pullSpeed = 0;
+    if (kind === 'xp') {
+      if (pickup.value <= 0) { pickup.consumed = true; continue; }
+      if (pickup.recalling) {
+        pickup.recallElapsed = (pickup.recallElapsed ?? 0) + step;
+        if (!pickup.recallBlocked && segmentHitsBuilding(state.stage, pickup, p)) pickup.recallBlocked = true;
+        if (pickup.recallBlocked) {
+          // A brief, explicit recall pulse handles blocked routes; XP never gets wedged behind a building.
+          if (pickup.recallElapsed >= 0.38) awardCollectedXp(state, pickup);
+        } else {
+          const distance = Math.sqrt(d2) || 1;
+          if (distance <= directPickupRadius) awardCollectedXp(state, pickup);
+          else { const moved = moveOnStage(state.stage, pickup, { x: dx / distance * Math.min(distance, 980 * step), y: dy / distance * Math.min(distance, 980 * step) }, 0); pickup.x = moved.x; pickup.y = moved.y; }
+        }
+      } else if (d2 < directPickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) awardCollectedXp(state, pickup);
+      else if (d2 < p.pickupRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) { const distance = Math.sqrt(d2) || 1; pickup.pullSpeed = Math.min(290, (pickup.pullSpeed ?? 0) + 720 * step); const pull = Math.min(distance, pickup.pullSpeed * step); const moved = moveOnStage(state.stage, pickup, { x: dx / distance * pull, y: dy / distance * pull }, 0); pickup.x = moved.x; pickup.y = moved.y; }
+      else pickup.pullSpeed = 0;
+      continue;
+    }
+    if (kind === 'field-cache' || kind === 'hero-cache') {
+      if (d2 < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) {
+        pickup.consumed = true; openSupplyCache(state, kind);
+        state.messages.push(`${kind === 'hero-cache' ? 'HERO' : 'FIELD'} CACHE OPENED`);
+        break;
+      }
+      continue;
+    }
+    if (kind === 'recovery-rations') {
+      if (d2 < definition.collisionRadius ** 2 && p.health < p.maxHealth && !segmentHitsBuilding(state.stage, pickup, p)) {
+        const recovered = Math.min(p.maxHealth - p.health, Math.max(35, p.maxHealth * 0.2));
+        p.health += recovered; float(state, `+${Math.round(recovered)} HP`, pickup.x, pickup.y); pickup.consumed = true;
+      }
+    } else if (kind === 'xp-recall' && d2 < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) {
+      let recalled = 0;
+      for (const gem of state.pickups) if ((gem.kind ?? 'xp') === 'xp' && gem.value > 0 && !gem.recalling) {
+        gem.recalling = true; gem.recallElapsed = 0; gem.recallBlocked = segmentHitsBuilding(state.stage, gem, p); recalled++;
+      }
+      state.messages.push(recalled ? `XP RECALL · ${recalled} GEM PILES` : 'XP RECALL · NO GEMS LEFT');
+      pickup.consumed = true;
+    } else if (kind === 'inferno-curry' && d2 < definition.collisionRadius ** 2 && !segmentHitsBuilding(state.stage, pickup, p)) {
+      p.infernoCurryTimer = Math.max(p.infernoCurryTimer ?? 0, definition.durationSeconds ?? 8);
+      state.messages.push('INFERNO CURRY · 8 SECONDS'); pickup.consumed = true;
+    }
   }
   let writePickups = 0;
-  for (const pickup of state.pickups) if (pickup.value > 0 || (pickup.kind === 'boss-evolution' && pickup.value === 0 && !pickup.consumed)) state.pickups[writePickups++] = pickup;
+  for (const pickup of state.pickups) {
+    const kind = pickup.kind ?? 'xp';
+    if (!pickup.consumed && (kind !== 'xp' || pickup.value > 0)) state.pickups[writePickups++] = pickup;
+  }
   state.pickups.length = writePickups;
   let writeNumbers = 0;
   for (const number of state.numbers) { number.life -= step; number.y -= 24 * step; if (number.life > 0) state.numbers[writeNumbers++] = number; }

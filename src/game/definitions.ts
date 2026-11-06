@@ -162,8 +162,10 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyDefinition>> = {
   gangster: { kind: 'gangster', health: 38, speed: 40, damage: 4, radius: 15, xp: 22, animation: { asset: '/assets/enemies/street-pitcher-walk-cycle.png', frameWidth: 418, frameHeight: 941, frameCount: 4, frameDurationMs: 150 }, attackAnimation: { asset: '/assets/enemies/street-pitcher-throw-pose.png', frameWidth: 1024, frameHeight: 1536, frameCount: 1, frameDurationMs: 140 }, ranged: { projectile: 'baseball', projectileSpeed: 260, attackInterval: 3.2, telegraphSeconds: 0.62, preferredRange: 265 } },
   bruiser: { kind: 'bruiser', health: 112, speed: 31, damage: 10, radius: 21, xp: 30, prototypeAnimation },
   yoYoPunk: { kind: 'yoYoPunk', health: 44, speed: 46, damage: 13, radius: 15, xp: 28, animation: { asset: '/assets/milestone010/yo-yo-punk/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
-  smiler: { kind: 'smiler', health: 47, speed: 48, damage: 6, radius: 15, xp: 18, animation: { asset: '/assets/milestone010/smiler/walk.png', frameWidth: 256, frameHeight: 170, frameCount: 4, frameDurationMs: 140 } },
-  molar: { kind: 'molar', health: 24, speed: 86, damage: 4, radius: 11, xp: 15, animation: { asset: '/assets/milestone010/molar/walk.png', frameWidth: 256, frameHeight: 170, frameCount: 4, frameDurationMs: 90 } },
+  // Processed sheets are 1024×341: four 256×341 frames. Using 170px clipped
+  // each frame through the body and made the walk cycle appear malformed.
+  smiler: { kind: 'smiler', health: 47, speed: 48, damage: 6, radius: 15, xp: 18, animation: { asset: '/assets/milestone010/smiler/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 140 } },
+  molar: { kind: 'molar', health: 24, speed: 86, damage: 4, radius: 11, xp: 15, animation: { asset: '/assets/milestone010/molar/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 90 } },
   boss: { kind: 'boss', health: GANG_LEADER.health, speed: GANG_LEADER.speed, damage: GANG_LEADER.contactDamage, radius: GANG_LEADER.radius, xp: GANG_LEADER.xp, prototypeAnimation, animation: { asset: '/assets/milestone010/gang-boss/walk.png', frameWidth: 256, frameHeight: 341, frameCount: 4, frameDurationMs: 150 } },
 };
 

@@ -51,3 +51,8 @@ The Street Pitcher remains the supplied baseball thrower. Yo-Yo Punk uses her ow
 Milestone 011 adds no new imported images and does not alter the owner-supplied character files. Starter Ring, Piercing Ring, Orbit Guard ring, Ricochet Ring, Ground Slam wave, and the evolution cache are original renderer-drawn temporary effects guided by owner descriptions. Boulder and spear projectiles use existing procedural PixiJS textures. These adaptations do not assert a final canonical power design. No newly supplied raw artwork or reference image was added.
 
 The consolidated Grand Arsenal update adds no imported artwork. Weapon silhouettes, attack effects, and evolution visuals continue to use original PixiJS-rendered textures/graphics and the existing owner-approved character sprites. The weapon inspiration atlas documents mechanical references only and imports no third-party code, art, or assets.
+# Assignment 012 runtime sprite correction
+
+The processed Smiler and Molar runtime sheets remain the owner-supplied Milestone 010 artwork at `public/assets/milestone010/{smiler,molar}/walk.png`. Each is 1024×341: four 256×341 frames. Their metadata now uses the full 341-pixel frame height. The renderer uses measured per-sheet foot anchors (Smiler y=292/341, Molar y=254/341), fits both to a consistent gameplay role scale, and keeps their world collision radii unchanged. This repairs a metadata crop error; it does not alter or replace the source character designs.
+
+Assignment 012 pickup icons (ration, XP Recall, curry, Field/Hero Cache, and supply box) are generated from small original Pixi vector primitives at runtime and cached as textures. No external pickup artwork or source code was imported.

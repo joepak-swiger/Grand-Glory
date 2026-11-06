@@ -239,3 +239,18 @@ The distinct synthetic paused-scene sweep used 25–200 visible enemies. Scene-u
 | 200 | 1.2 / 1.7 / 4.4 | 81.7 / 100 / 100 | 7 |
 
 The synthetic browser's sampled memory was about 22.0 MiB, with no dropped simulation updates reported. The FPS and whole-frame timing are specific to SwiftShader and must not be treated as desktop GPU performance. The scene-update results do not include all game simulation costs and are not a paired browser comparison against Assignment 010. The hosted screenshots and trace are retained in [browser-evidence artifact 13479210371](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42165501840/artifacts/13479210371). No local browser capture or ordinary Windows GPU run was available.
+# Assignment 012 performance notes
+
+Pickup icons are cached once as Pixi textures. Existing pooled pickup sprites also render the four authored supply boxes, so boxes do not allocate display objects every frame. XP Recall performs one scan of the bounded pickup list on collection and then uses the existing single simulation pass for gem movement/accounting; it does not scan enemies per gem. Curry damage queries the existing enemy spatial grid once per update with a fixed 150-world-unit bound and stores one cooldown per hit enemy. The elite cap is two concurrent entities, and cache inventory has explicit per-tier caps. Before/after timing numbers should be added only from matching benchmark runs; browser hardware acceleration cannot be inferred from headless CI.
+
+The current local seeded simulation benchmark ran on Windows x64 with Node 24.22.1, 120 warm-up updates and 600 measured updates per population. It uses the same benchmark harness as the Consolidated Assignment 011 sample below, but separate processes mean this is directional rather than a paired profile.
+
+| Active enemies | Assignment 011 median / p95 / worst ms | Assignment 012 median / p95 / worst ms |
+|---:|---:|---:|
+| 25 | 0.0274 / 0.1063 / 0.4249 | 0.0480 / 0.1471 / 0.3406 |
+| 50 | 0.0517 / 0.1140 / 0.2758 | 0.0576 / 0.1024 / 0.6347 |
+| 100 | 0.1196 / 0.1716 / 0.3864 | 0.2023 / 0.4087 / 5.7489 |
+| 150 | 0.2060 / 0.2574 / 0.2936 | 0.2927 / 0.4818 / 1.3351 |
+| 200 | 0.2872 / 0.3492 / 0.4762 | 0.4032 / 0.6017 / 0.9774 |
+
+The latest sample is slower at each population median from 50 enemies upward and has a noisy 5.75ms worst update at 100 enemies. All reported p95 values remain under the 16.7ms fixed-step budget, but the results do not demonstrate a performance improvement. These single-run samples cannot attribute the difference to crates, utilities, or runtime noise; run repeated paired trials and browser renderer comparisons before drawing a cause. Local Chromium could not reach its own Vite server because Windows denied localhost socket access, so no new local FPS, renderer, or memory result is available.
