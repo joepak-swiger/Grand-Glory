@@ -100,4 +100,14 @@ GitHub Actions PR run [42165501840](https://github.com/joepak-swiger/Grand-Glory
 
 Focused regression coverage is in `tests/pickups.test.ts`. It reads the processed Smiler and Molar PNG IHDR dimensions and compares them with the declared four-frame clips, then checks pickup registry/drop determinism, full-health ration persistence and healing, XP Recall value/Wisdom accounting, shared directional Curry damage and duration, elite scaling/cache rewards, cache pause/resume, and breakable nonblocking supply boxes. The existing simulation, renderer, E2E, and performance suites remain part of the required checks.
 
-Local browser capture is environment-dependent; record only actual browser evidence under `artifacts/evidence/`. Do not label a simulation test as a human playthrough or claim a SwiftShader run represents desktop GPU rendering.
+Local checks used bundled Node 24.22.1 because the system NVM shim has no active Node selection:
+
+| Check | Command | Result |
+|---|---|---|
+| Strict TypeScript | `node node_modules/typescript/bin/tsc --noEmit` | Passed |
+| Unit tests | `node node_modules/vitest/vitest.mjs run` | 108 passed, 1 optional benchmark skipped |
+| Production build | `node node_modules/typescript/bin/tsc -b` then `node node_modules/vite/bin/vite.js build` | Passed; 728 modules transformed |
+| Simulation benchmark | `node scripts/benchmark-sim.mjs` | Passed; separate-run comparison is in `docs/PERFORMANCE.md` and does not show a speedup |
+| Playwright | `node node_modules/@playwright/test/cli.js test --workers=1` | Local Vite served on a fresh port, but the managed Windows environment denied localhost socket access; the browser suite could not run locally |
+
+Hosted push workflow [42176262364](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42176262364) and PR workflow [42176231225](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42176231225) both passed typecheck, unit tests, production build, and all 9 serial Chromium scenarios. The push run uploaded actual browser screenshots and traces as [browser-evidence-42176262364](https://github.com/joepak-swiger/Grand-Glory/actions/runs/42176262364/artifacts/13483327643), available through November 20, 2026. The captured Chromium run is automated browser verification, not a human playthrough; CI rendering is not evidence of desktop GPU FPS. No local screenshot or human balance result is claimed.
