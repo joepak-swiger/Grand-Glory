@@ -189,6 +189,10 @@ button { font: inherit; color: inherit; pointer-events: auto; cursor: pointer; b
 .hero-choice i { justify-self: end; color: #77d5ff; font-size: 8px; font-style: normal; }
 .hero-select-screen .title-copy > p { margin: 5px 0; }
 .restart-pause { margin: 8px; }
+.build-overview { width: min(680px, calc(100% - 32px)); margin: 12px auto; padding: 14px 18px; border: 1px solid #597086; background: #091725eF; color: #e4eff8; text-align: center; }
+.build-overview strong, .build-overview span, .build-overview small { display: block; margin: 4px 0; }
+.build-overview strong { color: #83ddff; letter-spacing: .12em; }
+.build-overview small { color: #b5c4ce; line-height: 1.5; }
 @media (max-width: 760px) {
   .hero-select-screen { max-height: calc(100vh - 16px); overflow-y: auto; }
   .hero-choices { grid-template-columns: 1fr; }

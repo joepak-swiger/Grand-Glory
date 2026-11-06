@@ -1,5 +1,5 @@
-import { applyEnemyDamage, createGame, damagePlayer, retireRun, spawnEnemy, updateGame, chooseUpgrade, getUpgrade, type InputState, type SimState } from './game/simulation';
-import { ATTACKS, ENEMIES, HEROES, standardRun, testRun, type HeroId, type RunConfig, type UpgradeId } from './game/definitions';
+import { applyEnemyDamage, createGame, damagePlayer, retireRun, spawnEnemy, updateGame, chooseUpgrade, chooseBossReward, getUpgrade, type InputState, type SimState } from './game/simulation';
+import { ATTACKS, ENEMIES, HEROES, HEROIC_TRAITS, WEAPON_EVOLUTIONS, standardRun, testRun, type HeroId, type RunConfig, type UpgradeId, type WeaponEvolutionId, type WeaponId } from './game/definitions';
 import { GameRenderer } from './render/renderer';
 import { nearestWalkablePoint } from './game/stage';
 import { GameAudio } from './game/audio';
@@ -79,7 +79,12 @@ function renderUi(force = false): void {
   const hp = Math.max(0, p.health); const xpPct = Math.min(100, p.xp / p.xpNext * 100);
   let overlay = '';
   if (g.status === 'upgrade') overlay = `<div class="modal-shade"><section class="upgrade-panel"><div class="eyebrow">PLAYER LEVEL ${p.level} · SIMULATION PAUSED</div><h2>Choose your next move</h2><p class="upgrade-subtitle">A new edge for the fight ahead</p><div class="cards">${g.options.map((id, i) => { const u = getUpgrade(id); const category = upgradeCategory(id); const rank = getUpgradeRankProgress(id, p, g.chosen); return `<button class="upgrade-card ${category.className}" data-upgrade="${id}"><span class="card-num">${i + 1}</span><span class="upgrade-icon" aria-hidden="true">${category.icon}</span><span class="upgrade-category">${category.label}</span><strong>${u.title}</strong><b class="upgrade-rank">${rank.label}</b><small>${upgradeDetail(id, p)}</small><span class="card-pick">SELECT <b>${i + 1}</b></span></button>`; }).join('')}</div><small class="choice-hint">Simulation paused · Press 1, 2, or 3 to select</small></section></div>`;
-  if (g.status === 'paused') overlay = menu('PAUSED', 'The city and combat are frozen · '+HEROES[p.heroId].name, 'resume', 'Resume') + `<button class="secondary restart-pause" data-action="restart">Restart Run</button><button class="secondary restart-pause" data-action="retire">Retire Run</button>`;
+  if (g.status === 'boss-reward') overlay = `<div class="modal-shade"><section class="upgrade-panel evolution-panel"><div class="eyebrow">BOSS REWARD · RUN PAUSED</div><h2>Choose a weapon evolution</h2><p class="upgrade-subtitle">This cache stays on the battlefield until you collect it.</p><div class="cards">${g.evolutionOptions.map((id, index) => { const evolution = WEAPON_EVOLUTIONS.find(item => item.id === id); return `<button class="upgrade-card evolution-card" data-reward="${id}"><span class="card-num">${index + 1}</span><span class="upgrade-category">${evolution ? 'WEAPON EVOLUTION' : 'BOSS REWARD'}</span><strong>${evolution?.name ?? (id === 'arsenal-cache' ? 'Arsenal Cache' : 'Field Cache')}</strong><b class="upgrade-rank">${evolution ? `WEAPON RANK ${evolution.requiredRank} · ${HEROIC_TRAITS[evolution.passive].name} REQUIRED` : 'RECOVERY'}</b><small>${evolution?.effect ?? (id === 'arsenal-cache' ? 'Greater recovery and special charge.' : 'Restore health and gain special charge.')}</small><span class="card-pick">SELECT <b>${index + 1}</b></span></button>`; }).join('')}</div><small class="choice-hint">Simulation paused · Press 1, 2, or 3 to select</small></section></div>`;
+  if (g.status === 'paused') {
+    const weaponBuild = (p.heroId === 'blue-pinwheel' ? [weaponLabel(p, 'pinwheel', 'Starter Rings', 'typhoon-rings'), weaponLabel(p, 'orbitGuard', 'Orbit Guard', 'eternal-halo'), weaponLabel(p, 'piercingThrow', 'Piercing Ring'), weaponLabel(p, 'ricochetRing', 'Ricochet Rings', 'shatterstorm')] : p.heroId === 'bok-goo' ? [weaponLabel(p, 'clubSweep', 'Club Sweep', 'earthbreaker'), weaponLabel(p, 'boulderToss', 'Boulder Toss', 'avalanche-toss'), weaponLabel(p, 'groundSlam', 'Ground Slam')] : [weaponLabel(p, 'spearThrust', 'Spear Thrust', 'obsidian-tempest'), weaponLabel(p, 'spearToss', 'Spear Toss', 'returning-lance'), weaponLabel(p, 'spearSweep', 'Spear Sweep')]).filter(Boolean).join(' · ');
+    const passiveBuild = Object.entries(p.passiveRanks).filter(([, rank]) => rank > 0).map(([name, rank]) => `${name.replace(/[A-Z]/g, letter => ` ${letter.toLowerCase()}`)} ${rank}`).join(' · ') || 'No passives selected yet';
+    overlay = menu('PAUSED', 'The city and combat are frozen · '+HEROES[p.heroId].name, 'resume', 'Resume') + `<section class="build-overview"><strong>CURRENT BUILD</strong><span>${weaponBuild}</span><small>${passiveBuild}</small></section><button class="secondary restart-pause" data-action="restart">Restart Run</button><button class="secondary restart-pause" data-action="retire">Retire Run</button>`;
+  }
   if (g.status === 'victory' || g.status === 'defeat' || g.status==='retired') {
     const won = g.status === 'victory'; const retired=g.status==='retired';
     const resultMessage = won ? 'The finite encounter is complete.' : g.endReason === 'boss-escaped' ? 'The Gang Boss escaped after overtime.' : `${HEROES[p.heroId].name} has been overwhelmed.`;
@@ -92,31 +97,55 @@ function renderUi(force = false): void {
   const bossWarning = boss?.attackState === 'ranged-telegraph' ? ' · PROJECTILE WARNING' : boss?.attackState === 'charge-telegraph' ? ' · CHARGE WARNING' : boss?.attackState === 'recovering' ? ' · RECOVERING' : '';
   const bossArrival = bossIntro ? `<div class="boss-arrival" role="status"><span>MAJOR THREAT</span><strong>${boss?.bossId === 'dr-smile' ? 'DR. SMILE' : 'GANG BOSS'}</strong><small>${boss?.bossId === 'dr-smile' ? 'NEW FACTION ENCOUNTER' : 'CHAIN BOSS ENCOUNTER'}</small></div>` : '';
   const activeCount = g.enemies.filter(enemy => enemy.kind !== 'boss').length;
-  const arsenal = p.heroId==='blue-pinwheel' ? [`Ring R${p.weaponRanks.pinwheel}`, p.weaponRanks.orbitGuard ? `Orbit R${p.weaponRanks.orbitGuard}` : '', p.weaponRanks.piercingThrow ? `Piercing Ring R${p.weaponRanks.piercingThrow}` : '', p.evolvedPinwheel ? 'RING EVOLVED' : ''].filter(Boolean).join(' · ') : p.heroId==='bok-goo' ? `Club R${p.weaponRanks.clubSweep} · Boulder R${p.weaponRanks.boulderToss}` : `Spear Thrust R${p.weaponRanks.spearThrust} · Spear Toss R${p.weaponRanks.spearToss}`;
+  const arsenal = (p.heroId === 'blue-pinwheel'
+    ? [weaponLabel(p, 'pinwheel', 'Starter Rings', 'typhoon-rings'), weaponLabel(p, 'orbitGuard', 'Orbit Guard', 'eternal-halo'), weaponLabel(p, 'piercingThrow', 'Piercing Ring'), weaponLabel(p, 'ricochetRing', 'Ricochet Rings', 'shatterstorm')]
+    : p.heroId === 'bok-goo'
+      ? [weaponLabel(p, 'clubSweep', 'Club Sweep', 'earthbreaker'), weaponLabel(p, 'boulderToss', 'Boulder Toss', 'avalanche-toss'), weaponLabel(p, 'groundSlam', 'Ground Slam')]
+      : [weaponLabel(p, 'spearThrust', 'Spear Thrust', 'obsidian-tempest'), weaponLabel(p, 'spearToss', 'Spear Toss', 'returning-lance'), weaponLabel(p, 'spearSweep', 'Spear Sweep')])
+    .filter(Boolean).join(' · ');
+  const loadoutSlots = `WEAPONS ${Object.values(p.weaponRanks).filter(rank => rank > 0).length}/6 · HEROIC TRAITS ${Object.values(p.passiveRanks).filter(rank => rank > 0).length}/6`;
   const factionLabel = g.factionsEncountered.map(faction => faction === 'dr-smile' ? 'DR. SMILE FACTION' : 'STREET GANG').join(' + ');
-  ui.innerHTML = `<header class="hud"><div class="hero-tag"><span class="hero-dot"></span><div><strong>${HEROES[p.heroId].name.toUpperCase()}</strong><small>${HEROES[p.heroId].role}</small></div></div><span class="mode-pill mode-${config.difficulty}">${DIFFICULTIES[config.difficulty].label}</span><div class="health-block"><div class="bar-label"><span>HEALTH</span><b>${Math.ceil(hp)} / ${p.maxHealth}</b></div><div class="bar health-bar"><i class="health-fill" style="width:${hp / p.maxHealth * 100}%"></i></div></div><div class="level-block"><strong>LV ${p.level}</strong><div class="xp-bar"><i style="width:${xpPct}%"></i></div><small>${Math.floor(p.xp)} / ${p.xpNext} XP</small></div><div class="special-block"><span>Q · SPECIAL</span><div class="special-bar"><i style="width:${p.special}%"></i></div><small>${p.special >= 100 ? 'READY' : `${Math.floor(p.special)}%`}</small></div><div class="timer ${overtime ? 'overtime' : ''}">${overtime ? '<small>OVERTIME</small>' : ''}${formatTime(g.elapsed)}</div><button class="pause-button" data-action="pause" aria-label="Pause">Ⅱ</button></header>${boss ? `<div class="boss-hud"><strong>${boss.bossId==='dr-smile'?'DR. SMILE':'GANG BOSS'}${bossWarning}</strong><div class="bar"><i style="width:${boss.health / boss.maxHealth * 100}%"></i></div></div>` : ''}${bossArrival}${g.surgeRemaining > 0 ? `<div class="surge-alert" role="status">HORDE SURGE · FROM THE ${g.surgeDirection.toUpperCase()}</div>` : ''}<footer class="combat-hud"><span>◆ ${factionLabel} · WAVE ${g.completedWaves+1} · ${g.kills} defeated · ${activeCount} active</span><span>${arsenal}</span><span>Shift / Space · Dash ${p.dashCooldown > 0 ? `${p.dashCooldown.toFixed(1)}s` : 'READY'} · ${g.surgeRemaining > 0 ? 'HORDE SURGE' : 'Q · SPECIAL'}</span></footer>${overlay}${debug}`;
+  ui.innerHTML = `<header class="hud"><div class="hero-tag"><span class="hero-dot"></span><div><strong>${HEROES[p.heroId].name.toUpperCase()}</strong><small>${HEROES[p.heroId].role}</small></div></div><span class="mode-pill mode-${config.difficulty}">${DIFFICULTIES[config.difficulty].label}</span><div class="health-block"><div class="bar-label"><span>HEALTH</span><b>${Math.ceil(hp)} / ${p.maxHealth}</b></div><div class="bar health-bar"><i class="health-fill" style="width:${hp / p.maxHealth * 100}%"></i></div></div><div class="level-block"><strong>LV ${p.level}</strong><div class="xp-bar"><i style="width:${xpPct}%"></i></div><small>${Math.floor(p.xp)} / ${p.xpNext} XP</small></div><div class="special-block"><span>Q · SPECIAL</span><div class="special-bar"><i style="width:${p.special}%"></i></div><small>${p.special >= 100 ? 'READY' : `${Math.floor(p.special)}%`}</small></div><div class="timer ${overtime ? 'overtime' : ''}">${overtime ? '<small>OVERTIME</small>' : ''}${formatTime(g.elapsed)}</div><button class="pause-button" data-action="pause" aria-label="Pause">Ⅱ</button></header>${boss ? `<div class="boss-hud"><strong>${boss.bossId==='dr-smile'?'DR. SMILE':'GANG BOSS'}${bossWarning}</strong><div class="bar"><i style="width:${boss.health / boss.maxHealth * 100}%"></i></div></div>` : ''}${bossArrival}${g.surgeRemaining > 0 ? `<div class="surge-alert" role="status">HORDE SURGE · FROM THE ${g.surgeDirection.toUpperCase()}</div>` : ''}<footer class="combat-hud"><span>◆ ${factionLabel} · WAVE ${g.completedWaves+1} · ${g.kills} defeated · ${activeCount} active · ${loadoutSlots}</span><span>${arsenal}</span><span>Shift / Space · Dash ${p.dashCooldown > 0 ? `${p.dashCooldown.toFixed(1)}s` : 'READY'} · ${g.surgeRemaining > 0 ? 'HORDE SURGE' : 'Q · SPECIAL'}</span></footer>${overlay}${debug}`;
   void force;
 }
 function formatTime(seconds: number): string { return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`; }
+function weaponLabel(player: SimState['player'], weapon: WeaponId, baseName: string, evolution?: WeaponEvolutionId): string {
+  const rank = player.weaponRanks[weapon];
+  if (rank <= 0) return '';
+  const evolved = evolution && player.evolutions.includes(evolution) ? WEAPON_EVOLUTIONS.find(item => item.id === evolution)?.name : undefined;
+  return `${evolved ?? baseName} R${rank}`;
+}
 function upgradeDetail(id: UpgradeId, player: SimState['player']): string {
   const nextMultiplier = (values: readonly number[], rank: number) => Math.round((values[Math.min(rank, values.length - 1)] ?? 1) * 100);
   if (id === 'pinwheel') return `Blue ring damage ${nextMultiplier(ATTACKS.pinwheel.rankDamage ?? [1], player.weaponRanks.pinwheel)}% of base${(ATTACKS.pinwheel.rankPierce?.[player.weaponRanks.pinwheel] ?? 0) ? ' · gains piercing' : ''}`;
   if (id === 'orbit') return `Orbiting ring damage ${nextMultiplier(ATTACKS.orbitGuard.rankDamage ?? [1], player.weaponRanks.orbitGuard)}% of base`;
   if (id === 'piercingThrow') return `Piercing ring damage ${nextMultiplier(ATTACKS.piercingThrow.rankDamage ?? [1], player.weaponRanks.piercingThrow)}% of base`;
-  if (id === 'magnet') return `Attraction range ${player.pickupRadius} → ${Math.min(160, player.pickupRadius + 20)} world units`;
-  if (id === 'power') return `+15% damage; evolution prerequisite`;
-  if (id === 'evolvePinwheel') return `Pinwheel ${player.weaponRanks.pinwheel}/${5} · Prototype Power ${player.powerRank}/${2} required. Unlocks +2 piercing and 30% faster starter attacks.`;
+  if (id === 'attraction') return `XP attraction reach: ${player.pickupRadius} → ${Math.min(160, player.pickupRadius + 14)} world units`;
+  if (id === 'might') return `Compatible weapon damage: +10% per rank (${player.passiveRanks.might} → ${player.passiveRanks.might + 1})`;
+  if (id === 'tempo') return `Compatible attack cooldown: −8% per rank (${player.passiveRanks.tempo} → ${player.passiveRanks.tempo + 1})`;
+  if (id === 'multiplicity') return `Compatible bounded volleys: +1 projectile/attack (rank ${player.passiveRanks.multiplicity} → ${Math.min(2, player.passiveRanks.multiplicity + 1)})`;
+  if (id === 'agility') return `Movement speed: +10% per rank (${player.passiveRanks.agility} → ${player.passiveRanks.agility + 1})`;
+  if (id === 'vitality') return `Maximum HP +15% of hero base (${player.maxHealth} → ${player.maxHealth + Math.round(HEROES[player.heroId].maxHealth * 0.15)}); recover the same amount`;
+  if (id === 'regeneration') return `Health regeneration: ${player.healthRegen.toFixed(1)} → ${(player.healthRegen + 0.2).toFixed(1)} HP/s`;
+  if (id === 'reach') return `Compatible attack area/reach: +10% per rank (${player.passiveRanks.reach} → ${player.passiveRanks.reach + 1})`;
+  if (id === 'momentum') return `Projectile speed: +10% per rank (${player.passiveRanks.momentum} → ${player.passiveRanks.momentum + 1})`;
+  if (id === 'persistence') return `Compatible active duration: +10% per rank (${player.passiveRanks.persistence} → ${player.passiveRanks.persistence + 1})`;
+  if (id === 'resilience') return `Incoming damage reduction: ${Math.min(25, player.passiveRanks.resilience * 5)}% → ${Math.min(25, (player.passiveRanks.resilience + 1) * 5)}%`;
+  if (id === 'wisdom') return `XP collected: +8% per rank (${player.passiveRanks.wisdom} → ${player.passiveRanks.wisdom + 1})`;
+  if (id === 'fortune') return `Boss field cache quality chance: ${Math.min(40, player.passiveRanks.fortune * 8)}% → ${Math.min(40, (player.passiveRanks.fortune + 1) * 8)}%`;
   if (id === 'clubSweep') return `Club Sweep ${player.weaponRanks.clubSweep} → ${player.weaponRanks.clubSweep+1}: wider reach and heavier strike`;
   if (id === 'spearThrust') return `Spear Thrust ${player.weaponRanks.spearThrust} → ${player.weaponRanks.spearThrust+1}: longer reach and stronger piercing line`;
-  if (id === 'boulderToss') return player.weaponRanks.boulderToss===0?'Unlocks an aimed heavy boulder projectile':`Boulder Toss ${player.weaponRanks.boulderToss} → ${player.weaponRanks.boulderToss+1}: stronger impact and knockback`;
+  if (id === 'boulderToss') return player.weaponRanks.boulderToss===0?'Unlocks an aimed heavy boulder projectile':`Boulder Toss ${player.weaponRanks.boulderToss} → ${player.weaponRanks.boulderToss+1}: +22% damage; rank 3 adds a second stone`;
   if (id === 'spearToss') return player.weaponRanks.spearToss===0?'Unlocks a long-range piercing spear':`Spear Toss ${player.weaponRanks.spearToss} → ${player.weaponRanks.spearToss+1}: increased damage and piercing`;
+  if (id === 'ricochetRing') return player.weaponRanks.ricochetRing === 0 ? 'Unlocks a blue ring that reflects from a wall up to 1 time; ranks add bounces and damage' : `Ricochet Ring ${player.weaponRanks.ricochetRing} → ${player.weaponRanks.ricochetRing+1}: +24% damage per rank; additional wall bounces at ranks 3 and 5`;
+  if (id === 'groundSlam') return player.weaponRanks.groundSlam === 0 ? 'Unlocks an expanding ground shockwave that hits each enemy once' : `Ground Slam ${player.weaponRanks.groundSlam} → ${player.weaponRanks.groundSlam+1}: wider wave, +20% damage per rank, faster cooldown`;
+  if (id === 'spearSweep') return player.weaponRanks.spearSweep === 0 ? 'Unlocks a broad forward sweep to protect Da-Ri at close range' : `Spear Sweep ${player.weaponRanks.spearSweep} → ${player.weaponRanks.spearSweep+1}: wider reach and +20% damage per rank`;
   return getUpgrade(id).detail;
 }
 function upgradeCategory(id: UpgradeId): { label: string; icon: string; className: string } {
-  if (id === 'evolvePinwheel') return { label: 'WEAPON EVOLUTION', icon: '✦', className: 'evolution-card' };
-  if (['pinwheel','orbit','piercingThrow','clubSweep','boulderToss','spearThrust','spearToss'].includes(id)) return { label: id === 'orbit' || id === 'piercingThrow' ? 'PROTOTYPE WEAPON' : 'WEAPON RANK', icon: id === 'orbit' ? '◉' : '◎', className: 'weapon-card' };
-  if (id === 'power' || id === 'damage' || id === 'tempo' || id === 'extra' || id==='mastery') return { label: 'COMBAT UPGRADE', icon: id === 'tempo' ? '↻' : id === 'extra' ? '✣' : '✦', className: 'combat-card' };
-  return { label: 'FIELD UPGRADE', icon: id === 'speed' ? '➜' : id === 'magnet' ? '✧' : '+', className: 'passive-card' };
+  if (['pinwheel','orbit','piercingThrow','ricochetRing','clubSweep','boulderToss','groundSlam','spearThrust','spearToss','spearSweep'].includes(id)) return { label: id === 'orbit' || id === 'piercingThrow' ? 'WEAPON' : 'WEAPON RANK', icon: id === 'orbit' ? '◉' : '◎', className: 'weapon-card' };
+  if (id === 'might' || id === 'tempo' || id === 'multiplicity' || id==='mastery') return { label: 'HEROIC TRAIT', icon: id === 'tempo' ? '↻' : id === 'multiplicity' ? '✣' : '✦', className: 'combat-card' };
+  return { label: 'FIELD UPGRADE', icon: id === 'agility' ? '➜' : id === 'attraction' ? '✧' : '+', className: 'passive-card' };
 }
 
 function damageSourceSummary(damage: SimState['damageTaken']): string {
@@ -146,6 +175,8 @@ ui.addEventListener('click', e => {
   if(hero&&!game){selectedHero=hero;try{localStorage.setItem('grand-glory-hero',hero);}catch{/* Optional preference. */}audio.play('menu');renderUi(true);return;}
   const upgrade = target.closest<HTMLElement>('[data-upgrade]')?.dataset.upgrade as UpgradeId | undefined;
   if (upgrade && game) { if (chooseUpgrade(game, upgrade)) audio.play('upgrade'); renderUi(true); return; }
+  const reward = target.closest<HTMLElement>('[data-reward]')?.dataset.reward as WeaponEvolutionId | 'field-cache' | undefined;
+  if (reward && game) { if (chooseBossReward(game, reward)) audio.play('upgrade'); renderUi(true); return; }
   const action = target.closest<HTMLElement>('[data-action]')?.dataset.action;
   if (action === 'sound') { audio.toggle(); audio.play('menu'); renderUi(true); return; }
   if (action === 'reduced-motion') { reducedMotion = !reducedMotion; try { localStorage.setItem('grand-glory-reduced-motion', reducedMotion ? 'on' : 'off'); } catch { /* Optional preference. */ } renderer?.setReducedMotion(reducedMotion); document.documentElement.classList.toggle('reduced-motion', reducedMotion); renderUi(true); return; }
@@ -172,9 +203,11 @@ window.addEventListener('keydown', e => {
   if (k === 'f3' && import.meta.env.DEV) { debugVisible = !debugVisible; renderUi(true); }
   if (k === 'f4' && import.meta.env.DEV) { collisionDebugVisible = !collisionDebugVisible; renderer?.setCollisionDebugEnabled(collisionDebugVisible); renderUi(true); }
   if (game?.status === 'upgrade' && ['1', '2', '3'].includes(k)) { const picked = game.options[Number(k) - 1]; if (picked) chooseUpgrade(game, picked); renderUi(true); }
+  if (game?.status === 'boss-reward' && ['1', '2', '3'].includes(k)) { const picked = game.evolutionOptions[Number(k) - 1]; if (picked) chooseBossReward(game, picked); renderUi(true); }
   if (k === 'escape' && game) { if (game.status === 'playing') game.status = 'paused'; else if (game.status === 'paused') game.status = 'playing'; renderUi(true); }
   if (k === 'enter' && !game) start();
   else if (k === 'enter' && game?.status === 'upgrade') { const first = game.options[0]; if (first) chooseUpgrade(game, first); renderUi(true); }
+  else if (k === 'enter' && game?.status === 'boss-reward') { const first = game.evolutionOptions[0]; if (first) chooseBossReward(game, first); renderUi(true); }
   else if (k === 'enter' && game?.status === 'paused') { game.status = 'playing'; renderUi(true); }
   else if (k === 'enter' && game && (game.status === 'victory' || game.status === 'defeat')) start();
 });
