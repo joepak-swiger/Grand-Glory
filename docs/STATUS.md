@@ -1,6 +1,6 @@
 # Project status
 
-## Assignment 014 — The Living World & Asset Library (locally verified; publication pending)
+## Assignment 014 — The Living World & Asset Library (published; open for review)
 
 Started from verified `feature/endless-reward-polish` head `18dda9ad885ee9f9162297fd31540a6805d7e29d` (PR #14 remains open against `feature/supply-drop`; PR #13 is also open; PRs #11/#12 are merged into the feature stack, not `main`). Work is on `feature/living-world-and-asset-library`. The pre-migration scan recorded 338 raster images: 199 tracked, 74 untracked, 65 ignored. All 74 untracked files formerly under public assets were moved to local-only `art-library/` and copied to an in-library recovery backup; both destinations matched the original SHA-256 values. The 20 tracked runtime image/license files were moved using Git renames; source bytes are unchanged. No original art was deleted or overwritten. Newly found art remains local-only; the local backup is not off-device.
 
