@@ -173,7 +173,6 @@ test('standard configuration naturally builds an early horde in the browser', as
   let capturedSurge = false;
   let capturedMultiWeapon = false;
   let capturedEvolution = false;
-  let postBossContinuation: { elapsed: number; bossesDefeated: number; factions: string[] } | null = null;
   const naturalProgression: Array<Record<string, unknown>> = [];
   for (let segment = 0; segment < 26; segment++) {
     const movement = await page.evaluate(() => {
@@ -231,18 +230,6 @@ test('standard configuration naturally builds an early horde in the browser', as
         return [...choices].sort((a, b) => rank(a) - rank(b))[0];
       });
       if (option) await page.locator(`[data-upgrade="${option}"]`).click();
-    }
-    if (!postBossContinuation) {
-      const continuation = await page.evaluate(() => {
-        const state = window.__GG_TEST__?.getState();
-        return state && state.status === 'playing' && state.bossesDefeated > 0
-          ? { elapsed: state.elapsed, bossesDefeated: state.bossesDefeated, factions: [...state.factionsEncountered] }
-          : null;
-      });
-      if (continuation) {
-        postBossContinuation = continuation;
-        await page.screenshot({ path: `${evidence}/13-endless-continues-after-boss.png` });
-      }
     }
     const moment = await page.evaluate(() => { const state = window.__GG_TEST__?.getState(); return state ? { elapsed: state.elapsed, status: state.status } : null; });
     if (!capturedSurge && moment?.status === 'playing') {

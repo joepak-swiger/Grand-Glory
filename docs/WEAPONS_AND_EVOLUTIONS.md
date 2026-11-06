@@ -1,63 +1,64 @@
-# Weapons, passives, and evolutions
+# Weapons, Heroic Traits, and Evolutions
 
-All combat values are provisional gameplay mechanics. Weapon upgrade cards display the skill rank separately from the player's overall level and explain the next rank's effect. The pause screen summarizes the selected hero's weapon ranks and owned passives.
+All names and mechanics in this document are provisional gameplay systems unless identified as owner-approved character identity. Weapon rank is separate from player level. The pause screen summarizes the selected hero's weapon build and owned traits; each level-up card gives the next rank and its effect.
 
 ## Weapon progression
 
-| Hero | Weapon | Rank behavior |
+The active registry is data-driven. Each weapon has five ranks, one owning hero, compatible traits, and rank descriptions. A build may own up to six distinct weapons and six distinct traits; additional ranks remain available for already-owned slots.
+
+| Hero | Weapon | Role and rank behavior |
 |---|---|---|
-| Blue Pinwheel | Starter Ring Throw | Damage increases by rank; later ranks add piercing and reduce cooldown. Split Pattern fires a bounded spread. |
-| Blue Pinwheel | Orbit Guard | Two moving ring entities at ranks 1–2, three at 3–4, four at 5; per-ring contact cooldowns prevent frame-by-frame damage. |
-| Blue Pinwheel | Piercing Ring | Damage, attack interval, and piercing increase across its five ranks. |
-| Blue Pinwheel | Ricochet Ring | Emits a visible ring with a finite bounce budget; it reflects off solid buildings and stage boundaries, then expires. |
-| Bok-Goo | Club Sweep | Directional cone strike; rank 4 schedules a second strike after a short delay. |
-| Bok-Goo | Boulder Toss | Arcing boulder projectile; rank 3 adds a stone, rank 4 adds a small impact splash, and ranks raise damage/piercing. |
-| Bok-Goo | Ground Slam | Expanding wave, each enemy is hit once per wave; ranks improve radius, damage, and cooldown. |
-| Da-Ri | Spear Thrust | Narrow forward piercing hitbox; rank 4 schedules a second thrust. |
-| Da-Ri | Spear Toss | Long piercing spear; rank 4 adds a second projectile. Returning Lance makes spears return through enemies. |
-| Da-Ri | Spear Sweep | Broad defensive forward sweep; ranks improve reach, damage, and cadence. |
+| Blue Pinwheel | Starter Ring Throw | Automatically targets and throws a spinning blue ring; ranks improve damage, cadence, and piercing. |
+| Blue Pinwheel | Orbit Guard | Moving ring entities orbit Blue Pinwheel and damage enemies on contact; ranks add rings and improve area/cadence. |
+| Blue Pinwheel | Piercing Ring | Throws a distinct ring that pierces enemies; ranks improve damage, cadence, and penetration. |
+| Blue Pinwheel | Ricochet Rings | Throws rings that bounce from solid terrain a finite number of times. |
+| Bok-Goo | Club Sweep | Directional close-range strike; rank 4 schedules a timed follow-up. |
+| Bok-Goo | Boulder Toss | Arcing stone projectiles with bounded extra shots and an improved impact area at later ranks. |
+| Bok-Goo | Ground Slam | A timed expanding shockwave; each enemy is hit once per wave. |
+| Da-Ri | Spear Thrust | Narrow forward piercing attack; rank 4 schedules a distinct follow-up thrust. |
+| Da-Ri | Spear Toss | Long-range piercing spear; rank 4 adds a second projectile. |
+| Da-Ri | Spear Sweep | Broad forward melee sweep with rank-based reach and cadence improvements. |
 
-Rapid Rhythm affects subsequent cooldowns for all these player attacks. Velocity Core increases player projectile speed. Wide Impact affects applicable melee and orbit reach/area. Split Pattern's total shot output is capped, even if state is externally modified.
+The renderer only displays simulation-owned projectiles, waves, and Orbit Guard positions. It does not determine damage, attack eligibility, or collision.
 
-## Passives
+## Universal Heroic Traits
 
-There are twelve passive identities, with no more than six distinct passive slots owned at once. Existing passives can still gain ranks after all six slots are occupied.
+All thirteen traits have a five-rank cap except Multiplicity, which has two ranks. Resilience is capped at 25% incoming-damage reduction. Multiplicity only affects weapon attacks with explicitly bounded volleys.
 
-The passive slot in an upgrade selection adapts to current health: critically injured heroes are offered Vitality, Recovery, or Armor before utility passives; healthier heroes see mobility/pickup utility first. It remains one of the three choices, not a forced pick.
+| Trait | Per-rank effect | Compatibility |
+|---|---:|---|
+| Might | +10% damage | All damaging weapons |
+| Tempo | −8% cooldown (bounded at a 0.55 multiplier) | Timed attacks |
+| Reach | +10% attack area, line width, or melee reach | Compatible area and melee attacks |
+| Momentum | +10% projectile speed | Traveling projectiles |
+| Persistence | +10% active duration | Orbit, ricochet, and lingering attacks |
+| Multiplicity | +1 compatible projectile or attack | Bounded volleys; rank cap 2 |
+| Resilience | −5% incoming damage | All damage; total reduction capped at 25% |
+| Vitality | +15% maximum health | All heroes; selection also heals up to the health-cap increase |
+| Regeneration | +0.2 health per second | All heroes |
+| Agility | +10% movement speed | All heroes |
+| Attraction | +14 world units of XP gem attraction reach | Collectible XP; pickup reach is capped at 160 units |
+| Fortune | +8 percentage points of cache-quality chance | Non-evolution boss rewards; total chance capped at 40% |
+| Wisdom | +8% credited XP | Applies when a gem is collected; base gem conservation remains unchanged |
 
-| Passive | Per-rank effect | Limit |
-|---|---|---|
-| Might Training | +30% total player attack damage | 5 ranks |
-| Rapid Rhythm | 20% shorter player weapon intervals, compounding to a 0.4× floor | 5 ranks |
-| Split Pattern | +1 projectile for applicable volleys | 4 ranks; 5 total shots except rank/evolution-specific heavy-weapon bonus |
-| Light Footwork | +12% movement speed | 5 ranks |
-| Vitality | +25 maximum HP and immediate heal up to 25 | 5 ranks |
-| Recovery | +0.45 HP/s | 5 ranks |
-| Wide Pickup | +20 XP attraction range, capped at 160 world units | 5 ranks |
-| Wide Impact | +10% applicable attack area/reach | 5 ranks |
-| Velocity Core | +8% player projectile speed | 5 ranks |
-| Extended Charge | +12% special charge from collected XP | 5 ranks |
-| Armor Plating | 6% incoming-damage reduction, capped at 30% | 5 ranks |
-| Experience Training | +8% XP awarded from each collected gem | 5 ranks |
-
-Damage, cooldown, movement, health, and XP changes are applied by simulation code and are independent of renderer state. `xpCollected` continues to account for the gem's base value; the Experience Training bonus modifies the player's level XP, not gem conservation diagnostics.
+Prosperity, Provocation, Second Chance, and Overdrive remain unavailable because their supporting systems are not implemented. There is no persistent currency, risk-for-reward horde modifier, revival, or difficulty-tradeoff trait in this milestone.
 
 ## Boss-cache evolutions
 
-Boss defeat creates a separate persistent gold cache at a walkable point near the boss. It is not an XP pile and is excluded from XP merging/conservation. Touching it pauses simulation and presents all eligible evolutions; when none is eligible, a recovery/special-charge field cache is offered. The player must select a reward before play resumes.
+Defeating a boss drops a persistent cache near a valid walkable location. Collecting it pauses combat and offers eligible weapon evolutions; if none is eligible, the player receives a useful recovery or field-cache reward. Endless Mode continues after the choice. Evolutions require rank 5 in their base weapon and at least rank 1 of the matching trait.
 
-| Evolution | Requirements | Effect |
+| Evolution | Requirements | Provisional effect |
 |---|---|---|
-| Typhoon Rings | Blue Pinwheel, Starter Ring rank 5, Might Training | Starter rings gain bonus piercing and faster cadence. |
-| Eternal Halo | Blue Pinwheel, Orbit Guard rank 5, Extended Charge | Four orbiting rings get a larger orbit and increased damage. |
-| Shatterstorm | Blue Pinwheel, Ricochet Ring rank 5, Armor Plating | Ricochet rings deal more damage and gain two wall bounces (bounded at five). |
-| Earthbreaker | Bok-Goo, Club Sweep rank 5, Wide Impact | Each sweep releases a wide ground-impact wave. |
-| Avalanche Toss | Bok-Goo, Boulder Toss rank 5, Split Pattern | Boulder volley gains an additional projectile. |
-| Obsidian Tempest | Da-Ri, Spear Thrust rank 5, Rapid Rhythm | Thrusts gain a rapid follow-up and increased damage. |
-| Returning Lance | Da-Ri, Spear Toss rank 5, Velocity Core | Spear projectiles reverse after range and can hit enemies on their return. |
+| Typhoon Rings | Blue Pinwheel · Starter Ring rank 5 · Might | Starter rings gain bonus piercing and shorter cooldown. |
+| Eternal Halo | Blue Pinwheel · Orbit Guard rank 5 · Persistence | Orbit Guard remains active and circles with four damaging rings. |
+| Shatterstorm | Blue Pinwheel · Ricochet Rings rank 5 · Resilience | Ricochet rings create a bounded burst on wall bounces. |
+| Earthbreaker | Bok-Goo · Club Sweep rank 5 · Reach | Club Sweep releases an additional expanding impact wave. |
+| Avalanche Toss | Bok-Goo · Boulder Toss rank 5 · Multiplicity | Boulder Toss launches a wider spread of arcing boulders. |
+| Obsidian Tempest | Da-Ri · Spear Thrust rank 5 · Tempo | Spear Thrust performs a rapid fan of penetrating strikes. |
+| Returning Lance | Da-Ri · Spear Toss rank 5 · Momentum | Thrown spears return along their outward path and can hit enemies again. |
 
-Evolutions are original provisional mechanics using the existing hero/weapon designs; no new character art or canon is implied. The test-only finite encounter mode still supports its existing encounter result flow.
+Fortune cannot satisfy an evolution prerequisite. Its seeded roll only improves the chance of a higher-quality non-evolution boss cache. These mechanics do not define the heroes' canonical powers.
 
-## Implementation review note
+## Historical implementation audit
 
-The Milestone 010 starting code had two concrete ranking issues. `launchHeroProjectile` created exactly one Boulder/Spear projectile even with Split Pattern selected, and Orbit Guard used a periodic radius-damage pulse while the renderer drew non-colliding decorative blades. The player `tempo` upgrade shortened only the currently running timer rather than subsequent cooldowns across all player weapons. The Milestone 011 changes bound volley counts, use a shared cooldown multiplier, and make Orbit Guard render/collide at the same persistent ring positions.
+The preceding narrow Milestone 011 pass fixed bounded Boulder/Spear volley counts, made Orbit Guard's rendered rings match its collision positions, applied Tempo to subsequent weapon cooldowns, clarified rank effects, added Ricochet Ring/Ground Slam/Spear Sweep, and moved evolutions from ordinary level-ups to boss-cache rewards. This consolidated rework retains those systems and replaces the earlier duplicated passive-stat model with the universal trait registry above. See [WEAPON_INSPIRATION_ATLAS.md](WEAPON_INSPIRATION_ATLAS.md) for the archetype inspiration mapping and attribution.
